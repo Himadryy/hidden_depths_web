@@ -17,17 +17,25 @@ body {
     text-align: center;
 }
 
-/* --- Corrected Intro Styling --- */
+/* --- "Zoom Burst" Intro Styling --- */
+#intro-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
+    background-color: var(--background-obsidian); z-index: 100;
+    display: flex; justify-content: center; align-items: center;
+    transition: opacity 0.5s ease-out;
+    opacity: 1;
+}
+#intro-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
 #intro-logo {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
     height: 100px;
     width: 100px;
-    z-index: 100;
     opacity: 0;
-    transition: top 1.5s ease-in-out, left 1.5s ease-in-out, width 1.5s ease-in-out, height 1.5s ease-in-out, opacity 1s ease-in-out;
+}
+#intro-logo.animate {
+    animation: zoom-burst 2s cubic-bezier(0.6, 0, 0.7, 0.2) forwards;
 }
 
 /* --- Main Content Initial State --- */
@@ -37,38 +45,31 @@ body {
     transition: opacity 1.5s ease-in;
     transition-delay: 1.5s;
 }
+#main-content.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* --- Animation Keyframes --- */
+@keyframes zoom-burst {
+    0% { opacity: 0; transform: scale(0.8); }
+    30% { opacity: 1; transform: scale(1); }
+    80% { opacity: 1; transform: scale(1.5); }
+    100% { opacity: 0; transform: scale(50); }
+}
 
 /* --- 3D Background Canvas --- */
 #bg { position: fixed; top: 0; left: 0; z-index: -1; }
 
 /* --- Header & Logo --- */
 header {
-    padding: 2rem 5%;
-    position: fixed;
-    width: 100%;
-    z-index: 10;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    padding: 2rem 5%; position: fixed; width: 100%; z-index: 10;
+    display: flex; justify-content: space-between; align-items: center;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
 }
 .logo { display: flex; align-items: center; gap: 15px; }
-#header-logo {
-    height: 60px;
-    visibility: hidden; /* Starts hidden */
-    opacity: 0;
-    transition: opacity 0.5s ease-in;
-}
-#header-logo.visible {
-    visibility: visible;
-    opacity: 1;
-}
-.logo span, nav {
-    opacity: 0; /* All header text starts hidden */
-    transition: opacity 1s ease-in;
-}
-.logo span.visible, nav.visible {
-    opacity: 1;
-}
+.logo img { height: 60px; }
 .logo span {
     font-family: var(--font-heading); font-size: 1.2rem; font-weight: 600;
     color: var(--accent-gold); letter-spacing: 1px;
@@ -89,9 +90,27 @@ main { padding-top: 150px; }
     transition: filter 0.4s ease-out, opacity 0.4s ease-out;
 }
 .hero h1 { font-family: var(--font-heading); font-size: 3.5rem; color: white; mix-blend-mode: difference; }
-.content-section h2 { font-family: var(--font-heading); font-size: 2.5rem; color: var(--accent-gold); margin-bottom: 1.5rem; }
-.hero p, .content-section p { font-size: 1.2rem; line-height: 1.6; }
-.hero p { color: white; mix-blend-mode: difference; }
+.hero p { font-size: 1.2rem; line-height: 1.6; color: white; mix-blend-mode: difference; }
+
+/* CORRECTED: Content Section Text Styling */
+.content-section h2 {
+    font-family: var(--font-heading);
+    font-size: 2.5rem;
+    color: var(--accent-gold); /* Solid golden color */
+    margin-bottom: 1.5rem;
+    text-shadow: 0 0 8px rgba(0,0,0,0.8); /* Add shadow for readability */
+    position: relative; /* Needed for z-index to work */
+    z-index: 5; /* Ensure it's above the 3D scene */
+}
+.content-section p {
+    font-size: 1.2rem;
+    line-height: 1.6;
+    color: white; /* Base color is white */
+    mix-blend-mode: difference; /* Inverts against the background */
+    position: relative; /* Needed for z-index to work */
+    z-index: 5; /* Ensure it's above the 3D scene */
+}
+
 .cta-button {
     background-color: var(--accent-gold); color: var(--background-obsidian);
     font-family: var(--font-heading); font-weight: 600; text-decoration: none;
@@ -100,12 +119,120 @@ main { padding-top: 150px; }
     transition: transform 0.2s ease; position: relative; z-index: 5;
 }
 .cta-button:hover { transform: scale(1.05); }
+
+/* --- Vertical Carousel Styling --- */
+#carousel-section {
+    min-height: 100vh;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    gap: 2rem;
+    padding: 50px 5%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+.carousel-text-content {
+    text-align: left;
+    opacity: 1;
+    transition: opacity 0.5s ease-in-out;
+    position: relative; /* Ensure z-index works */
+    z-index: 5;
+}
+.carousel-text-content.is-fading {
+    opacity: 0;
+}
+.carousel-text-content h2 {
+    font-family: var(--font-heading);
+    font-size: 3.5rem;
+    margin-bottom: 1.5rem;
+    color: white;
+    mix-blend-mode: difference;
+}
+.carousel-text-content p {
+    font-size: 1.2rem;
+    line-height: 1.6;
+    opacity: 0.8;
+    max-width: 400px;
+    color: white;
+    mix-blend-mode: difference;
+}
+#card-carousel {
+    height: 500px;
+    position: relative;
+    perspective: 1000px;
+}
+.slide {
+    width: 250px;
+    height: 380px;
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform-origin: center center;
+    transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                opacity 1.2s ease, 
+                filter 1.2s ease;
+}
+.slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.slide.active {
+    transform: translate(-50%, -50%) scale(1.1);
+    opacity: 1;
+    z-index: 10;
+    filter: blur(0);
+}
+.slide.prev {
+    transform: translate(-50%, -80%) scale(0.9);
+    opacity: 0.4;
+    z-index: 9;
+    filter: blur(4px);
+}
+.slide.next {
+    transform: translate(-50%, -20%) scale(0.9);
+    opacity: 0.4;
+    z-index: 9;
+    filter: blur(4px);
+}
+.slide.hidden {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+    z-index: 8;
+}
+
 footer { padding: 4rem; }
 
 /* --- Mobile Responsiveness --- */
+@media (max-width: 900px) {
+    #carousel-section {
+        grid-template-columns: 1fr;
+        text-align: center;
+        gap: 4rem;
+    }
+    .carousel-text-content {
+        text-align: center;
+        order: 1;
+    }
+    #card-carousel {
+        order: 2;
+        height: 400px;
+    }
+    .carousel-text-content p {
+        margin: 0 auto;
+    }
+}
+
 @media (max-width: 768px) {
-    #header-logo { height: 40px; }
+    .logo img { height: 40px; }
     .logo span { font-size: 1rem; }
     .hero h1 { font-size: 2.5rem; }
     .content-section h2 { font-size: 2rem; }
+    .carousel-text-content h2 { font-size: 2.5rem; }
+    #card-carousel { height: 350px; }
+    .slide { width: 180px; height: 260px; }
 }

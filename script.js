@@ -1,58 +1,113 @@
-// --- Corrected "Flying Logo" Intro ---
+// --- Intro & Main Logic ---
 window.addEventListener('load', () => {
+    // --- "Zoom Burst" Intro Logic ---
+    const introOverlay = document.getElementById('intro-overlay');
     const introLogo = document.getElementById('intro-logo');
-    const headerLogo = document.getElementById('header-logo'); // The real, hidden logo
     const mainContent = document.getElementById('main-content');
-    const headerText = document.querySelector('.logo span');
-    const nav = document.querySelector('nav');
+    
+    introLogo.classList.add('animate');
+    mainContent.classList.add('visible');
 
-    // --- The Animation Sequence ---
-
-    // 1. Fade the intro logo in at the center
     setTimeout(() => {
-        introLogo.style.opacity = '1';
-    }, 100);
+        introOverlay.classList.add('hidden');
+    }, 2000);
 
-    // 2. After a pause, calculate the destination and start the flight
-    setTimeout(() => {
-        // Get the exact position and size of the final, hidden header logo
-        const destination = headerLogo.getBoundingClientRect();
+    // --- Carousel Slider Logic ---
+const slidesData = [
+    {
+        title: "Holistic Well-being",
+        description: "True wealth is found in a healthy mind, body, and spirit.",
+        imageUrl: "assets/wellbeing.jpg" // Local path
+    },
+    {
+        title: "Physical & Mental Health",
+        description: "Nurturing your body and mind is the foundation of a fulfilling life.",
+        imageUrl: "assets/health.jpg" // Local path
+    },
+    {
+        title: "Mind-Body Harmony",
+        description: "Discover the powerful connection between your thoughts and your physical state.",
+        imageUrl: "assets/harmony.mp4" // Local path
+    },
+    {
+        title: "Ethics & Empathy",
+        description: "Building a better world starts with understanding and compassion for all.",
+        imageUrl: "assets/ethics.jpg" // Local path
+    },
+    {
+        title: "Talk Freely, Live Happily",
+        description: "A sweet conversation is the key to unlocking a happier, more authentic life.",
+        imageUrl: "assets/happiness.mp4" // Local path
+    }
+];
 
-        // Apply these values to the intro logo to make it "fly"
-        introLogo.style.left = `${destination.left}px`;
-        introLogo.style.top = `${destination.top}px`;
-        introLogo.style.width = `${destination.width}px`;
-        introLogo.style.height = `${destination.height}px`;
+    const carousel = document.getElementById('card-carousel');
+    const titleEl = document.getElementById('carousel-title');
+    const descEl = document.getElementById('carousel-description');
+    const textContentEl = document.querySelector('.carousel-text-content');
 
-        // At the same time, fade in the main content and the rest of the header
-        mainContent.style.visibility = 'visible';
-        mainContent.style.opacity = '1';
-        headerText.classList.add('visible');
-        nav.classList.add('visible');
+    slidesData.forEach(slideData => {
+        const slideEl = document.createElement('div');
+        slideEl.classList.add('slide', 'hidden');
+        const img = document.createElement('img');
+        img.src = slideData.imageUrl;
+        slideEl.appendChild(img);
+        carousel.appendChild(slideEl);
+    });
 
-        // 3. The Handoff: After the flight animation is complete,
-        // hide the intro logo and show the real header logo.
+    const slideElements = document.querySelectorAll('.slide');
+    let currentIndex = 0;
+    let isAnimating = false;
+
+    function goToSlide(index) {
+        if (isAnimating) return;
+        isAnimating = true;
+
+        const totalSlides = slidesData.length;
+        const prevIndex = (index - 1 + totalSlides) % totalSlides;
+        const nextIndex = (index + 1) % totalSlides;
+
+        // 1. Start fade-out
+        textContentEl.classList.add('is-fading');
+        
+        // 2. After fade-out is complete, change text and fade back in
         setTimeout(() => {
-            introLogo.style.opacity = '0';
-            headerLogo.classList.add('visible');
-        }, 1500); // This should match the CSS transition duration
+            titleEl.textContent = slidesData[index].title;
+            descEl.textContent = slidesData[index].description;
+            textContentEl.classList.remove('is-fading');
+        }, 500);
+        
+        slideElements.forEach((slide, i) => {
+            slide.classList.remove('active', 'prev', 'next', 'hidden');
+            if (i === index) { slide.classList.add('active'); } 
+            else if (i === prevIndex) { slide.classList.add('prev'); } 
+            else if (i === nextIndex) { slide.classList.add('next'); } 
+            else { slide.classList.add('hidden'); }
+        });
+        
+        currentIndex = index;
 
-    }, 2000); // Start the flight after 2 seconds
+        setTimeout(() => {
+            isAnimating = false;
+        }, 1200);
+    }
+
+    setInterval(() => {
+        const nextIndex = (currentIndex + 1) % slidesData.length;
+        goToSlide(nextIndex);
+    }, 5000);
+    
+    goToSlide(0);
 });
 
-
-// --- Part 1: Setup and Scene Creation (Full 3D Script) ---
+// --- Part 1: Setup and Scene Creation ---
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({
-    canvas: document.querySelector('#bg'),
-    alpha: true
-});
+const renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('#bg'), alpha: true });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 camera.position.setZ(30);
 const clock = new THREE.Clock();
-
 const orbGeometry = new THREE.IcosahedronGeometry(5.5, 512);
 const orbMaterial = new THREE.ShaderMaterial({
     vertexShader: `
@@ -70,7 +125,6 @@ const orbMaterial = new THREE.ShaderMaterial({
 const orb = new THREE.Mesh(orbGeometry, orbMaterial);
 orb.position.y = -3;
 scene.add(orb);
-
 const starVertices = [];
 for (let i = 0; i < 15000; i++) { const x = (Math.random() - 0.5) * 2000; const y = (Math.random() - 0.5) * 2000; const z = (Math.random() - 0.5) * 2000; starVertices.push(x, y, z); }
 const starGeometry = new THREE.BufferGeometry();
@@ -92,7 +146,6 @@ const starMaterial = new THREE.ShaderMaterial({
 });
 const stars = new THREE.Points(starGeometry, starMaterial);
 scene.add(stars);
-
 let mouseX = 0, mouseY = 0;
 document.addEventListener('mousemove', (event) => { mouseX = event.clientX; mouseY = event.clientY; });
 function animate() {
@@ -113,7 +166,6 @@ function animate() {
     renderer.render(scene, camera);
 }
 animate();
-
 const sectionsToAnimate = document.querySelectorAll('.content-section');
 const navLinks = document.querySelectorAll('nav a');
 let scrollTimeout;
@@ -121,7 +173,6 @@ function updateScrollAnimations() { const viewportHeight = window.innerHeight; s
 window.addEventListener('scroll', () => { clearTimeout(scrollTimeout); scrollTimeout = setTimeout(updateScrollAnimations, 10); });
 navLinks.forEach(link => { link.addEventListener('click', function(e) { e.preventDefault(); const targetId = this.getAttribute('href'); const targetSection = document.querySelector(targetId); if (targetSection) { targetSection.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }); });
 updateScrollAnimations();
-
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
