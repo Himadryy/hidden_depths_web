@@ -87,12 +87,28 @@ main { padding-top: 150px; }
 .hero, .content-section {
     max-width: 800px; margin: 0 auto; padding: 50px 20px;
     min-height: 80vh; display: flex; flex-direction: column; justify-content: center;
-    transition: filter 0.4s ease-out, opacity 0.4s ease-out;
 }
 .hero h1 { font-family: var(--font-heading); font-size: 3.5rem; color: white; mix-blend-mode: difference; }
-.content-section h2 { font-family: var(--font-heading); font-size: 2.5rem; color: var(--accent-gold); margin-bottom: 1.5rem; }
-.hero p, .content-section p { font-size: 1.2rem; line-height: 1.6; }
-.hero p { color: white; mix-blend-mode: difference; }
+.hero p { font-size: 1.2rem; line-height: 1.6; color: white; mix-blend-mode: difference; }
+
+.content-section h2 {
+    font-family: var(--font-heading);
+    font-size: 2.5rem;
+    color: var(--accent-gold);
+    margin-bottom: 1.5rem;
+    text-shadow: 0 0 8px rgba(0,0,0,0.8);
+    position: relative;
+    z-index: 5;
+}
+.content-section p {
+    font-size: 1.2rem;
+    line-height: 1.6;
+    color: white;
+    mix-blend-mode: difference;
+    position: relative;
+    z-index: 5;
+}
+
 .cta-button {
     background-color: var(--accent-gold); color: var(--background-obsidian);
     font-family: var(--font-heading); font-weight: 600; text-decoration: none;
@@ -100,7 +116,9 @@ main { padding-top: 150px; }
     margin-top: 2rem; display: inline-block;
     transition: transform 0.2s ease; position: relative; z-index: 5;
 }
-.cta-button:hover { transform: scale(1.05); }
+.cta-button:hover {
+    transform: scale(1.05);
+}
 
 /* --- Vertical Carousel Styling --- */
 #carousel-section {
@@ -116,26 +134,28 @@ main { padding-top: 150px; }
 }
 .carousel-text-content {
     text-align: left;
-    opacity: 1; /* Start visible */
-    transition: opacity 0.5s ease-in-out; /* Define the transition */
+    opacity: 1;
+    transition: opacity 0.5s ease-in-out;
+    position: relative;
+    z-index: 5;
 }
 .carousel-text-content.is-fading {
-    opacity: 0; /* Class to trigger the fade */
+    opacity: 0;
 }
 .carousel-text-content h2 {
     font-family: var(--font-heading);
     font-size: 3.5rem;
     margin-bottom: 1.5rem;
-    color: white; /* UPDATED: Set base color */
-    mix-blend-mode: difference; /* UPDATED: Add blend mode */
+    color: white;
+    mix-blend-mode: difference;
 }
 .carousel-text-content p {
     font-size: 1.2rem;
     line-height: 1.6;
-    opacity: 0.8;
     max-width: 400px;
-    color: white; /* UPDATED: Set base color */
-    mix-blend-mode: difference; /* UPDATED: Add blend mode */
+    color: white;
+    mix-blend-mode: difference;
+    opacity: 1; /* CORRECTED: Was 0.8, which breaks blend mode */
 }
 #card-carousel {
     height: 500px;
@@ -156,7 +176,7 @@ main { padding-top: 150px; }
                 opacity 1.2s ease, 
                 filter 1.2s ease;
 }
-.slide img {
+.slide img, .slide video {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -187,8 +207,8 @@ main { padding-top: 150px; }
 
 footer { padding: 4rem; }
 
-/* Mobile Responsiveness */
-@media (max-width: 900px) { /* Widened breakpoint for better layout */
+/* --- Mobile Responsiveness --- */
+@media (max-width: 900px) {
     #carousel-section {
         grid-template-columns: 1fr;
         text-align: center;
@@ -196,10 +216,10 @@ footer { padding: 4rem; }
     }
     .carousel-text-content {
         text-align: center;
-        order: 1; /* Text first */
+        order: 1;
     }
     #card-carousel {
-        order: 2; /* Images second */
+        order: 2;
         height: 400px;
     }
     .carousel-text-content p {
@@ -211,8 +231,7 @@ footer { padding: 4rem; }
     .logo img { height: 40px; }
     .logo span { font-size: 1rem; }
     .hero h1 { font-size: 2.5rem; }
-    .content-section h2 { font-size: 2rem; }
-    .carousel-text-content h2 { font-size: 2.5rem; }
+    .content-section h2, .carousel-text-content h2 { font-size: 2.5rem; }
     #card-carousel { height: 350px; }
     .slide { width: 180px; height: 260px; }
 }
