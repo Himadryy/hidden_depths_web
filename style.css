@@ -90,27 +90,9 @@ main { padding-top: 150px; }
     transition: filter 0.4s ease-out, opacity 0.4s ease-out;
 }
 .hero h1 { font-family: var(--font-heading); font-size: 3.5rem; color: white; mix-blend-mode: difference; }
-.hero p { font-size: 1.2rem; line-height: 1.6; color: white; mix-blend-mode: difference; }
-
-/* CORRECTED: Content Section Text Styling */
-.content-section h2 {
-    font-family: var(--font-heading);
-    font-size: 2.5rem;
-    color: var(--accent-gold); /* Solid golden color */
-    margin-bottom: 1.5rem;
-    text-shadow: 0 0 8px rgba(0,0,0,0.8); /* Add shadow for readability */
-    position: relative; /* Needed for z-index to work */
-    z-index: 5; /* Ensure it's above the 3D scene */
-}
-.content-section p {
-    font-size: 1.2rem;
-    line-height: 1.6;
-    color: white; /* Base color is white */
-    mix-blend-mode: difference; /* Inverts against the background */
-    position: relative; /* Needed for z-index to work */
-    z-index: 5; /* Ensure it's above the 3D scene */
-}
-
+.content-section h2 { font-family: var(--font-heading); font-size: 2.5rem; color: var(--accent-gold); margin-bottom: 1.5rem; }
+.hero p, .content-section p { font-size: 1.2rem; line-height: 1.6; }
+.hero p { color: white; mix-blend-mode: difference; }
 .cta-button {
     background-color: var(--accent-gold); color: var(--background-obsidian);
     font-family: var(--font-heading); font-weight: 600; text-decoration: none;
@@ -134,28 +116,26 @@ main { padding-top: 150px; }
 }
 .carousel-text-content {
     text-align: left;
-    opacity: 1;
-    transition: opacity 0.5s ease-in-out;
-    position: relative; /* Ensure z-index works */
-    z-index: 5;
+    opacity: 1; /* Start visible */
+    transition: opacity 0.5s ease-in-out; /* Define the transition */
 }
 .carousel-text-content.is-fading {
-    opacity: 0;
+    opacity: 0; /* Class to trigger the fade */
 }
 .carousel-text-content h2 {
     font-family: var(--font-heading);
     font-size: 3.5rem;
     margin-bottom: 1.5rem;
-    color: white;
-    mix-blend-mode: difference;
+    color: white; /* UPDATED: Set base color */
+    mix-blend-mode: difference; /* UPDATED: Add blend mode */
 }
 .carousel-text-content p {
     font-size: 1.2rem;
     line-height: 1.6;
     opacity: 0.8;
     max-width: 400px;
-    color: white;
-    mix-blend-mode: difference;
+    color: white; /* UPDATED: Set base color */
+    mix-blend-mode: difference; /* UPDATED: Add blend mode */
 }
 #card-carousel {
     height: 500px;
@@ -207,8 +187,8 @@ main { padding-top: 150px; }
 
 footer { padding: 4rem; }
 
-/* --- Mobile Responsiveness --- */
-@media (max-width: 900px) {
+/* Mobile Responsiveness */
+@media (max-width: 900px) { /* Widened breakpoint for better layout */
     #carousel-section {
         grid-template-columns: 1fr;
         text-align: center;
@@ -216,10 +196,10 @@ footer { padding: 4rem; }
     }
     .carousel-text-content {
         text-align: center;
-        order: 1;
+        order: 1; /* Text first */
     }
     #card-carousel {
-        order: 2;
+        order: 2; /* Images second */
         height: 400px;
     }
     .carousel-text-content p {
