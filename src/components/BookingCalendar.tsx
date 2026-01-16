@@ -61,10 +61,10 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
 
         // EmailJS Integration
         await emailjs.send(
-            'service_sez2cbc', // Service ID
-            'template_znieakk', // Template ID
+            process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!, // Service ID
+            process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!, // Template ID
             templateParams,
-            'igQZndS9gfVVllNJm' // Public Key
+            process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY! // Public Key
         );
         
         console.log("Booking email sent successfully!");
