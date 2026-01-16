@@ -63,9 +63,9 @@ export default function Carousel() {
         if (position === 0) {
             return `${baseClasses} z-20 scale-110 opacity-100 blur-0 -translate-y-1/2`; // Active (Center)
         } else if (position === total - 1) {
-            return `${baseClasses} z-10 scale-90 opacity-40 blur-[2px] -translate-y-[80%]`; // Previous (Up)
+            return `${baseClasses} z-10 scale-90 opacity-40 blur-0 md:blur-[2px] -translate-y-[80%]`; // Previous (Up)
         } else if (position === 1) {
-            return `${baseClasses} z-10 scale-90 opacity-40 blur-[2px] -translate-y-[20%]`; // Next (Down)
+            return `${baseClasses} z-10 scale-90 opacity-40 blur-0 md:blur-[2px] -translate-y-[20%]`; // Next (Down)
         } else {
             return `${baseClasses} z-0 scale-75 opacity-0 pointer-events-none -translate-y-1/2`; // Hidden
         }
@@ -105,7 +105,7 @@ export default function Carousel() {
                         {slide.type === 'video' ? (
                             <video 
                                 src={slide.imageUrl} 
-                                autoPlay 
+                                autoPlay={index === i} // Only play if active
                                 loop 
                                 muted 
                                 playsInline 

@@ -250,8 +250,9 @@ const PrismaticBurst = ({
     const container = containerRef.current;
     if (!container) return;
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const renderer = new Renderer({ dpr, alpha: false, antialias: false });
+    // OPTIMIZATION: Cap DPR at 1.5 for mobile performance (instead of 2 or 3)
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const renderer = new Renderer({ dpr, alpha: false, antialias: false, depth: false }); // Disable depth buffer for 2D shader
     rendererRef.current = renderer;
 
     const gl = renderer.gl;
