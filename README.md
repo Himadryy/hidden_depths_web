@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hidden Depths - A Space to Think
 
-## Getting Started
+**Hidden Depths** is a digital sanctuary designed for clarity and guided thinking. It offers a unique, confidential environment for individuals who need a focused space to process their thoughts away from the distractions of traditional video calls.
 
-First, run the development server:
+![Project Preview](/public/logo.png)
 
+## ✨ Features
+
+- **Focused Anonymity:** A design philosophy centered on user comfort and guided reflection.
+- **Interactive Media Carousel:** A smooth, 3D card-stack experience for navigating core concepts.
+- **Prismatic Background:** High-performance WebGL animations (OGL) providing a meditative visual anchor.
+- **Custom Booking System:** Integrated calendar and scheduling system with direct email notifications via EmailJS.
+- **Modern UI/UX:** Built with Tailwind CSS and Framer Motion for a premium, responsive feel.
+- **Performance Optimized:** Leveraging Next.js 16 features like optimized images and metadata.
+
+## 🛠️ Tech Stack
+
+- **Framework:** [Next.js 16](https://nextjs.org/) (App Router)
+- **Styling:** [Tailwind CSS](https://tailwindcss.com/)
+- **Animations:** [Framer Motion](https://www.framer.com/motion/) & [OGL](https://github.com/o-g-l/ogl) (WebGL)
+- **Icons:** [Lucide React](https://lucide.dev/)
+- **Email Service:** [EmailJS](https://www.emailjs.com/)
+
+## 🚀 Getting Started
+
+### 1. Clone the repository
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/Himadryy/hidden_depths_web.git
+cd hidden_depths_web
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Install dependencies
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Environment Setup
+Create a `.env.local` file in the root directory and add your EmailJS credentials:
+```env
+NEXT_PUBLIC_EMAILJS_SERVICE_ID=your_service_id
+NEXT_PUBLIC_EMAILJS_TEMPLATE_ID=your_template_id
+NEXT_PUBLIC_EMAILJS_PUBLIC_KEY=your_public_key
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. Run the development server
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) to see the result.
 
-## Learn More
+## 📦 Deployment
 
-To learn more about Next.js, take a look at the following resources:
+This project is optimized for deployment on the [Vercel Platform](https://vercel.com/new).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Push your code to GitHub.
+2. Connect your repository to Vercel.
+3. Add the Environment Variables from your `.env.local` to the Vercel project settings.
+4. Deploy!
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+&copy; 2025 Hidden Depths. All Rights Reserved.
