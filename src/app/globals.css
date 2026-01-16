@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+:root {
+  --background-obsidian: #0A0A0A;
+  --accent-gold: #E0B873;
+  --text-light: #F5F5F5;
+  --font-heading: 'Montserrat', sans-serif;
+  --font-body: 'Lato', sans-serif;
+}
+
+body {
+  background-color: transparent;
+  color: var(--text-light);
+  font-family: var(--font-body);
+}
+
+@theme {
+  --font-display: "Montserrat", "sans-serif";
+  --font-body: "Lato", "sans-serif";
+  --color-gold: #E0B873;
+  --color-obsidian: #0A0A0A;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #E0B873;
+}
+
+/* Custom Text Shadow for Blend Mode Compatibility */
+.text-shadow {
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+}
+.text-shadow-sm {
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.7);
+}
