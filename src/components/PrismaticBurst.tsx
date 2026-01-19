@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Renderer, Program, Mesh, Triangle, Texture } from 'ogl';
+import { usePerformance } from '@/context/PerformanceProvider';
 
 type Offset = { x?: number | string; y?: number | string };
 type AnimationType = 'rotate' | 'rotate3d' | 'hover';
@@ -46,6 +47,7 @@ uniform vec2  uOffset;
 uniform sampler2D uGradient;
 uniform float uNoiseAmount;
 uniform int   uRayCount;
+uniform int   uTier; // 0: low, 1: mid, 2: high
 
 float hash21(vec2 p){
     p = floor(p);
@@ -61,9 +63,13 @@ float layeredNoise(vec2 fragPx){
     float n = 0.0;
     n += 0.40 * hash21(q);
     n += 0.25 * hash21(q * 2.0 + 17.0);
-    n += 0.20 * hash21(q * 4.0 + 47.0);
-    n += 0.10 * hash21(q * 8.0 + 113.0);
-    n += 0.05 * hash21(q * 16.0 + 191.0);
+    if (uTier > 0) {
+      n += 0.20 * hash21(q * 4.0 + 47.0);
+      n += 0.10 * hash21(q * 8.0 + 113.0);
+    }
+    if (uTier > 1) {
+      n += 0.05 * hash21(q * 16.0 + 191.0);
+    }
     return n;
 }
 
@@ -130,7 +136,12 @@ void main(){
       hoverMat = rotY(ang.y) * rotX(ang.x);
     }
 
-    for (int i = 0; i < 44; ++i) {
+    // Adaptive loop count based on uTier
+    // LOW TIER OPTIMIZATION: Drastically reduce steps for budget devices (Samsung F15, etc.)
+    int maxSteps = (uTier == 0) ? 12 : (uTier == 1) ? 36 : 48;
+
+    for (int i = 0; i < 48; ++i) {
+        if (i >= maxSteps) break;
         vec3 P = marchT * dir;
         P.z -= 2.0;
         float rad = length(P);
@@ -188,7 +199,8 @@ void main(){
     col *= uIntensity;
 
     fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
-}`;
+}
+`;
 
 const hexToRgb01 = (hex: string): [number, number, number] => {
   let h = hex.trim();
@@ -238,6 +250,7 @@ const PrismaticBurst = ({
   const isVisibleRef = useRef<boolean>(true);
   const meshRef = useRef<Mesh | null>(null);
   const triRef = useRef<Triangle | null>(null);
+  const { tier, isLoaded } = usePerformance();
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -248,11 +261,15 @@ const PrismaticBurst = ({
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !isLoaded) return;
 
-    // OPTIMIZATION: Cap DPR at 1.5 for mobile performance (instead of 2 or 3)
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-    const renderer = new Renderer({ dpr, alpha: false, antialias: false, depth: false }); // Disable depth buffer for 2D shader
+    // PERFORMANCE OPTIMIZATION: Dynamic DPR based on tier
+    let dpr = 1.0;
+    if (tier === 'high') dpr = Math.min(window.devicePixelRatio || 1, 2.0);
+    else if (tier === 'mid') dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    else dpr = 0.75; // Sub-pixel rendering for low-end to save fill-rate
+
+    const renderer = new Renderer({ dpr, alpha: false, antialias: false, depth: false });
     rendererRef.current = renderer;
 
     const gl = renderer.gl;
@@ -294,7 +311,8 @@ const PrismaticBurst = ({
         uOffset: { value: [0, 0] as [number, number] },
         uGradient: { value: gradientTex },
         uNoiseAmount: { value: 0.8 },
-        uRayCount: { value: 0 }
+        uRayCount: { value: 0 },
+        uTier: { value: tier === 'high' ? 2 : tier === 'mid' ? 1 : 0 }
       }
     });
 
@@ -339,8 +357,6 @@ const PrismaticBurst = ({
       );
       io.observe(container);
     }
-    const onVis = () => {};
-    document.addEventListener('visibilitychange', onVis);
 
     let raf = 0;
     let last = performance.now();
@@ -374,7 +390,6 @@ const PrismaticBurst = ({
       ro?.disconnect();
       if (!ro) window.removeEventListener('resize', resize);
       io?.disconnect();
-      document.removeEventListener('visibilitychange', onVis);
       try {
         container.removeChild(gl.canvas);
       } catch (e) {
@@ -392,7 +407,7 @@ const PrismaticBurst = ({
       rendererRef.current = null;
       gradTexRef.current = null;
     };
-  }, []);
+  }, [tier, isLoaded]); // Re-init if tier changes (rare) or when loaded
 
   useEffect(() => {
     const canvas = rendererRef.current?.gl?.canvas as HTMLCanvasElement | undefined;
