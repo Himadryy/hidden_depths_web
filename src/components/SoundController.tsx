@@ -5,95 +5,104 @@ import { Volume2, VolumeX } from 'lucide-react';
 
 export default function SoundController() {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [hasInteracted, setHasInteracted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fadeInterval = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // initialize audio
-    const audio = new Audio('/assets/ambient.mp3');
-    audio.loop = true;
-    audio.volume = 0; // Start silent for fade-in
-    audioRef.current = audio;
+    const audio = audioRef.current;
+    if (!audio) return;
 
-    // Try to autoplay on load (often blocked, but worth a try)
-    const tryPlay = async () => {
+    audio.volume = 0; // Start silent
+
+    // Fade In Function
+    const fadeIn = () => {
+      if (fadeInterval.current) clearInterval(fadeInterval.current);
+      
+      fadeInterval.current = setInterval(() => {
+        if (audio.volume < 0.4) {
+          // Careful with floating point math, ensure we don't exceed 1
+          audio.volume = Math.min(0.4, audio.volume + 0.05);
+        } else {
+          if (fadeInterval.current) clearInterval(fadeInterval.current);
+        }
+      }, 200);
+    };
+
+    // Try playing immediately
+    const attemptPlay = async () => {
       try {
         await audio.play();
         setIsPlaying(true);
-        fadeIn(audio);
-      } catch (e) {
-        // Autoplay blocked - wait for interaction
-        console.log("Autoplay blocked, waiting for interaction");
+        fadeIn();
+      } catch (err) {
+        console.log("Autoplay prevented. Waiting for user interaction.");
+        setIsPlaying(false);
       }
     };
 
-    tryPlay();
+    attemptPlay();
 
-    // Interaction listener (Unlock audio on first click/tap/keydown)
-    const handleInteraction = () => {
-      if (!hasInteracted && audioRef.current) {
-        setHasInteracted(true);
-        if (audioRef.current.paused) {
-          audioRef.current.play().then(() => {
-            setIsPlaying(true);
-            fadeIn(audioRef.current!);
-          }).catch(e => console.error("Audio failed:", e));
+    // Unlock on first interaction if autoplay failed
+    const unlockAudio = () => {
+        if (audio.paused) {
+            audio.play()
+                .then(() => {
+                    setIsPlaying(true);
+                    fadeIn();
+                })
+                .catch((e) => console.error("Interaction play failed:", e));
         }
-      }
+        // Remove listeners once unlocked
+        document.removeEventListener('click', unlockAudio);
+        document.removeEventListener('touchstart', unlockAudio);
+        document.removeEventListener('keydown', unlockAudio);
     };
 
-    window.addEventListener('click', handleInteraction, { once: true });
-    window.addEventListener('keydown', handleInteraction, { once: true });
-    window.addEventListener('touchstart', handleInteraction, { once: true });
+    document.addEventListener('click', unlockAudio);
+    document.addEventListener('touchstart', unlockAudio);
+    document.addEventListener('keydown', unlockAudio);
 
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-      window.removeEventListener('click', handleInteraction);
-      window.removeEventListener('keydown', handleInteraction);
-      window.removeEventListener('touchstart', handleInteraction);
+      if (fadeInterval.current) clearInterval(fadeInterval.current);
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('keydown', unlockAudio);
     };
   }, []);
 
-  const fadeIn = (audio: HTMLAudioElement) => {
-    let vol = 0;
-    const fade = setInterval(() => {
-      if (vol < 0.4) { // Cap max volume at 40% so it's subtle
-        vol += 0.02;
-        audio.volume = vol;
-      } else {
-        clearInterval(fade);
-      }
-    }, 100); // Smooth 2-second fade
-  };
-
   const toggleSound = () => {
-    if (!audioRef.current) return;
+    const audio = audioRef.current;
+    if (!audio) return;
 
     if (isPlaying) {
-      audioRef.current.pause();
+      audio.pause();
+      setIsPlaying(false);
     } else {
-      audioRef.current.play();
+      audio.play().catch(e => console.error("Manual play failed:", e));
+      setIsPlaying(true);
+      // Ensure volume is up if they manually play
+      if (audio.volume < 0.1) audio.volume = 0.4;
     }
-    setIsPlaying(!isPlaying);
   };
 
   return (
-    <button
-      onClick={(e) => {
-        e.stopPropagation(); // Prevent triggering the global interaction listener again
-        toggleSound();
-      }}
-      className="fixed bottom-6 left-6 z-50 p-3 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 text-gold hover:bg-white/10 transition-all duration-300 group"
-      aria-label="Toggle Sound"
-    >
-      {isPlaying ? (
-        <Volume2 size={20} className="opacity-80 group-hover:opacity-100" />
-      ) : (
-        <VolumeX size={20} className="opacity-50 group-hover:opacity-100" />
-      )}
-    </button>
+    <>
+      <audio ref={audioRef} src="/assets/ambient.mp3" loop playsInline />
+      
+      <button
+        onClick={(e) => {
+          e.stopPropagation(); 
+          toggleSound();
+        }}
+        className="fixed bottom-6 left-6 z-50 p-3 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 text-gold hover:bg-white/10 transition-all duration-300 group cursor-pointer"
+        aria-label={isPlaying ? "Mute Sound" : "Play Sound"}
+      >
+        {isPlaying ? (
+          <Volume2 size={20} className="opacity-80 group-hover:opacity-100" />
+        ) : (
+          <VolumeX size={20} className="opacity-50 group-hover:opacity-100" />
+        )}
+      </button>
+    </>
   );
 }
