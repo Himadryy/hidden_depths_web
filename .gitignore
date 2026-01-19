@@ -36,3 +36,7 @@ next-env.d.ts
 # Personal Media
 *.mp4
 Screenshot*
+
+# Legacy Backups (Local Only)
+_backup_vanilla/
+_backup_vite/
