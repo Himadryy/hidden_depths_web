@@ -1,5 +1,5 @@
 {
-  "name": "temp-web",
+  "name": "hidden-depths-web",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -28,6 +28,9 @@
     "url": "https://github.com/Himadryy/hidden_depths_web/issues"
   },
   "homepage": "https://hidden-depths-web.pages.dev",
+  "dependencies": {
+    "@emailjs/browser": "^4.4.1",
+    "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
     "@types/three": "^0.182.0",
     "@use-gesture/react": "^10.3.1",
