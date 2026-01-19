@@ -34,7 +34,7 @@ export default function SoundController() {
         await audio.play();
         setIsPlaying(true);
         fadeIn();
-      } catch (err) {
+      } catch {
         console.log("Autoplay prevented. Waiting for user interaction.");
         setIsPlaying(false);
       }
