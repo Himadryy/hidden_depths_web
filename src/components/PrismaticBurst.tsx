@@ -139,8 +139,8 @@ void main(){
     }
 
     // Adaptive loop count based on uTier
-    // LOW TIER OPTIMIZATION: Drastically reduce steps for budget devices (Samsung F15, etc.)
-    int maxSteps = (uTier == 0) ? 12 : (uTier == 1) ? 36 : 48;
+    // LOW TIER OPTIMIZATION: Moderate steps for budget devices, but enough to show effect
+    int maxSteps = (uTier == 0) ? 24 : (uTier == 1) ? 36 : 48;
 
     for (int i = 0; i < 48; ++i) {
         if (i >= maxSteps) break;
@@ -192,6 +192,9 @@ void main(){
         vec3 base = (0.05 / (0.4 + stepLen))
                   * smoothstep(5.0, 0.0, rad)
                   * spectral;
+
+        // Boost brightness for low tier to compensate for fewer accumulation steps
+        if (uTier == 0) base *= 1.5;
 
         col += base * rayPattern;
         marchT += stepLen;
