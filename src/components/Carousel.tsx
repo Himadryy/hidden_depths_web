@@ -150,11 +150,10 @@ export default function Carousel() {
                         {slide.type === 'video' ? (
                             <video 
                                 src={slide.imageUrl} 
-                                autoPlay={index === i && tier !== 'low'} // Only autoplay if active and not on low-end device
+                                autoPlay={index === i}
                                 loop 
                                 muted 
                                 playsInline 
-                                controls={tier === 'low' && index === i} // Show controls on low-end so user can play if they want
                                 className="w-full h-full object-cover pointer-events-none" // Disable video pointer events to allow swipe
                             />
                         ) : (

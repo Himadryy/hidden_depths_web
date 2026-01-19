@@ -9,9 +9,13 @@
 }
 
 body {
-  background-color: transparent;
+  background-color: black;
   color: var(--text-light);
   font-family: var(--font-body);
+}
+
+html {
+  background-color: black;
 }
 
 @theme {
