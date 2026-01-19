@@ -91,7 +91,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
         });
         setIsSubmitting(false);
         setView('success');
-    } catch (error) {
+    } catch {
         setIsSubmitting(false);
         // Error is handled in saveBooking
     }
