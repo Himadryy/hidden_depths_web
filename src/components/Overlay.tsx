@@ -104,13 +104,6 @@ export default function Overlay() {
                 <a href="#method" className="hover:text-[#E0B873] transition-colors">The Method</a>
                 <a href="#about" className="hover:text-[#E0B873] transition-colors">About</a>
             </nav>
-            <button 
-                onClick={() => setAudioEnabled(!audioEnabled)}
-                className="p-2 rounded-full hover:bg-white/10 transition-colors text-white"
-                title="Toggle Ambience"
-            >
-                {audioEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
-            </button>
         </header>
 
         <main className="max-w-4xl mx-auto px-6 pt-32 pb-20 space-y-40">
