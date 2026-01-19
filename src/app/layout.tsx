@@ -77,7 +77,7 @@ export default function RootLayout({
           <SmoothScroll>
             {children}
             <SoundController />
-            {process.env.NODE_ENV === 'development' && <DebugPanel />}
+            <DebugPanel />
           </SmoothScroll>
         </PerformanceProvider>
       </body>
