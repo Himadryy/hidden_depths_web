@@ -1,49 +1,51 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Clock, CheckCircle, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, Clock, CheckCircle, Calendar as CalendarIcon, ArrowRight } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 
 type ViewState = 'calendar' | 'slots' | 'form' | 'success';
 
-const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+// Time Slots: 12:00 PM to 6:00 PM (Last slot 5:30 PM for 30 min duration)
+const TIME_SLOTS = [
+  '12:00 PM', '12:30 PM', '01:00 PM', '01:30 PM',
+  '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM',
+  '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM'
+];
 
 export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   const [view, setView] = useState<ViewState>('calendar');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [currentDate, setCurrentDate] = useState(new Date());
 
   // Form State
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Calendar Logic
-  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
-  const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+  // Logic: Get next available Sundays and Mondays
+  const availableDates = useMemo(() => {
+    const dates: Date[] = [];
+    const today = new Date();
+    // Start from today, look ahead 8 weeks (approx 60 days)
+    for (let i = 0; i < 60; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        const day = d.getDay();
+        
+        // 0 = Sunday, 1 = Monday
+        if (day === 0 || day === 1) {
+            dates.push(d);
+        }
+    }
+    return dates;
+  }, []);
 
-  const handlePrevMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
-  };
-
-  const handleDateClick = (day: number) => {
-    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-    setSelectedDate(newDate);
+  const handleDateClick = (date: Date) => {
+    setSelectedDate(date);
     setView('slots');
   };
-
-  // Mock Time Slots
-  const timeSlots = [
-    '09:00 AM', '10:00 AM', '11:00 AM', 
-    '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'
-  ];
 
   const handleTimeSelect = (time: string) => {
     setSelectedTime(time);
@@ -57,6 +59,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             email: bookingData.email,
             date: bookingData.date?.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
             time: bookingData.time,
+            duration: "30 Minutes", // Explicitly mention duration
         };
 
         // EmailJS Integration
@@ -96,41 +99,26 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
 
   // Render Functions
   const renderCalendar = () => {
-    const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
-    const firstDay = getFirstDayOfMonth(currentDate.getFullYear(), currentDate.getMonth());
-    const blanks = Array(firstDay).fill(null);
-    const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-
     return (
       <div className="space-y-6">
-        <div className="flex justify-between items-center mb-4">
-            <button onClick={handlePrevMonth} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                <ChevronLeft size={20} className="text-[#E0B873]" />
-            </button>
-            <h3 className="text-xl font-display font-bold text-white">
-                {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
-            </h3>
-            <button onClick={handleNextMonth} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                <ChevronRight size={20} className="text-[#E0B873]" />
-            </button>
+        <div className="flex flex-col gap-2 mb-6">
+            <h3 className="text-xl font-display font-bold text-white">Select a Date</h3>
+            <p className="text-sm text-gray-400">Sessions are available on Sundays & Mondays.</p>
         </div>
-        <div className="grid grid-cols-7 gap-2 text-center text-sm mb-2 text-gray-400">
-            {DAYS.map(d => <div key={d}>{d}</div>)}
-        </div>
-        <div className="grid grid-cols-7 gap-2">
-            {blanks.map((_, i) => <div key={`blank-${i}`} />)}
-            {days.map(day => (
+        
+        {/* Rolling List of Dates */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+            {availableDates.map((date, i) => (
                 <button
-                    key={day}
-                    onClick={() => handleDateClick(day)}
-                    className={`
-                        h-10 w-10 rounded-full flex items-center justify-center text-sm font-medium transition-all
-                        ${selectedDate?.getDate() === day && selectedDate?.getMonth() === currentDate.getMonth() 
-                            ? 'bg-[#E0B873] text-black shadow-lg scale-110' 
-                            : 'bg-white/5 text-white hover:bg-white/20 hover:scale-105'}
-                    `}
+                    key={i}
+                    onClick={() => handleDateClick(date)}
+                    className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10 text-left hover:bg-[#E0B873] hover:text-black hover:border-[#E0B873] transition-all group"
                 >
-                    {day}
+                    <div>
+                        <span className="block font-bold text-lg">{date.toLocaleDateString('en-US', { weekday: 'long' })}</span>
+                        <span className="text-sm opacity-60 group-hover:opacity-100">{date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</span>
+                    </div>
+                    <ArrowRight size={18} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
                 </button>
             ))}
         </div>
@@ -144,10 +132,15 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             <button onClick={() => setView('calendar')} className="text-gray-400 hover:text-white transition-colors">
                 <ChevronLeft size={24} />
             </button>
-            <h3 className="text-xl font-display font-bold text-white">Select a Time</h3>
+            <div>
+                <h3 className="text-xl font-display font-bold text-white">Select a Time</h3>
+                <p className="text-xs text-[#E0B873]">
+                    {selectedDate?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                </p>
+            </div>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {timeSlots.map((time) => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+            {TIME_SLOTS.map((time) => (
                 <button
                     key={time}
                     onClick={() => handleTimeSelect(time)}
@@ -158,7 +151,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                 </button>
             ))}
         </div>
-        <p className="text-center text-gray-500 text-sm mt-4">All times are in your local timezone.</p>
+        <p className="text-center text-gray-500 text-sm mt-4">Sessions are 30 minutes long.</p>
     </div>
   );
 
@@ -174,7 +167,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
         <div className="bg-[#E0B873]/10 p-4 rounded-xl border border-[#E0B873]/20 mb-6 flex items-start gap-4">
             <CalendarIcon className="text-[#E0B873] mt-1" size={20} />
             <div>
-                <p className="text-white font-bold text-lg">Introductory Session</p>
+                <p className="text-white font-bold text-lg">Introductory Session (30m)</p>
                 <p className="text-gray-300">
                     {selectedDate?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                 </p>
@@ -208,7 +201,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             <button 
                 type="submit" 
                 disabled={isSubmitting}
-                className="w-full bg-[#E0B873] text-black font-bold py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-[#E0B873]/20 mt-4 flex items-center justify-center gap-2"
+                className="w-full bg-[#E0B873] text-black font-bold py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-[#E0B873]/20 mt-4 flex items-center justify-center gap-2 cursor-pointer"
             >
                 {isSubmitting ? (
                     <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -232,11 +225,11 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
         </motion.div>
         <h3 className="text-3xl font-display font-bold text-white">Booking Confirmed!</h3>
         <p className="text-gray-400 max-w-md">
-            Your request for <span className="text-[#E0B873]">{selectedDate?.toLocaleDateString()}</span> at <span className="text-[#E0B873]">{selectedTime}</span> has been received. We will send a confirmation email to <span className="text-white">{email}</span> shortly.
+            Your 30-minute session on <span className="text-[#E0B873]">{selectedDate?.toLocaleDateString()}</span> at <span className="text-[#E0B873]">{selectedTime}</span> has been requested. We will email <span className="text-white">{email}</span> shortly.
         </p>
         <button 
             onClick={onClose}
-            className="mt-8 px-8 py-3 rounded-full border border-white/20 hover:bg-white/10 text-white transition-colors"
+            className="mt-8 px-8 py-3 rounded-full border border-white/20 hover:bg-white/10 text-white transition-colors cursor-pointer"
         >
             Close
         </button>
@@ -244,7 +237,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   );
 
   return (
-    <div className="h-full flex flex-col p-6 overflow-y-auto">
+    <div className="h-full flex flex-col p-6 overflow-y-auto custom-scrollbar">
         <AnimatePresence mode='wait'>
             <motion.div
                 key={view}
