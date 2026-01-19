@@ -139,7 +139,6 @@ void main(){
     }
 
     // Adaptive loop count based on uTier
-    // LOW TIER OPTIMIZATION: Moderate steps for budget devices, but enough to show effect
     int maxSteps = (uTier == 0) ? 18 : (uTier == 1) ? 36 : 48;
 
     for (int i = 0; i < 48; ++i) {
@@ -193,7 +192,6 @@ void main(){
                   * smoothstep(5.0, 0.0, rad)
                   * spectral;
 
-        // Boost brightness for low tier to compensate for fewer accumulation steps
         if (uTier == 0) base *= 2.0;
 
         col += base * rayPattern;
@@ -268,11 +266,10 @@ const PrismaticBurst = ({
     const container = containerRef.current;
     if (!container || !isLoaded) return;
 
-    // PERFORMANCE OPTIMIZATION: Dynamic DPR based on tier
     let dpr = 1.0;
     if (tier === 'high') dpr = Math.min(window.devicePixelRatio || 1, 2.0);
     else if (tier === 'mid') dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-    else dpr = 0.75; // Sub-pixel rendering for low-end to save fill-rate
+    else dpr = 0.75;
 
     const renderer = new Renderer({ dpr, alpha: false, antialias: false, depth: false });
     rendererRef.current = renderer;
@@ -306,7 +303,6 @@ const PrismaticBurst = ({
       uniforms: {
         uResolution: { value: [1, 1] as [number, number] },
         uTime: { value: 0 },
-
         uIntensity: { value: 1 },
         uSpeed: { value: 1 },
         uAnimType: { value: 0 },
@@ -413,36 +409,7 @@ const PrismaticBurst = ({
       rendererRef.current = null;
       gradTexRef.current = null;
     };
-  }, [isLoaded]); // Only init once when loaded
-
-  // Dynamic Tier Updates (DPR & Shader Uniform)
-  useEffect(() => {
-    const renderer = rendererRef.current;
-    const program = programRef.current;
-    const container = containerRef.current;
-    if (!renderer || !program || !container) return;
-
-    // 1. Update DPR
-    let dpr = 1.0;
-    if (tier === 'high') dpr = Math.min(window.devicePixelRatio || 1, 2.0);
-    else if (tier === 'mid') dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-    else dpr = 0.75;
-
-    // OGL Renderer has a 'dpr' property that setSize uses
-    renderer.dpr = dpr;
-
-    // 2. Trigger resize to apply new DPR
-    const w = container.clientWidth || 1;
-    const h = container.clientHeight || 1;
-    renderer.setSize(w, h);
-    program.uniforms.uResolution.value = [renderer.gl.drawingBufferWidth, renderer.gl.drawingBufferHeight];
-
-    // 3. Update Shader Uniform
-    const tierValue = tier === 'high' ? 2 : tier === 'mid' ? 1 : 0;
-    console.log('[PrismaticBurst] Updating tier to:', tier, 'Value:', tierValue, 'DPR:', dpr);
-    program.uniforms.uTier.value = tierValue;
-
-  }, [tier]);
+  }, [tier, isLoaded]);
 
   useEffect(() => {
     const canvas = rendererRef.current?.gl?.canvas as HTMLCanvasElement | undefined;
