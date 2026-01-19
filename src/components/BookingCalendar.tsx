@@ -237,7 +237,11 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   );
 
   return (
-    <div className="h-full flex flex-col p-6 overflow-y-auto custom-scrollbar">
+    <div 
+        className="h-full flex flex-col p-6 overflow-y-auto custom-scrollbar touch-pan-y"
+        onWheel={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+    >
         <AnimatePresence mode='wait'>
             <motion.div
                 key={view}
