@@ -69,6 +69,20 @@ export default function Carousel() {
         }
     });
 
+    // Keyboard Navigation
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'ArrowLeft') {
+                prevSlide();
+            } else if (e.key === 'ArrowRight') {
+                nextSlide();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [prevSlide, nextSlide]);
+
     // Auto-rotate every 5 seconds (paused on interaction could be added, but keeping simple for now)
     useEffect(() => {
         const timer = setInterval(() => {

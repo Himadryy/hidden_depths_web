@@ -27,6 +27,30 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Hidden Depths | A Space to Think",
   description: "A digital sanctuary for clarity and guided thinking. Not therapy, but a space to find your own answers through focused anonymity.",
+  keywords: ["mental health", "reflection", "meditation", "digital sanctuary", "hidden depths"],
+  authors: [{ name: "Himadryy" }],
+  openGraph: {
+    title: "Hidden Depths | A Space to Think",
+    description: "Ventures into the void of your own mind. A digital sanctuary for clarity.",
+    url: "https://hidden-depths-web.pages.dev", // Update this if you have a custom domain
+    siteName: "Hidden Depths",
+    images: [
+      {
+        url: "/assets/wellbeing.jpg", // We use one of your assets as the preview for now
+        width: 1200,
+        height: 630,
+        alt: "Hidden Depths Preview",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Hidden Depths",
+    description: "A digital sanctuary for clarity and guided thinking.",
+    images: ["/assets/wellbeing.jpg"],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
