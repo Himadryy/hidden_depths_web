@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Volume2, VolumeX, Calendar, ArrowDown, X } from 'lucide-react';
+import { Calendar, ArrowDown, X } from 'lucide-react';
 import Carousel from './Carousel';
 import BookingCalendar from './BookingCalendar';
 
@@ -21,7 +21,6 @@ const sections = [
 
 export default function Overlay() {
   const [introFinished, setIntroFinished] = useState(false);
-  const [audioEnabled, setAudioEnabled] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Intro Animation Sequence
