@@ -413,7 +413,34 @@ const PrismaticBurst = ({
       rendererRef.current = null;
       gradTexRef.current = null;
     };
-  }, [tier, isLoaded]); // Re-init if tier changes (rare) or when loaded
+  }, [isLoaded]); // Only init once when loaded
+
+  // Dynamic Tier Updates (DPR & Shader Uniform)
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    const program = programRef.current;
+    const container = containerRef.current;
+    if (!renderer || !program || !container) return;
+
+    // 1. Update DPR
+    let dpr = 1.0;
+    if (tier === 'high') dpr = Math.min(window.devicePixelRatio || 1, 2.0);
+    else if (tier === 'mid') dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    else dpr = 0.75;
+
+    // OGL Renderer has a 'dpr' property that setSize uses
+    renderer.dpr = dpr;
+
+    // 2. Trigger resize to apply new DPR
+    const w = container.clientWidth || 1;
+    const h = container.clientHeight || 1;
+    renderer.setSize(w, h);
+    program.uniforms.uResolution.value = [renderer.gl.drawingBufferWidth, renderer.gl.drawingBufferHeight];
+
+    // 3. Update Shader Uniform
+    program.uniforms.uTier.value = tier === 'high' ? 2 : tier === 'mid' ? 1 : 0;
+
+  }, [tier]);
 
   useEffect(() => {
     const canvas = rendererRef.current?.gl?.canvas as HTMLCanvasElement | undefined;
