@@ -140,7 +140,7 @@ void main(){
 
     // Adaptive loop count based on uTier
     // LOW TIER OPTIMIZATION: Moderate steps for budget devices, but enough to show effect
-    int maxSteps = (uTier == 0) ? 24 : (uTier == 1) ? 36 : 48;
+    int maxSteps = (uTier == 0) ? 18 : (uTier == 1) ? 36 : 48;
 
     for (int i = 0; i < 48; ++i) {
         if (i >= maxSteps) break;
@@ -194,7 +194,7 @@ void main(){
                   * spectral;
 
         // Boost brightness for low tier to compensate for fewer accumulation steps
-        if (uTier == 0) base *= 1.5;
+        if (uTier == 0) base *= 2.0;
 
         col += base * rayPattern;
         marchT += stepLen;
@@ -438,7 +438,9 @@ const PrismaticBurst = ({
     program.uniforms.uResolution.value = [renderer.gl.drawingBufferWidth, renderer.gl.drawingBufferHeight];
 
     // 3. Update Shader Uniform
-    program.uniforms.uTier.value = tier === 'high' ? 2 : tier === 'mid' ? 1 : 0;
+    const tierValue = tier === 'high' ? 2 : tier === 'mid' ? 1 : 0;
+    console.log('[PrismaticBurst] Updating tier to:', tier, 'Value:', tierValue, 'DPR:', dpr);
+    program.uniforms.uTier.value = tierValue;
 
   }, [tier]);
 
