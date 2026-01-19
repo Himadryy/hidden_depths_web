@@ -22,9 +22,9 @@ export const getDeviceCapabilities = (): DeviceCapabilities => {
   }
 
   const cores = navigator.hardwareConcurrency || 4;
-  // @ts-ignore - navigator.deviceMemory is not in all TS versions
+  // @ts-expect-error - navigator.deviceMemory is not in all TS versions
   const memory = navigator.deviceMemory || 4;
-  // @ts-ignore - navigator.connection is experimental
+  // @ts-expect-error - navigator.connection is experimental
   const connection = navigator.connection || {};
   const saveData = !!connection.saveData;
   const effectiveType = connection.effectiveType || '4g';

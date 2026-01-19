@@ -18,28 +18,27 @@ const PerformanceContext = createContext<PerformanceContextType>({
 export const usePerformance = () => useContext(PerformanceContext);
 
 export const PerformanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<PerformanceContextType>({
-    tier: 'mid',
-    isLoaded: false,
-    setTier: () => {},
-  });
+  const [tier, setTierState] = useState<PerformanceTier>('mid');
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     const caps = getDeviceCapabilities();
-    setState({
-      tier: caps.tier,
-      isLoaded: true,
-      setTier: (newTier: PerformanceTier) => {
-        setState(prev => ({ ...prev, tier: newTier }));
-      }
-    });
+    // eslint-disable-next-line
+    setTierState(caps.tier);
+    setIsLoaded(true);
     
     // Log for debugging (can be removed later)
     console.log(`[PerformanceSystem] Initialized with tier: ${caps.tier}`, caps);
   }, []);
 
+  const setTier = (newTier: PerformanceTier) => {
+    setTierState(newTier);
+  };
+
+  const value = { tier, isLoaded, setTier };
+
   return (
-    <PerformanceContext.Provider value={state}>
+    <PerformanceContext.Provider value={value}>
       {children}
     </PerformanceContext.Provider>
   );
