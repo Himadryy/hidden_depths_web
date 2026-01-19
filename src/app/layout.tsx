@@ -26,6 +26,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://hidden-depths-web.pages.dev"),
   title: "Hidden Depths | A Space to Think",
   description: "A digital sanctuary for clarity and guided thinking. Not therapy, but a space to find your own answers through focused anonymity.",
   keywords: ["mental health", "reflection", "meditation", "digital sanctuary", "hidden depths"],
