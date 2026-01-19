@@ -42,7 +42,10 @@ export default function DebugPanel() {
             {(['low', 'mid', 'high'] as PerformanceTier[]).map((t) => (
               <button
                 key={t}
-                onClick={() => setTier(t)}
+                onClick={() => {
+                  console.log('[DebugPanel] Setting tier to:', t);
+                  setTier(t);
+                }}
                 className={`p-2 rounded text-xs font-bold transition-all ${
                   tier === t 
                     ? 'bg-gold text-black shadow-lg scale-105' 

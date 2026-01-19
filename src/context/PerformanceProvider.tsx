@@ -32,6 +32,7 @@ export const PerformanceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, []);
 
   const setTier = (newTier: PerformanceTier) => {
+    console.log('[PerformanceProvider] Changing tier from', tier, 'to', newTier);
     setTierState(newTier);
   };
 

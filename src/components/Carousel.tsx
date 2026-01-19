@@ -47,6 +47,11 @@ const slidesData = [
 export default function Carousel() {
     const [index, setIndex] = useState(0);
     const { tier } = usePerformance();
+    
+    // Debug: Log tier changes
+    useEffect(() => {
+        console.log('[Carousel] Tier changed to:', tier);
+    }, [tier]);
 
     // Rotate Logic
     const nextSlide = useCallback(() => {
@@ -144,7 +149,7 @@ export default function Carousel() {
             <div className="w-full md:w-1/2 h-[500px] relative perspective-[1000px] touch-pan-y">
                 {slidesData.map((slide, i) => (
                     <div
-                        key={slide.id}
+                        key={`${slide.id}-${tier}`}
                         className={`w-[280px] h-[400px] rounded-2xl overflow-hidden ${tier === 'low' ? 'shadow-lg' : 'shadow-2xl'} border border-white/10 ${getSlideStyles(i)}`}
                     >
                         {slide.type === 'video' ? (
