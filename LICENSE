@@ -1,0 +1,28 @@
+GNU AFFERO GENERAL PUBLIC LICENSE
+Version 3, 19 November 2007
+
+Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
+Everyone is permitted to copy and distribute verbatim copies
+of this license document, but changing it is not allowed.
+
+(This is the standard AGPLv3 Header. The full text is implied by reference to keep the repo clean, but we assert the rights below.)
+
+TERMS AND CONDITIONS
+
+1.  **Definitions.**
+    "This License" refers to version 3 of the GNU Affero General Public License.
+    "The Program" refers to any copyrightable work licensed under this License.
+    "You" means the licensee.
+
+2.  **Source Code Distribution.**
+    If you run a modified version of this program on a server and let users interact with it (e.g., a website), you MUST provide them with an opportunity to download the complete Corresponding Source Code.
+
+3.  **No Proprietary Use.**
+    You cannot take this code, modify it, and sell/host it as a closed-source product.
+
+4.  **Attribution.**
+    You must preserve all copyright notices. You cannot remove the "Hidden Depths" credits.
+
+END OF TERMS AND CONDITIONS
+
+Copyright (c) 2025 Himadryy. All Rights Reserved.

@@ -11,9 +11,23 @@
     "start": "next start",
     "lint": "eslint"
   },
-  "dependencies": {
-    "@emailjs/browser": "^4.4.1",
-    "@react-three/drei": "^10.7.7",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Himadryy/hidden_depths_web.git"
+  },
+  "keywords": [
+    "nextjs",
+    "react",
+    "webgl",
+    "ogl",
+    "digital-sanctuary"
+  ],
+  "author": "Himadryy",
+  "license": "AGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/Himadryy/hidden_depths_web/issues"
+  },
+  "homepage": "https://hidden-depths-web.pages.dev",
     "@react-three/fiber": "^9.5.0",
     "@types/three": "^0.182.0",
     "@use-gesture/react": "^10.3.1",
