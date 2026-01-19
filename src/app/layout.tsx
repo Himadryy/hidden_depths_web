@@ -4,6 +4,7 @@ import "./globals.css";
 import { PerformanceProvider } from "@/context/PerformanceProvider";
 import SmoothScroll from "@/components/SmoothScroll";
 import DebugPanel from "@/components/DebugPanel";
+import SoundController from "@/components/SoundController";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -74,6 +75,7 @@ export default function RootLayout({
         <PerformanceProvider>
           <SmoothScroll>
             {children}
+            <SoundController />
             {process.env.NODE_ENV === 'development' && <DebugPanel />}
           </SmoothScroll>
         </PerformanceProvider>
