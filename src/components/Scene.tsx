@@ -1,7 +1,7 @@
 'use client';
 
 import PrismaticBurst from './PrismaticBurst';
-import { usePerformance } from '@/context/PerformanceProvider';
+import { usePerformance } from '@/hooks/usePerformance';
 
 export default function Scene() {
   const { tier } = usePerformance();

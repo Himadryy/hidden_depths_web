@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePerformance } from '@/context/PerformanceProvider';
+import { usePerformance } from '@/hooks/usePerformance';
 import { PerformanceTier } from '@/utils/performance';
 
 export default function DebugPanel() {
   const { tier, setTier } = usePerformance();
   const [isVisible, setIsVisible] = useState(false);
 
-  // Toggle with 'D' key (for desktop) or triple tap (needs separate handler, but button is easier)
+  // Toggle with 'D' key (for desktop) or triple tap
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'D' && e.shiftKey) {
@@ -39,7 +39,7 @@ export default function DebugPanel() {
         <div>
           <p className="mb-2 text-xs uppercase tracking-wider text-white/50">Force Simulation</p>
           <div className="grid grid-cols-3 gap-2">
-            {(['low', 'mid', 'high'] as PerformanceTier[]).map((t) => (
+            {(['LOW', 'MID', 'ULTRA'] as PerformanceTier[]).map((t) => (
               <button
                 key={t}
                 onClick={() => {
@@ -52,16 +52,16 @@ export default function DebugPanel() {
                     : 'bg-white/10 text-white hover:bg-white/20'
                 }`}
               >
-                {t.toUpperCase()}
+                {t}
               </button>
             ))}
           </div>
         </div>
         
         <div className="text-[10px] text-white/40 leading-relaxed">
-            <p><strong>LOW:</strong> DPR 0.75, 12 Steps, No Noise, No Blur</p>
-            <p><strong>MID:</strong> DPR 1.5, 36 Steps, Med Noise</p>
-            <p><strong>HIGH:</strong> DPR 2.0, 48 Steps, Full Effects</p>
+            <p><strong>LOW:</strong> DPR 1.0, 12 Iterations, Base Noise</p>
+            <p><strong>MID:</strong> DPR 1.2, 24 Iterations, Med Noise</p>
+            <p><strong>ULTRA:</strong> DPR 1.5, 44 Iterations, High Noise</p>
         </div>
       </div>
     </div>

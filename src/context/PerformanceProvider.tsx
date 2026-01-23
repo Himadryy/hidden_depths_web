@@ -1,34 +1,23 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { PerformanceTier, getDeviceCapabilities } from '@/utils/performance';
-
-interface PerformanceContextType {
-  tier: PerformanceTier;
-  isLoaded: boolean;
-  setTier: (tier: PerformanceTier) => void;
-}
-
-const PerformanceContext = createContext<PerformanceContextType>({
-  tier: 'mid',
-  isLoaded: false,
-  setTier: () => {},
-});
-
-export const usePerformance = () => useContext(PerformanceContext);
+import { PerformanceContext } from '@/hooks/usePerformance';
 
 export const PerformanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [tier, setTierState] = useState<PerformanceTier>('mid');
+  const [tier, setTierState] = useState<PerformanceTier>('DETECTING');
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const caps = getDeviceCapabilities();
-    // eslint-disable-next-line
-    setTierState(caps.tier);
-    setIsLoaded(true);
+    // Small delay to ensure browser metrics are stable
+    const timer = setTimeout(() => {
+      const caps = getDeviceCapabilities();
+      setTierState(caps.tier);
+      setIsLoaded(true);
+      console.log(`[PerformanceSystem] Initialized with tier: ${caps.tier}`, caps);
+    }, 100);
     
-    // Log for debugging (can be removed later)
-    console.log(`[PerformanceSystem] Initialized with tier: ${caps.tier}`, caps);
+    return () => clearTimeout(timer);
   }, []);
 
   const setTier = (newTier: PerformanceTier) => {

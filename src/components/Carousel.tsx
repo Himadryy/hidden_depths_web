@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
-import { usePerformance } from '@/context/PerformanceProvider';
+import { usePerformance } from '@/hooks/usePerformance';
 import { useDrag } from '@use-gesture/react';
 
 const slidesData = [
@@ -110,11 +110,11 @@ export default function Carousel() {
             return `${baseClasses} z-20 scale-110 opacity-100 blur-0 -translate-y-1/2`; // Active (Center)
         } else if (position === total - 1) {
             // PERFORMANCE: Remove blur on low-end devices
-            const blurClass = tier === 'low' ? '' : 'md:blur-[2px]';
+            const blurClass = tier === 'LOW' ? '' : 'md:blur-[2px]';
             return `${baseClasses} z-10 scale-90 opacity-40 blur-0 ${blurClass} -translate-y-[80%]`; // Previous (Up)
         } else if (position === 1) {
             // PERFORMANCE: Remove blur on low-end devices
-            const blurClass = tier === 'low' ? '' : 'md:blur-[2px]';
+            const blurClass = tier === 'LOW' ? '' : 'md:blur-[2px]';
             return `${baseClasses} z-10 scale-90 opacity-40 blur-0 ${blurClass} -translate-y-[20%]`; // Next (Down)
         } else {
             return `${baseClasses} z-0 scale-75 opacity-0 pointer-events-none -translate-y-1/2`; // Hidden
@@ -150,7 +150,7 @@ export default function Carousel() {
                 {slidesData.map((slide, i) => (
                     <div
                         key={`${slide.id}-${tier}`}
-                        className={`w-[280px] h-[400px] rounded-2xl overflow-hidden ${tier === 'low' ? 'shadow-lg' : 'shadow-2xl'} border border-white/10 ${getSlideStyles(i)}`}
+                        className={`w-[280px] h-[400px] rounded-2xl overflow-hidden ${tier === 'LOW' ? 'shadow-lg' : 'shadow-2xl'} border border-white/10 ${getSlideStyles(i)}`}
                     >
                         {slide.type === 'video' ? (
                             <video 

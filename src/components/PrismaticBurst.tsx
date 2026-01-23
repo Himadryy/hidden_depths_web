@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { Renderer, Program, Mesh, Triangle, Texture } from 'ogl';
-import { usePerformance } from '@/context/PerformanceProvider';
+import { usePerformance } from '@/hooks/usePerformance';
 
 type Offset = { x?: number | string; y?: number | string };
 type AnimationType = 'rotate' | 'rotate3d' | 'hover';
@@ -49,7 +49,8 @@ uniform vec2  uOffset;
 uniform sampler2D uGradient;
 uniform float uNoiseAmount;
 uniform int   uRayCount;
-uniform int   uTier; // 0: low, 1: mid, 2: high
+uniform int   uTier; // 0: low, 1: mid, 2: ultra
+uniform int   uIterations;
 
 float hash21(vec2 p){
     p = floor(p);
@@ -138,11 +139,7 @@ void main(){
       hoverMat = rotY(ang.y) * rotX(ang.x);
     }
 
-    // Adaptive loop count based on uTier
-    int maxSteps = (uTier == 0) ? 18 : (uTier == 1) ? 36 : 48;
-
-    for (int i = 0; i < 48; ++i) {
-        if (i >= maxSteps) break;
+    for (int i = 0; i < uIterations; ++i) {
         vec3 P = marchT * dir;
         P.z -= 2.0;
         float rad = length(P);
@@ -151,9 +148,9 @@ void main(){
         if(uAnimType == 0){
             Pl.xz *= M2;
         } else if(uAnimType == 1){
-      Pl = rot3dMat * Pl;
+            Pl = rot3dMat * Pl;
         } else {
-      Pl = hoverMat * Pl;
+            Pl = hoverMat * Pl;
         }
 
         float stepLen = min(rad - 0.3, n * jitterAmp) + 0.1;
@@ -255,21 +252,30 @@ const PrismaticBurst = ({
   const triRef = useRef<Triangle | null>(null);
   const { tier, isLoaded } = usePerformance();
 
+  // HYDRATION_SHIELD: IF tier == 'DETECTING' RETURN <div class='bg-black'/>
+  if (tier === 'DETECTING') {
+    return <div className="w-full h-full bg-black" />;
+  }
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     pausedRef.current = paused;
   }, [paused]);
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     hoverDampRef.current = hoverDampness;
   }, [hoverDampness]);
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !isLoaded) return;
 
+    // DPR_SCALING: ULTRA: 1.5, MID: 1.2, LOW: 1.0
     let dpr = 1.0;
-    if (tier === 'high') dpr = Math.min(window.devicePixelRatio || 1, 2.0);
-    else if (tier === 'mid') dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-    else dpr = 0.75;
+    if (tier === 'ULTRA') dpr = 1.5;
+    else if (tier === 'MID') dpr = 1.2;
+    else dpr = 1.0;
 
     const renderer = new Renderer({ dpr, alpha: false, antialias: false, depth: false });
     rendererRef.current = renderer;
@@ -297,6 +303,8 @@ const PrismaticBurst = ({
     gradientTex.wrapT = gl.CLAMP_TO_EDGE;
     gradTexRef.current = gradientTex;
 
+    const iterations = tier === 'ULTRA' ? 44 : tier === 'MID' ? 24 : 12;
+
     const program = new Program(gl, {
       vertex: vertexShader,
       fragment: fragmentShader,
@@ -313,7 +321,8 @@ const PrismaticBurst = ({
         uGradient: { value: gradientTex },
         uNoiseAmount: { value: 0.8 },
         uRayCount: { value: 0 },
-        uTier: { value: tier === 'high' ? 2 : tier === 'mid' ? 1 : 0 }
+        uTier: { value: tier === 'ULTRA' ? 2 : tier === 'MID' ? 1 : 0 },
+        uIterations: { value: iterations }
       }
     });
 
@@ -411,6 +420,7 @@ const PrismaticBurst = ({
     };
   }, [tier, isLoaded]);
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     const canvas = rendererRef.current?.gl?.canvas as HTMLCanvasElement | undefined;
     if (canvas) {
@@ -419,6 +429,7 @@ const PrismaticBurst = ({
     }
   }, [mixBlendMode]);
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     const program = programRef.current;
     const renderer = rendererRef.current;
