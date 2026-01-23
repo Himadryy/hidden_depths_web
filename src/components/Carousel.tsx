@@ -50,20 +50,20 @@ export default function Carousel() {
         return () => clearInterval(timer);
     }, [nextSlide]);
 
-    // "The Lens" mask style
+    // "The Lens" mask style - Broadened for visibility
     const lensMask = {
-        maskImage: 'radial-gradient(circle at center, black 30%, transparent 70%)',
-        WebkitMaskImage: 'radial-gradient(circle at center, black 30%, transparent 70%)',
+        maskImage: 'radial-gradient(circle at center, black 50%, transparent 85%)',
+        WebkitMaskImage: 'radial-gradient(circle at center, black 50%, transparent 85%)',
     };
     
-    // Performance-gated mask for LOW tier (sharper edge, less expensive)
+    // Performance-gated mask for LOW tier
     const lowTierLensMask = {
-        maskImage: 'radial-gradient(circle at center, black 50%, transparent 60%)',
-        WebkitMaskImage: 'radial-gradient(circle at center, black 50%, transparent 60%)',
+        maskImage: 'radial-gradient(circle at center, black 60%, transparent 75%)',
+        WebkitMaskImage: 'radial-gradient(circle at center, black 60%, transparent 75%)',
     }
 
     return (
-        <div className="w-full h-screen flex flex-col md:flex-row items-center justify-center gap-16 py-20 relative cursor-grab active:cursor-grabbing" {...bind()}>
+        <div className="w-full h-screen flex flex-col items-center justify-center py-20 relative cursor-grab active:cursor-grabbing" {...bind()}>
             
             {/* Background Media Layer (Bleeds into void) */}
             <div className="absolute inset-0 w-full h-full z-0">
@@ -102,11 +102,11 @@ export default function Carousel() {
 
             {/* Content Layer (Focal Point) */}
             <div 
-                className="relative z-10 w-full h-full flex flex-col md:flex-row items-center justify-center gap-16"
+                className="relative z-10 w-full h-full flex items-center justify-center px-6"
                 style={tier === 'LOW' ? lowTierLensMask : lensMask}
             >
-                {/* Left: Text Content (Inside the Lens) */}
-                <div className="w-full md:w-1/2 text-left space-y-8 px-6 md:px-0 pointer-events-none">
+                {/* Centered Text Content */}
+                <div className="max-w-3xl text-center space-y-8 pointer-events-none">
                     <AnimatePresence mode='wait'>
                         <motion.div
                             key={index}
@@ -116,19 +116,16 @@ export default function Carousel() {
                             transition={{ duration: 0.8, ease: "circOut" }}
                             className="space-y-6"
                         >
-                            <h2 className="font-serif text-5xl md:text-6xl text-black tracking-wide">
+                            <h2 className="font-serif text-5xl md:text-7xl text-black tracking-wide leading-tight">
                                 {slides[index].title}
                             </h2>
-                            <div className="h-px w-24 bg-black/50" />
-                            <p className="text-xl md:text-2xl text-black/80 font-light leading-relaxed italic font-serif">
+                            <div className="h-px w-24 bg-black/50 mx-auto" />
+                            <p className="text-xl md:text-3xl text-black/80 font-light leading-relaxed italic font-serif">
                                 {slides[index].description}
                             </p>
                         </motion.div>
                     </AnimatePresence>
                 </div>
-
-                {/* Right: Empty space for balance, as media is now in the background */}
-                <div className="w-full md:w-1/2 h-[500px] relative pointer-events-none" />
             </div>
 
              {/* UI Hints Layer */}
