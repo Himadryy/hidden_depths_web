@@ -82,12 +82,15 @@ void main() {
     float ripple = smoothstep(0.2, 0.0, dist) * 0.05;
     v += ripple;
 
-    // Final color - deep blue/indigo
-    vec3 col = mix(vec3(0.05, 0.0, 0.1), vec3(0.1, 0.2, 0.5), v);
+    // Final color - Luminous Morning Light
+    // Base is soft off-white/cyan, caustics are pale gold/white
+    vec3 baseCol = vec3(0.97, 0.98, 1.0);
+    vec3 causticCol = vec3(1.0, 0.95, 0.85); // Pale Gold
+    vec3 col = mix(baseCol, causticCol, v * 0.4);
 
-    // Vignette
-    float vignette = 1.0 - length(uv - 0.5) * 0.8;
-    col *= vignette;
+    // Subtle blue depth in corners
+    float d = length(uv - 0.5);
+    col = mix(col, vec3(0.9, 0.95, 1.0), d * 0.2);
 
     fragColor = vec4(col, 1.0);
 }

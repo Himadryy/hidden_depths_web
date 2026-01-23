@@ -13,7 +13,6 @@ export default function Overlay() {
 
   // Intro Animation Sequence
   useEffect(() => {
-    // Skip intro in development for faster iteration
     if (process.env.NODE_ENV === 'development') {
       setIntroFinished(true);
       return;
@@ -26,11 +25,11 @@ export default function Overlay() {
 
   return (
     <>
-      {/* Intro Overlay - Zoom Burst */}
+      {/* Intro Overlay - Luminous Transition */}
       <AnimatePresence>
         {!introFinished && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-white"
             initial={{ opacity: 1 }}
             exit={{ opacity: 0, transition: { duration: 1 } }}
           >
@@ -39,25 +38,25 @@ export default function Overlay() {
               alt="Logo"
               className="w-32 h-32"
               initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: [1, 1.5, 50], opacity: [1, 1, 0] }}
+              animate={{ scale: [1, 1.2, 50], opacity: [1, 1, 0] }}
               transition={{ duration: 2.2, times: [0, 0.4, 1], ease: "easeInOut" }}
             />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Booking Modal (Full Screen Redesign) */}
+      {/* Booking Modal (Luminous Redesign) */}
       <AnimatePresence>
         {isModalOpen && (
           <motion.div
-            className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-2xl"
+            className="fixed inset-0 z-[60] bg-white/60 backdrop-blur-2xl"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="absolute top-6 right-6 p-2 bg-white/5 hover:bg-gold hover:text-black rounded-full text-white transition-all z-20 border border-white/10"
+                className="absolute top-6 right-6 p-2 bg-black/5 hover:bg-gold hover:text-white rounded-full text-black transition-all z-20 border border-black/5"
               >
                 <X size={20} />
               </button>
@@ -71,19 +70,19 @@ export default function Overlay() {
 
       {/* Main Content */}
       <motion.div
-        className={`relative z-10 w-full min-h-screen text-white ${introFinished ? 'pointer-events-auto' : 'pointer-events-none'}`}
+        className={`relative z-10 w-full min-h-screen text-black/80 ${introFinished ? 'pointer-events-auto' : 'pointer-events-none'}`}
         initial={{ opacity: 0 }}
         animate={{ opacity: introFinished ? 1 : 0 }}
         transition={{ duration: 1.5, delay: 0.5 }}
       >
-        {/* Header (Minimal) */}
+        {/* Header (Minimal Light) */}
         <header className="fixed top-0 w-full p-8 flex justify-between items-center z-40">
             <div className="flex items-center gap-4 group cursor-default">
-                <img src="/logo.png" alt="Logo" className="h-10 w-10 opacity-70" />
+                <img src="/logo.png" alt="Logo" className="h-10 w-10 grayscale hover:grayscale-0 transition-all duration-500 opacity-60" />
             </div>
-            <nav className="hidden md:flex gap-8 text-xs font-serif tracking-[0.15em] uppercase text-white/50">
-                <a href="#method" className="hover:text-gold transition-colors relative after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-px after:bg-gold hover:after:w-full after:transition-all">Method</a>
-                <a href="#about" className="hover:text-gold transition-colors relative after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-px after:bg-gold hover:after:w-full after:transition-all">About</a>
+            <nav className="hidden md:flex gap-8 text-xs font-serif tracking-[0.15em] uppercase text-black/40">
+                <a href="#method" className="hover:text-gold transition-colors">Method</a>
+                <a href="#about" className="hover:text-gold transition-colors">About</a>
             </nav>
         </header>
 
@@ -96,7 +95,7 @@ export default function Overlay() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
                 >
-                    <h1 className="font-serif text-5xl md:text-7xl font-medium leading-tight text-white drop-shadow-2xl">
+                    <h1 className="font-serif text-5xl md:text-7xl font-medium leading-tight text-black">
                         When Your Head is Full <br />
                         <span className="text-gold italic">and You Need a Space to Think.</span>
                     </h1>
@@ -109,13 +108,13 @@ export default function Overlay() {
                 >
                     <button 
                         onClick={() => setIsModalOpen(true)}
-                        className="font-serif tracking-widest text-sm py-4 px-10 rounded-full border border-gold/40 text-gold hover:bg-gold/10 hover:scale-105 transition-all duration-300 shadow-[0_0_30px_-5px_rgba(224,184,115,0.1)]"
+                        className="font-serif tracking-widest text-sm py-4 px-10 rounded-full border border-black/10 text-black/60 hover:border-gold hover:text-gold hover:bg-gold/5 transition-all duration-500 shadow-sm"
                     >
                         BOOK AN INTRODUCTORY CALL
                     </button>
                 </motion.div>
                 
-                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce opacity-20 text-gold">
+                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce opacity-20 text-black">
                     <ArrowDown size={24} />
                 </div>
             </section>
@@ -136,14 +135,14 @@ export default function Overlay() {
                         transition={{ duration: 1 }}
                     >
                         <h2 className="font-serif text-4xl md:text-6xl text-gold mb-12 leading-snug">{section.title}</h2>
-                        <p className="text-xl md:text-2xl leading-relaxed text-white/70 font-light">{section.content}</p>
+                        <p className="text-xl md:text-2xl leading-relaxed text-black/70 font-light">{section.content}</p>
                     </motion.div>
                 </section>
             ))}
 
         </main>
 
-        <footer className="text-center py-12 text-white/20 text-xs font-serif tracking-widest uppercase">
+        <footer className="text-center py-12 text-black/10 text-xs font-serif tracking-widest uppercase">
             &copy; 2026 HIDDEN DEPTHS.
         </footer>
       </motion.div>
