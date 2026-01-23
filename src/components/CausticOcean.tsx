@@ -84,44 +84,21 @@ void main() {
     float ripple = smoothstep(0.2, 0.0, dist) * 0.05;
     v += ripple;
 
-    // --- GOD RAYS (Lite Prismatic Burst) ---
-    // Efficient polar coordinate rays for "Rich Experience" on low-end devices
-    vec2 rayPos = uv - 0.5;
-    float angle = atan(rayPos.y, rayPos.x);
-    float len = length(rayPos);
-    
-    // Base rotating rays
-    float rays = sin(angle * 6.0 + time * 0.5) * 0.5 + 0.5;
-    
-    // Add complexity for MID/ULTRA tiers only
-    if (uTier > 0) {
-        rays += sin(angle * 12.0 - time * 1.0) * 0.3;
-    }
-    
-    // Soften rays (volumetric feel)
-    rays = smoothstep(0.2, 1.0, rays) * smoothstep(1.0, 0.2, len);
-
     // --- THEME COLORS ---
     
     // Light Mode (Morning Light)
     vec3 lightBase = vec3(0.97, 0.98, 1.0);
     vec3 lightCaustic = vec3(1.0, 0.95, 0.85); // Pale Gold
-    vec3 lightRays = vec3(1.0, 0.8, 0.4); // Golden Rays
     
     // Dark Mode (Abyssal Light)
     vec3 darkBase = vec3(0.05, 0.05, 0.08); // Deep Void
     vec3 darkCaustic = vec3(0.2, 0.3, 0.5); // Deep Blue/Indigo Caustics
-    vec3 darkRays = vec3(0.1, 0.3, 0.6); // Deep Blue Rays
 
     // Mix based on Theme
     vec3 baseCol = mix(lightBase, darkBase, uIsDark);
     vec3 causticCol = mix(lightCaustic, darkCaustic, uIsDark);
-    vec3 rayColor = mix(lightRays, darkRays, uIsDark);
 
     vec3 col = mix(baseCol, causticCol, v * 0.5);
-    
-    // Add Rays (Additive blending for glow)
-    col += rays * rayColor * 0.15; // 15% Intensity (Subtle but visible)
 
     // Subtle vignette in corners
     float d = length(uv - 0.5);
