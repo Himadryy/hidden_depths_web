@@ -139,7 +139,10 @@ void main(){
       hoverMat = rotY(ang.y) * rotX(ang.x);
     }
 
-    for (int i = 0; i < uIterations; ++i) {
+    // WebGL requires constant loop limits for unrolling/optimization on many devices.
+    // We loop up to a safe maximum (e.g. 60) and break dynamically.
+    for (int i = 0; i < 60; ++i) {
+        if (i >= uIterations) break;
         vec3 P = marchT * dir;
         P.z -= 2.0;
         float rad = length(P);
