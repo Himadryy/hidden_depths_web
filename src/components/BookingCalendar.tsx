@@ -22,17 +22,27 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [cycleOffset, setCycleOffset] = useState(0);
+
+  // Logic: Get next available Sundays and Mondays (2 weeks per cycle)
   const availableDates = useMemo(() => {
     const dates: Date[] = [];
     const today = new Date();
-    for (let i = 0; i < 60; i++) {
+    // Start from today + offset, look ahead 14 days
+    const startDayOffset = cycleOffset * 14;
+    
+    for (let i = 0; i < 14; i++) {
         const d = new Date(today);
-        d.setDate(today.getDate() + i);
+        d.setDate(today.getDate() + startDayOffset + i);
         const day = d.getDay();
-        if (day === 0 || day === 1) dates.push(d);
+        
+        // 0 = Sunday, 1 = Monday
+        if (day === 0 || day === 1) {
+            dates.push(d);
+        }
     }
     return dates;
-  }, []);
+  }, [cycleOffset]);
 
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
@@ -94,14 +104,22 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   const passiveButtonStyle = "bg-[var(--background)] border border-glass text-muted hover:bg-[var(--accent)]/10 hover:border-[var(--accent)] hover:text-[var(--foreground)] shadow-sm";
 
   const renderCalendar = () => (
-    <div className="space-y-8 h-full flex flex-col">
+    <div className="space-y-6 h-full flex flex-col">
+        {/* Promotional Banner */}
+        <div className="bg-[var(--accent)]/10 border border-[var(--accent)]/20 p-3 rounded-lg text-center">
+            <p className="text-xs md:text-sm font-bold text-[var(--accent)] tracking-wide uppercase">
+                ✨ First Week Special: Sundays & Mondays are FREE!
+            </p>
+        </div>
+
         <div className="flex flex-col gap-2">
-            <h3 className="text-3xl font-serif text-theme">Select a Date</h3>
+            <h3 className="text-2xl md:text-3xl font-serif text-theme">Select a Date</h3>
             <div className="h-px w-12 bg-[var(--accent)] opacity-50" />
-            <p className="text-sm text-muted font-light mt-2">Available Sundays & Mondays.</p>
+            <p className="text-xs md:text-sm text-muted font-light mt-2">Available Sundays & Mondays.</p>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto pr-2 custom-scrollbar pb-10">
+        {/* Rolling List of Dates - Single column on mobile, 2 cols on tablet+ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 overflow-y-auto pr-2 custom-scrollbar flex-1">
             {availableDates.map((date, i) => (
                 <button
                     key={i}
@@ -109,12 +127,29 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                     className={`${buttonStyle} ${passiveButtonStyle}`}
                 >
                     <div className="z-10">
-                        <span className="block text-xl">{date.toLocaleDateString('en-US', { weekday: 'long' })}</span>
-                        <span className="text-sm opacity-60 font-sans tracking-wide">{date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</span>
+                        <span className="block text-lg md:text-xl">{date.toLocaleDateString('en-US', { weekday: 'long' })}</span>
+                        <span className="text-sm opacity-40 font-sans tracking-wide">{date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</span>
                     </div>
                     <ArrowRight size={18} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all text-[var(--accent)] z-10" />
                 </button>
             ))}
+        </div>
+
+        {/* Cycle Controls */}
+        <div className="flex justify-between mt-auto pt-4 border-t border-glass">
+            <button 
+                onClick={() => setCycleOffset(Math.max(0, cycleOffset - 1))}
+                disabled={cycleOffset === 0}
+                className="text-xs font-bold uppercase tracking-widest text-muted hover:text-[var(--accent)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+                ← Previous Weeks
+            </button>
+            <button 
+                onClick={() => setCycleOffset(cycleOffset + 1)}
+                className="text-xs font-bold uppercase tracking-widest text-muted hover:text-[var(--accent)] transition-colors"
+            >
+                Next Weeks →
+            </button>
         </div>
     </div>
   );
