@@ -48,6 +48,18 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     setIsSubmitting(true);
     
+    // Debug: Check if env vars are loaded
+    if (!process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || !process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY) {
+        console.error("Missing EmailJS Keys:", {
+            serviceId: !!process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
+            templateId: !!process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID,
+            publicKey: !!process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY
+        });
+        alert("System Configuration Error: Email keys missing.");
+        setIsSubmitting(false);
+        return;
+    }
+    
     try {
         const templateParams = {
             name, email,
@@ -56,6 +68,8 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             duration: "30 Minutes",
         };
 
+        console.log("Sending booking...", templateParams);
+
         await emailjs.send(
             process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
             process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
@@ -63,11 +77,15 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!
         );
         
+        console.log("Booking success!");
         setIsSubmitting(false);
         setView('success');
-    } catch {
+    } catch (error) {
+        console.error("EmailJS Error:", error);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const msg = (error as any)?.text || "Something went wrong. Please try again.";
+        alert(`Booking Failed: ${msg}`);
         setIsSubmitting(false);
-        alert("Something went wrong. Please try again later.");
     }
   };
 
