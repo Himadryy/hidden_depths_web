@@ -9,6 +9,7 @@ export default function DebugPanel() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    console.log("🔧 Debug Panel available: Press Shift + D");
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'D' && e.shiftKey) setIsVisible(prev => !prev);
     };
@@ -16,7 +17,7 @@ export default function DebugPanel() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  if (!isVisible) return <div className="fixed bottom-2 right-2 z-50 opacity-20 hover:opacity-100 cursor-pointer text-[10px] text-black bg-white/50 p-1 rounded border border-black/5" onClick={() => setIsVisible(true)}>PERF</div>;
+  if (!isVisible) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 bg-white/80 backdrop-blur-md border border-black/10 p-4 rounded-xl shadow-xl text-black font-mono text-sm w-64">
