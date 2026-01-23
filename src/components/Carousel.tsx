@@ -116,11 +116,11 @@ export default function Carousel() {
                             transition={{ duration: 0.8, ease: "circOut" }}
                             className="space-y-6"
                         >
-                            <h2 className="font-serif text-5xl md:text-6xl text-white tracking-wide">
+                            <h2 className="font-serif text-5xl md:text-6xl text-black tracking-wide">
                                 {slides[index].title}
                             </h2>
-                            <div className="h-px w-24 bg-gold/50" />
-                            <p className="text-xl md:text-2xl text-white/70 font-light leading-relaxed italic font-serif">
+                            <div className="h-px w-24 bg-black/50" />
+                            <p className="text-xl md:text-2xl text-black/80 font-light leading-relaxed italic font-serif">
                                 {slides[index].description}
                             </p>
                         </motion.div>
