@@ -82,7 +82,7 @@ export default function Carousel() {
                                     <video 
                                         src={slide.mediaUrl} 
                                         autoPlay loop muted playsInline 
-                                        className="w-full h-full object-cover opacity-80" // Slight dim for readability
+                                        className="w-full h-full object-cover opacity-50" // Lower opacity for readability
                                     />
                                 ) : (
                                     <Image 
@@ -90,7 +90,7 @@ export default function Carousel() {
                                         alt={slide.title} 
                                         fill
                                         priority={i === 0}
-                                        className="object-cover opacity-80"
+                                        className="object-cover opacity-50"
                                         sizes="100vw"
                                     />
                                 )}
@@ -117,11 +117,11 @@ export default function Carousel() {
                             className="space-y-6"
                         >
                             {/* Force black for maximum contrast on media, as requested */}
-                            <h2 className="font-serif text-5xl md:text-7xl text-black tracking-wide leading-tight drop-shadow-[0_2px_15px_rgba(255,255,255,0.5)]">
+                            <h2 className="font-serif font-bold text-5xl md:text-7xl text-black tracking-wide leading-tight drop-shadow-[0_2px_15px_rgba(255,255,255,0.5)]">
                                 {slides[index].title}
                             </h2>
                             <div className="h-px w-24 bg-black/50 mx-auto shadow-sm" />
-                            <p className="text-xl md:text-3xl text-black/90 font-light leading-relaxed italic font-serif drop-shadow-[0_1px_5px_rgba(255,255,255,0.4)]">
+                            <p className="text-xl md:text-3xl text-black/90 font-bold leading-relaxed italic font-serif drop-shadow-[0_1px_5px_rgba(255,255,255,0.4)]">
                                 {slides[index].description}
                             </p>
                         </motion.div>
