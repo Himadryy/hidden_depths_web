@@ -102,7 +102,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   // Styles
   const buttonStyle = "flex items-center justify-between p-4 rounded-xl text-left transition-all group relative overflow-hidden";
   const activeButtonStyle = "bg-gold text-black border border-gold shadow-[0_0_15px_rgba(224,184,115,0.4)]";
-  const passiveButtonStyle = "bg-white/5 border border-white/10 hover:bg-white/10 hover:border-gold/50 text-white";
+  const passiveButtonStyle = "bg-black border border-white/10 hover:bg-gold hover:text-black hover:border-gold text-white";
 
   // Render Functions
   const renderCalendar = () => {
@@ -126,7 +126,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                         <span className="block font-serif text-xl">{date.toLocaleDateString('en-US', { weekday: 'long' })}</span>
                         <span className="text-sm opacity-60 font-sans tracking-wide">{date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</span>
                     </div>
-                    <ArrowRight size={18} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all text-gold z-10" />
+                    <ArrowRight size={18} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all text-black z-10" />
                 </button>
             ))}
         </div>
@@ -153,7 +153,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                 <button
                     key={time}
                     onClick={() => handleTimeSelect(time)}
-                    className="py-4 px-4 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:bg-gold hover:text-black hover:border-gold transition-all flex items-center justify-center gap-2 group font-sans text-sm tracking-wide"
+                    className="py-4 px-4 rounded-xl bg-black border border-white/10 text-white/80 hover:bg-gold hover:text-black hover:border-gold transition-all flex items-center justify-center gap-2 group font-sans text-sm tracking-wide"
                 >
                     <Clock size={14} className="text-gold group-hover:text-black transition-colors" />
                     {time}

@@ -82,8 +82,8 @@ export default function Overlay() {
                 <img src="/logo.png" alt="Logo" className="h-10 w-10 opacity-70" />
             </div>
             <nav className="hidden md:flex gap-8 text-xs font-serif tracking-[0.15em] uppercase text-white/50">
-                <a href="#method" className="hover:text-gold transition-colors">Method</a>
-                <a href="#about" className="hover:text-gold transition-colors">About</a>
+                <a href="#method" className="hover:text-gold transition-colors relative after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-px after:bg-gold hover:after:w-full after:transition-all">Method</a>
+                <a href="#about" className="hover:text-gold transition-colors relative after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-px after:bg-gold hover:after:w-full after:transition-all">About</a>
             </nav>
         </header>
 
