@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { usePerformance } from '@/hooks/usePerformance';
@@ -11,25 +11,27 @@ export default function Carousel() {
     const [index, setIndex] = useState(0);
     const { tier } = usePerformance();
 
+    // Memoize the slides data to prevent re-renders
+    const slides = useMemo(() => INSIGHTS_DATA, []);
+
     // Rotate Logic
     const nextSlide = useCallback(() => {
-        setIndex((prev) => (prev + 1) % INSIGHTS_DATA.length);
-    }, []);
+        setIndex((prev) => (prev + 1) % slides.length);
+    }, [slides.length]);
 
     const prevSlide = useCallback(() => {
-        setIndex((prev) => (prev - 1 + INSIGHTS_DATA.length) % INSIGHTS_DATA.length);
-    }, []);
+        setIndex((prev) => (prev - 1 + slides.length) % slides.length);
+    }, [slides.length]);
 
     // Gestures
-    const bind = useDrag(({ swipe: [swipeX], tap }) => {
+    const bind = useDrag(({ swipe: [swipeX], tap, memo, down }) => {
         if (tap) return; 
-        if (swipeX === -1) {
-            nextSlide();
-            if (navigator.vibrate) navigator.vibrate(50);
-        } else if (swipeX === 1) {
-            prevSlide();
-            if (navigator.vibrate) navigator.vibrate(50);
+        if (down && !memo) {
+          if (navigator.vibrate) navigator.vibrate(20);
+          return index;
         }
+        if (swipeX === -1) nextSlide();
+        else if (swipeX === 1) prevSlide();
     });
 
     // Keyboard Navigation
@@ -44,103 +46,94 @@ export default function Carousel() {
 
     // Auto-rotate
     useEffect(() => {
-        const timer = setInterval(() => nextSlide(), 6000);
+        const timer = setInterval(() => nextSlide(), 7000); // Slower rotation
         return () => clearInterval(timer);
     }, [nextSlide]);
 
-    const getGlassStyle = (isActive: boolean) => {
-        // PERFORMANCE TIER: Disable blur on LOW tier to save GPU
-        if (tier === 'LOW') {
-            return isActive 
-                ? 'bg-white/10 border-white/20' 
-                : 'bg-white/5 border-white/10 opacity-40';
-        }
-        // MID/ULTRA: Full Glassmorphism
-        return isActive
-            ? 'backdrop-blur-md bg-white/5 border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]'
-            : 'backdrop-blur-[2px] bg-white/5 border-white/5 opacity-40';
+    // "The Lens" mask style
+    const lensMask = {
+        maskImage: 'radial-gradient(circle at center, black 30%, transparent 70%)',
+        WebkitMaskImage: 'radial-gradient(circle at center, black 30%, transparent 70%)',
     };
-
-    const getSlideStyles = (i: number) => {
-        const total = INSIGHTS_DATA.length;
-        const position = (i - index + total) % total;
-        
-        const baseClasses = "absolute left-1/2 top-1/2 -translate-x-1/2 transition-all duration-700 ease-in-out cursor-grab active:cursor-grabbing border rounded-2xl overflow-hidden";
-
-        if (position === 0) { // Active
-            return `${baseClasses} z-20 scale-110 -translate-y-1/2 ${getGlassStyle(true)}`;
-        } else if (position === total - 1) { // Prev
-            return `${baseClasses} z-10 scale-90 -translate-y-[80%] ${getGlassStyle(false)}`;
-        } else if (position === 1) { // Next
-            return `${baseClasses} z-10 scale-90 -translate-y-[20%] ${getGlassStyle(false)}`;
-        } else { // Hidden
-            return `${baseClasses} z-0 scale-75 opacity-0 pointer-events-none -translate-y-1/2`;
-        }
-    };
+    
+    // Performance-gated mask for LOW tier (sharper edge, less expensive)
+    const lowTierLensMask = {
+        maskImage: 'radial-gradient(circle at center, black 50%, transparent 60%)',
+        WebkitMaskImage: 'radial-gradient(circle at center, black 50%, transparent 60%)',
+    }
 
     return (
-        <div className="w-full min-h-screen flex flex-col md:flex-row items-center justify-center gap-12 py-20 overflow-hidden" {...bind()}>
+        <div className="w-full h-screen flex flex-col md:flex-row items-center justify-center gap-16 py-20 relative cursor-grab active:cursor-grabbing" {...bind()}>
             
-            {/* Left: Text Content (Decoupled & Animated) */}
-            <div className="w-full md:w-1/2 text-left space-y-8 px-6 md:px-0 relative h-[300px] flex flex-col justify-center pointer-events-none z-30">
-                <AnimatePresence mode='wait'>
-                    <motion.div
-                        key={index}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        transition={{ duration: 0.6, ease: "circOut" }}
-                        className="space-y-6"
-                    >
-                        <h2 className="font-serif text-5xl md:text-6xl text-gold tracking-wide">
-                            {INSIGHTS_DATA[index].title}
-                        </h2>
-                        <div className="h-px w-24 bg-gold/50" />
-                        <p className="text-xl md:text-2xl text-white/90 font-light leading-relaxed italic font-serif">
-                            {INSIGHTS_DATA[index].description}
-                        </p>
-                    </motion.div>
+            {/* Background Media Layer (Bleeds into void) */}
+            <div className="absolute inset-0 w-full h-full z-0">
+                <AnimatePresence>
+                    {slides.map((slide, i) => (
+                        index === i && (
+                            <motion.div
+                                key={slide.id + "-bg"}
+                                className="absolute inset-0 w-full h-full"
+                                initial={{ opacity: 0, scale: 1.1 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 1.1 }}
+                                transition={{ duration: 1.5, ease: 'easeOut' }}
+                            >
+                                {slide.mediaType === 'video' ? (
+                                    <video 
+                                        src={slide.mediaUrl} 
+                                        autoPlay loop muted playsInline 
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <Image 
+                                        src={slide.mediaUrl} 
+                                        alt={slide.title} 
+                                        fill
+                                        priority={i === 0}
+                                        className="object-cover"
+                                        sizes="100vw"
+                                    />
+                                )}
+                            </motion.div>
+                        )
+                    ))}
                 </AnimatePresence>
             </div>
 
-            {/* Right: Glassmorphic Cards (Decoupled Data) */}
-            <div className="w-full md:w-1/2 h-[500px] relative perspective-[1000px] touch-pan-y">
-                {INSIGHTS_DATA.map((slide, i) => (
-                    <div
-                        key={`${slide.id}-${tier}`}
-                        className={`w-[280px] h-[420px] ${getSlideStyles(i)}`}
-                    >
-                        {/* Media Container - Reduced opacity for Glass Effect */}
-                        <div className="absolute inset-0 opacity-60 mix-blend-overlay">
-                            {slide.mediaType === 'video' ? (
-                                <video 
-                                    src={slide.mediaUrl} 
-                                    autoPlay={index === i}
-                                    loop 
-                                    muted 
-                                    playsInline 
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <Image 
-                                    src={slide.mediaUrl} 
-                                    alt={slide.title} 
-                                    fill
-                                    className="object-cover"
-                                    sizes="(max-width: 768px) 100vw, 33vw"
-                                />
-                            )}
-                        </div>
-                        
-                        {/* Glass Reflection Gradient */}
-                        <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent pointer-events-none" />
-                    </div>
-                ))}
+            {/* Content Layer (Focal Point) */}
+            <div 
+                className="relative z-10 w-full h-full flex flex-col md:flex-row items-center justify-center gap-16"
+                style={tier === 'LOW' ? lowTierLensMask : lensMask}
+            >
+                {/* Left: Text Content (Inside the Lens) */}
+                <div className="w-full md:w-1/2 text-left space-y-8 px-6 md:px-0 pointer-events-none">
+                    <AnimatePresence mode='wait'>
+                        <motion.div
+                            key={index}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.8, ease: "circOut" }}
+                            className="space-y-6"
+                        >
+                            <h2 className="font-serif text-5xl md:text-6xl text-white tracking-wide">
+                                {slides[index].title}
+                            </h2>
+                            <div className="h-px w-24 bg-gold/50" />
+                            <p className="text-xl md:text-2xl text-white/70 font-light leading-relaxed italic font-serif">
+                                {slides[index].description}
+                            </p>
+                        </motion.div>
+                    </AnimatePresence>
+                </div>
+
+                {/* Right: Empty space for balance, as media is now in the background */}
+                <div className="w-full md:w-1/2 h-[500px] relative pointer-events-none" />
             </div>
-            
-            {/* Mobile Hint */}
-            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 md:hidden text-white/30 text-xs tracking-widest uppercase animate-pulse">
-                Swipe to reflect
+
+             {/* UI Hints Layer */}
+            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-white/30 text-xs tracking-widest uppercase animate-pulse z-20">
+                Swipe or use Arrow Keys
             </div>
         </div>
     );
