@@ -54,3 +54,17 @@ export const fetchInsights = async (): Promise<Insight[]> => {
   // Simulate network latency (optional, currently instant for SSG)
   return INSIGHTS_DATA;
 };
+
+// Landing Page Content (Decoupled)
+export const LANDING_CONTENT = [
+  {
+    id: 'method',
+    title: "Our Unique 'Focused Anonymity' Method",
+    content: "Traditional video calls can be distracting. We've designed a unique experience to remove that anxiety and help you focus entirely on your conversation. When our session begins, I remain off-camera. Instead, your screen will display a peaceful, meditative visual to act as a calming anchor for your thoughts. Your camera is your choice, always. Your comfort is the priority."
+  },
+  {
+    id: 'about',
+    title: "Your Guide on the Side",
+    content: "I am not a licensed therapist or a psychologist. I am a mentor and a guide, trained in the art of listening. My belief is that you already hold the answers you're looking for. My role is to walk beside you, listen without judgment, and ask thoughtful questions that help you see your own path more clearly. This is a partnership built on trust, respect, and our shared goal of finding your clarity."
+  }
+];
