@@ -28,34 +28,22 @@ export default function SoundController() {
       }, 200);
     };
 
-    // Try playing immediately
-    const attemptPlay = async () => {
-      try {
-        await audio.play();
-        setIsPlaying(true);
-        fadeIn();
-      } catch {
-        console.log("Autoplay prevented. Waiting for user interaction.");
-        setIsPlaying(false);
-      }
-    };
-
-    attemptPlay();
-
-    // Unlock on first interaction if autoplay failed
+    // Unlock on first interaction
     const unlockAudio = () => {
         if (audio.paused) {
             audio.play()
                 .then(() => {
                     setIsPlaying(true);
                     fadeIn();
+                    // Remove listeners only after successful play
+                    document.removeEventListener('click', unlockAudio);
+                    document.removeEventListener('touchstart', unlockAudio);
+                    document.removeEventListener('keydown', unlockAudio);
                 })
-                .catch((e) => console.error("Interaction play failed:", e));
+                .catch((e) => {
+                    console.log("Audio unlock failed, will retry next interaction", e);
+                });
         }
-        // Remove listeners once unlocked
-        document.removeEventListener('click', unlockAudio);
-        document.removeEventListener('touchstart', unlockAudio);
-        document.removeEventListener('keydown', unlockAudio);
     };
 
     document.addEventListener('click', unlockAudio);
