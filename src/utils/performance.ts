@@ -9,6 +9,14 @@ export interface DeviceCapabilities {
   effectiveType: string;
 }
 
+interface NavigatorWithConnection extends Navigator {
+  connection?: {
+    saveData?: boolean;
+    effectiveType?: string;
+  };
+  deviceMemory?: number;
+}
+
 export const getDeviceCapabilities = (): DeviceCapabilities => {
   if (typeof window === 'undefined') {
     return {
@@ -21,10 +29,10 @@ export const getDeviceCapabilities = (): DeviceCapabilities => {
     };
   }
 
-  const cores = navigator.hardwareConcurrency || 4;
-  // @ts-expect-error - navigator.deviceMemory is not in all TS versions
-  const memory = navigator.deviceMemory || 4;
-  const connection = (navigator as any).connection || {};
+  const nav = navigator as NavigatorWithConnection;
+  const cores = nav.hardwareConcurrency || 4;
+  const memory = nav.deviceMemory || 4;
+  const connection = nav.connection || {};
   const saveData = !!connection.saveData;
   const effectiveType = connection.effectiveType || '4g';
 

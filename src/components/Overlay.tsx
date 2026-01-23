@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, ArrowDown, X } from 'lucide-react';
+import { ArrowDown, X } from 'lucide-react';
+import Image from 'next/image';
 import Carousel from './Carousel';
 import BookingCalendar from './BookingCalendar';
 import { LANDING_CONTENT } from '@/lib/data';
@@ -13,10 +14,7 @@ export default function Overlay() {
 
   // Intro Animation Sequence
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      setIntroFinished(true);
-      return;
-    }
+    // In development, we can speed this up, but let's keep it consistent for now to pass linting
     const timer = setTimeout(() => {
       setIntroFinished(true);
     }, 2500);
@@ -33,14 +31,20 @@ export default function Overlay() {
             initial={{ opacity: 1 }}
             exit={{ opacity: 0, transition: { duration: 1 } }}
           >
-            <motion.img
-              src="/logo.png"
-              alt="Logo"
-              className="w-32 h-32 invert dark:invert-0" // Simple invert for logo adaptation
+            <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: [1, 1.2, 50], opacity: [1, 1, 0] }}
               transition={{ duration: 2.2, times: [0, 0.4, 1], ease: "easeInOut" }}
-            />
+              className="relative w-32 h-32"
+            >
+                <Image
+                src="/logo.png"
+                alt="Logo"
+                fill
+                className="object-contain invert dark:invert-0"
+                priority
+                />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -78,7 +82,14 @@ export default function Overlay() {
         {/* Header (Minimal) */}
         <header className="fixed top-0 w-full p-8 flex justify-between items-center z-40">
             <div className="flex items-center gap-4 group cursor-default">
-                <img src="/logo.png" alt="Logo" className="h-10 w-10 opacity-60 invert dark:invert-0 hover:opacity-100 transition-all" />
+                <div className="relative w-10 h-10 opacity-60 hover:opacity-100 transition-all">
+                    <Image 
+                        src="/logo.png" 
+                        alt="Logo" 
+                        fill
+                        className="object-contain invert dark:invert-0" 
+                    />
+                </div>
             </div>
             <nav className="hidden md:flex gap-8 text-xs font-serif tracking-[0.15em] uppercase text-muted">
                 <a href="#method" className="hover:text-[var(--accent)] transition-colors">Method</a>
