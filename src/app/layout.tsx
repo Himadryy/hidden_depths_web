@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Cinzel } from "next/font/google";
 import "./globals.css";
 import { PerformanceProvider } from "@/context/PerformanceProvider";
+import { ThemeProvider } from "@/context/ThemeProvider";
 import SmoothScroll from "@/components/SmoothScroll";
 import DebugPanel from "@/components/DebugPanel";
 import SoundController from "@/components/SoundController";
@@ -79,13 +80,15 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${cinzel.variable} antialiased overscroll-none`}
       >
-        <PerformanceProvider>
-          <SmoothScroll>
-            {children}
-            <SoundController />
-            <DebugPanel />
-          </SmoothScroll>
-        </PerformanceProvider>
+        <ThemeProvider>
+          <PerformanceProvider>
+            <SmoothScroll>
+              {children}
+              <SoundController />
+              <DebugPanel />
+            </SmoothScroll>
+          </PerformanceProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

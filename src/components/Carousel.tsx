@@ -46,11 +46,11 @@ export default function Carousel() {
 
     // Auto-rotate
     useEffect(() => {
-        const timer = setInterval(() => nextSlide(), 7000); // Slower rotation
+        const timer = setInterval(() => nextSlide(), 7000); 
         return () => clearInterval(timer);
     }, [nextSlide]);
 
-    // "The Lens" mask style - Broadened for visibility
+    // "The Lens" mask style
     const lensMask = {
         maskImage: 'radial-gradient(circle at center, black 50%, transparent 85%)',
         WebkitMaskImage: 'radial-gradient(circle at center, black 50%, transparent 85%)',
@@ -82,7 +82,7 @@ export default function Carousel() {
                                     <video 
                                         src={slide.mediaUrl} 
                                         autoPlay loop muted playsInline 
-                                        className="w-full h-full object-cover"
+                                        className="w-full h-full object-cover opacity-80" // Slight dim for readability
                                     />
                                 ) : (
                                     <Image 
@@ -90,7 +90,7 @@ export default function Carousel() {
                                         alt={slide.title} 
                                         fill
                                         priority={i === 0}
-                                        className="object-cover"
+                                        className="object-cover opacity-80"
                                         sizes="100vw"
                                     />
                                 )}
@@ -116,21 +116,17 @@ export default function Carousel() {
                             transition={{ duration: 0.8, ease: "circOut" }}
                             className="space-y-6"
                         >
-                            <h2 className="font-serif text-5xl md:text-7xl text-black tracking-wide leading-tight">
+                            {/* Force black for maximum contrast on media, as requested */}
+                            <h2 className="font-serif text-5xl md:text-7xl text-black tracking-wide leading-tight drop-shadow-[0_2px_15px_rgba(255,255,255,0.5)]">
                                 {slides[index].title}
                             </h2>
-                            <div className="h-px w-24 bg-gold/50 mx-auto" />
-                            <p className="text-xl md:text-3xl text-black/70 font-light leading-relaxed italic font-serif">
+                            <div className="h-px w-24 bg-black/50 mx-auto shadow-sm" />
+                            <p className="text-xl md:text-3xl text-black/90 font-light leading-relaxed italic font-serif drop-shadow-[0_1px_5px_rgba(255,255,255,0.4)]">
                                 {slides[index].description}
                             </p>
                         </motion.div>
                     </AnimatePresence>
                 </div>
-            </div>
-
-             {/* UI Hints Layer */}
-            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-white/30 text-xs tracking-widest uppercase animate-pulse z-20">
-                Swipe or use Arrow Keys
             </div>
         </div>
     );

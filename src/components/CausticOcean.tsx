@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Renderer, Program, Mesh, Triangle, Vec2 } from 'ogl';
 import { usePerformance } from '@/hooks/usePerformance';
+import { useTheme } from '@/context/ThemeProvider';
 
 const vertexShader = `#version 300 es
 in vec2 position;
@@ -18,6 +19,7 @@ uniform float uTime;
 uniform vec2 uResolution;
 uniform vec2 uMouse;
 uniform int uTier; // 0: LOW, 1: MID, 2: ULTRA
+uniform float uIsDark; // 0.0 = Light, 1.0 = Dark
 
 out vec4 fragColor;
 
@@ -82,15 +84,26 @@ void main() {
     float ripple = smoothstep(0.2, 0.0, dist) * 0.05;
     v += ripple;
 
-    // Final color - Luminous Morning Light
-    // Base is soft off-white/cyan, caustics are pale gold/white
-    vec3 baseCol = vec3(0.97, 0.98, 1.0);
-    vec3 causticCol = vec3(1.0, 0.95, 0.85); // Pale Gold
-    vec3 col = mix(baseCol, causticCol, v * 0.4);
+    // --- THEME COLORS ---
+    
+    // Light Mode (Morning Light)
+    vec3 lightBase = vec3(0.97, 0.98, 1.0);
+    vec3 lightCaustic = vec3(1.0, 0.95, 0.85); // Pale Gold
+    
+    // Dark Mode (Abyssal Light)
+    vec3 darkBase = vec3(0.05, 0.05, 0.08); // Deep Void
+    vec3 darkCaustic = vec3(0.2, 0.3, 0.5); // Deep Blue/Indigo Caustics
 
-    // Subtle blue depth in corners
+    // Mix based on Theme
+    vec3 baseCol = mix(lightBase, darkBase, uIsDark);
+    vec3 causticCol = mix(lightCaustic, darkCaustic, uIsDark);
+
+    vec3 col = mix(baseCol, causticCol, v * 0.5);
+
+    // Subtle vignette in corners
     float d = length(uv - 0.5);
-    col = mix(col, vec3(0.9, 0.95, 1.0), d * 0.2);
+    vec3 vignetteColor = mix(vec3(0.9, 0.95, 1.0), vec3(0.02, 0.02, 0.05), uIsDark);
+    col = mix(col, vignetteColor, d * 0.3);
 
     fragColor = vec4(col, 1.0);
 }
@@ -99,6 +112,7 @@ void main() {
 const CausticOcean = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { tier, isLoaded } = usePerformance();
+  const { theme } = useTheme();
 
   useEffect(() => {
     const container = containerRef.current;
@@ -127,6 +141,7 @@ const CausticOcean = () => {
         uResolution: { value: [gl.drawingBufferWidth, gl.drawingBufferHeight] },
         uMouse: { value: mouse },
         uTier: { value: tier === 'ULTRA' ? 2 : tier === 'MID' ? 1 : 0 },
+        uIsDark: { value: theme === 'dark' ? 1.0 : 0.0 }, // Initialize
       },
     });
 
@@ -145,9 +160,18 @@ const CausticOcean = () => {
     window.addEventListener('pointermove', onPointerMove, { passive: true });
 
     let rafId: number;
+    // Animation for smooth theme transition
+    let currentDarkVal = theme === 'dark' ? 1.0 : 0.0;
+    
     const update = (t: number) => {
       rafId = requestAnimationFrame(update);
       program.uniforms.uTime.value = t * 0.001;
+      
+      // Smoothly interpolate theme transition in shader
+      const targetDark = theme === 'dark' ? 1.0 : 0.0;
+      currentDarkVal += (targetDark - currentDarkVal) * 0.05; // Ease in
+      program.uniforms.uIsDark.value = currentDarkVal;
+
       renderer.render({ scene: mesh });
     };
     rafId = requestAnimationFrame(update);
@@ -158,7 +182,7 @@ const CausticOcean = () => {
       cancelAnimationFrame(rafId);
       container.removeChild(gl.canvas);
     };
-  }, [tier, isLoaded]);
+  }, [tier, isLoaded, theme]);
 
   return <div ref={containerRef} className="absolute inset-0 w-full h-full -z-10" />;
 };

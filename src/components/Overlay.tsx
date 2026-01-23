@@ -25,18 +25,18 @@ export default function Overlay() {
 
   return (
     <>
-      {/* Intro Overlay - Luminous Transition */}
+      {/* Intro Overlay - Adaptive */}
       <AnimatePresence>
         {!introFinished && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-white"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--background)] text-[var(--foreground)]"
             initial={{ opacity: 1 }}
             exit={{ opacity: 0, transition: { duration: 1 } }}
           >
             <motion.img
               src="/logo.png"
               alt="Logo"
-              className="w-32 h-32"
+              className="w-32 h-32 invert dark:invert-0" // Simple invert for logo adaptation
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: [1, 1.2, 50], opacity: [1, 1, 0] }}
               transition={{ duration: 2.2, times: [0, 0.4, 1], ease: "easeInOut" }}
@@ -45,18 +45,18 @@ export default function Overlay() {
         )}
       </AnimatePresence>
 
-      {/* Booking Modal (Luminous Redesign) */}
+      {/* Booking Modal (Adaptive Glass) */}
       <AnimatePresence>
         {isModalOpen && (
           <motion.div
-            className="fixed inset-0 z-[60] bg-white/60 backdrop-blur-2xl"
+            className="fixed inset-0 z-[60] bg-glass backdrop-blur-2xl"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="absolute top-6 right-6 p-2 bg-black/5 hover:bg-gold hover:text-white rounded-full text-black transition-all z-20 border border-black/5"
+                className="absolute top-6 right-6 p-2 bg-[var(--background)] hover:bg-[var(--accent)] hover:text-[var(--background)] rounded-full text-[var(--foreground)] transition-all z-20 border border-glass"
               >
                 <X size={20} />
               </button>
@@ -70,19 +70,19 @@ export default function Overlay() {
 
       {/* Main Content */}
       <motion.div
-        className={`relative z-10 w-full min-h-screen text-black/80 ${introFinished ? 'pointer-events-auto' : 'pointer-events-none'}`}
+        className={`relative z-10 w-full min-h-screen text-theme ${introFinished ? 'pointer-events-auto' : 'pointer-events-none'}`}
         initial={{ opacity: 0 }}
         animate={{ opacity: introFinished ? 1 : 0 }}
         transition={{ duration: 1.5, delay: 0.5 }}
       >
-        {/* Header (Minimal Light) */}
+        {/* Header (Minimal) */}
         <header className="fixed top-0 w-full p-8 flex justify-between items-center z-40">
             <div className="flex items-center gap-4 group cursor-default">
-                <img src="/logo.png" alt="Logo" className="h-10 w-10 grayscale hover:grayscale-0 transition-all duration-500 opacity-60" />
+                <img src="/logo.png" alt="Logo" className="h-10 w-10 opacity-60 invert dark:invert-0 hover:opacity-100 transition-all" />
             </div>
-            <nav className="hidden md:flex gap-8 text-xs font-serif tracking-[0.15em] uppercase text-black/40">
-                <a href="#method" className="hover:text-gold transition-colors">Method</a>
-                <a href="#about" className="hover:text-gold transition-colors">About</a>
+            <nav className="hidden md:flex gap-8 text-xs font-serif tracking-[0.15em] uppercase text-muted">
+                <a href="#method" className="hover:text-[var(--accent)] transition-colors">Method</a>
+                <a href="#about" className="hover:text-[var(--accent)] transition-colors">About</a>
             </nav>
         </header>
 
@@ -95,9 +95,9 @@ export default function Overlay() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
                 >
-                    <h1 className="font-serif text-5xl md:text-7xl font-medium leading-tight text-black">
+                    <h1 className="font-serif text-5xl md:text-7xl font-medium leading-tight text-theme">
                         When Your Head is Full <br />
-                        <span className="text-gold italic">and You Need a Space to Think.</span>
+                        <span className="text-[var(--accent)] italic">and You Need a Space to Think.</span>
                     </h1>
                 </motion.div>
 
@@ -108,13 +108,13 @@ export default function Overlay() {
                 >
                     <button 
                         onClick={() => setIsModalOpen(true)}
-                        className="font-serif tracking-widest text-sm py-4 px-10 rounded-full border border-black/10 text-black/60 hover:border-gold hover:text-gold hover:bg-gold/5 transition-all duration-500 shadow-sm"
+                        className="font-serif tracking-widest text-sm py-4 px-10 rounded-full border border-glass text-muted hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-all duration-500 shadow-sm"
                     >
                         BOOK AN INTRODUCTORY CALL
                     </button>
                 </motion.div>
                 
-                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce opacity-20 text-black">
+                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce opacity-20 text-theme">
                     <ArrowDown size={24} />
                 </div>
             </section>
@@ -134,15 +134,15 @@ export default function Overlay() {
                         viewport={{ once: true, amount: 0.5 }}
                         transition={{ duration: 1 }}
                     >
-                        <h2 className="font-serif text-4xl md:text-6xl text-gold mb-12 leading-snug">{section.title}</h2>
-                        <p className="text-xl md:text-2xl leading-relaxed text-black/70 font-light">{section.content}</p>
+                        <h2 className="font-serif text-4xl md:text-6xl text-[var(--accent)] mb-12 leading-snug">{section.title}</h2>
+                        <p className="text-xl md:text-2xl leading-relaxed text-muted font-light">{section.content}</p>
                     </motion.div>
                 </section>
             ))}
 
         </main>
 
-        <footer className="text-center py-12 text-black/10 text-xs font-serif tracking-widest uppercase">
+        <footer className="text-center py-12 text-muted text-xs font-serif tracking-widest uppercase opacity-40">
             &copy; 2026 HIDDEN DEPTHS.
         </footer>
       </motion.div>
