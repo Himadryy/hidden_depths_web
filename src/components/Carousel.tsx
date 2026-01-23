@@ -5,66 +5,24 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { usePerformance } from '@/hooks/usePerformance';
 import { useDrag } from '@use-gesture/react';
-
-const slidesData = [
-    { 
-        id: 0,
-        title: "Holistic Well-being", 
-        description: "“Holistic well-being is the art of tending to every layer of our being—body, mind, and soul. True healing is not in fragments, but in weaving balance, where inner peace and outer strength walk hand in hand.”", 
-        imageUrl: "/assets/wellbeing.jpg",
-        type: 'image'
-    },
-    { 
-        id: 1,
-        title: "Physical & Mental Health", 
-        description: "“Physical and mental health are two strings of the same melody—when one falls out of tune, the harmony is lost. Healing, in the eyes of a therapist, is not just curing pain but nurturing both body and mind to dance together in balance.”", 
-        imageUrl: "/assets/health.jpg",
-        type: 'image'
-    },
-    { 
-        id: 2,
-        title: "Mind-Body Harmony", 
-        description: "“When mind and body move as one, life finds its natural rhythm. Harmony between thought and breath creates a sanctuary where strength and serenity can flourish side by side.”", 
-        imageUrl: "/assets/harmony.mp4",
-        type: 'video'
-    },
-    { 
-        id: 3,
-        title: "Ethics & Empathy", 
-        description: "“Ethics is the compass, empathy the heart—together they guide healing with integrity and compassion. True care is not only knowing what is right, but also feeling what another feels.”", 
-        imageUrl: "/assets/ethics.jpg",
-        type: 'image'
-    },
-    { 
-        id: 4,
-        title: "Talk Freely, Live Happily", 
-        description: "“Unspoken words weigh down the soul, but honest expression sets it free. In sharing openly, we invite healing, connection, and the simple joy of living without silence as a burden.”", 
-        imageUrl: "/assets/happiness.mp4",
-        type: 'video'
-    }
-];
+import { INSIGHTS_DATA } from '@/lib/data';
 
 export default function Carousel() {
     const [index, setIndex] = useState(0);
     const { tier } = usePerformance();
-    
-    // Debug: Log tier changes
-    useEffect(() => {
-        console.log('[Carousel] Tier changed to:', tier);
-    }, [tier]);
 
     // Rotate Logic
     const nextSlide = useCallback(() => {
-        setIndex((prev) => (prev + 1) % slidesData.length);
+        setIndex((prev) => (prev + 1) % INSIGHTS_DATA.length);
     }, []);
 
     const prevSlide = useCallback(() => {
-        setIndex((prev) => (prev - 1 + slidesData.length) % slidesData.length);
+        setIndex((prev) => (prev - 1 + INSIGHTS_DATA.length) % INSIGHTS_DATA.length);
     }, []);
 
     // Gestures
     const bind = useDrag(({ swipe: [swipeX], tap }) => {
-        if (tap) return; // Ignore taps
+        if (tap) return; 
         if (swipeX === -1) {
             nextSlide();
             if (navigator.vibrate) navigator.vibrate(50);
@@ -77,109 +35,112 @@ export default function Carousel() {
     // Keyboard Navigation
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'ArrowLeft') {
-                prevSlide();
-            } else if (e.key === 'ArrowRight') {
-                nextSlide();
-            }
+            if (e.key === 'ArrowLeft') prevSlide();
+            else if (e.key === 'ArrowRight') nextSlide();
         };
-
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [prevSlide, nextSlide]);
 
-    // Auto-rotate every 5 seconds (paused on interaction could be added, but keeping simple for now)
+    // Auto-rotate
     useEffect(() => {
-        const timer = setInterval(() => {
-            // Only auto-rotate if user hasn't interacted recently? 
-            // For now, keep it simple, but maybe pause on low tier to save battery if needed.
-            // Actually, let's keep it to drive the visual.
-            nextSlide();
-        }, 5000);
+        const timer = setInterval(() => nextSlide(), 6000);
         return () => clearInterval(timer);
     }, [nextSlide]);
 
+    const getGlassStyle = (isActive: boolean) => {
+        // PERFORMANCE TIER: Disable blur on LOW tier to save GPU
+        if (tier === 'LOW') {
+            return isActive 
+                ? 'bg-white/10 border-white/20' 
+                : 'bg-white/5 border-white/10 opacity-40';
+        }
+        // MID/ULTRA: Full Glassmorphism
+        return isActive
+            ? 'backdrop-blur-md bg-white/5 border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]'
+            : 'backdrop-blur-[2px] bg-white/5 border-white/5 opacity-40';
+    };
+
     const getSlideStyles = (i: number) => {
-        const total = slidesData.length;
-        // Calculate relative position including wrapping
+        const total = INSIGHTS_DATA.length;
         const position = (i - index + total) % total;
+        
+        const baseClasses = "absolute left-1/2 top-1/2 -translate-x-1/2 transition-all duration-700 ease-in-out cursor-grab active:cursor-grabbing border rounded-2xl overflow-hidden";
 
-        const baseClasses = "absolute left-1/2 top-1/2 -translate-x-1/2 transition-all duration-700 ease-in-out cursor-grab active:cursor-grabbing";
-
-        if (position === 0) {
-            return `${baseClasses} z-20 scale-110 opacity-100 blur-0 -translate-y-1/2`; // Active (Center)
-        } else if (position === total - 1) {
-            // PERFORMANCE: Remove blur on low-end devices
-            const blurClass = tier === 'LOW' ? '' : 'md:blur-[2px]';
-            return `${baseClasses} z-10 scale-90 opacity-40 blur-0 ${blurClass} -translate-y-[80%]`; // Previous (Up)
-        } else if (position === 1) {
-            // PERFORMANCE: Remove blur on low-end devices
-            const blurClass = tier === 'LOW' ? '' : 'md:blur-[2px]';
-            return `${baseClasses} z-10 scale-90 opacity-40 blur-0 ${blurClass} -translate-y-[20%]`; // Next (Down)
-        } else {
-            return `${baseClasses} z-0 scale-75 opacity-0 pointer-events-none -translate-y-1/2`; // Hidden
+        if (position === 0) { // Active
+            return `${baseClasses} z-20 scale-110 -translate-y-1/2 ${getGlassStyle(true)}`;
+        } else if (position === total - 1) { // Prev
+            return `${baseClasses} z-10 scale-90 -translate-y-[80%] ${getGlassStyle(false)}`;
+        } else if (position === 1) { // Next
+            return `${baseClasses} z-10 scale-90 -translate-y-[20%] ${getGlassStyle(false)}`;
+        } else { // Hidden
+            return `${baseClasses} z-0 scale-75 opacity-0 pointer-events-none -translate-y-1/2`;
         }
     };
 
     return (
         <div className="w-full min-h-screen flex flex-col md:flex-row items-center justify-center gap-12 py-20 overflow-hidden" {...bind()}>
             
-            {/* Left: Text Content */}
-            <div className="w-full md:w-1/2 text-left space-y-6 px-4 md:px-0 relative h-[300px] flex flex-col justify-center pointer-events-none">
+            {/* Left: Text Content (Decoupled & Animated) */}
+            <div className="w-full md:w-1/2 text-left space-y-8 px-6 md:px-0 relative h-[300px] flex flex-col justify-center pointer-events-none z-30">
                 <AnimatePresence mode='wait'>
                     <motion.div
                         key={index}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.5 }}
-                        className="space-y-4"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.6, ease: "circOut" }}
+                        className="space-y-6"
                     >
-                        <h2 className="font-display text-4xl md:text-5xl text-gold">
-                            {slidesData[index].title}
+                        <h2 className="font-serif text-5xl md:text-6xl text-gold tracking-wide">
+                            {INSIGHTS_DATA[index].title}
                         </h2>
-                        <p className="text-lg md:text-xl text-white leading-relaxed">
-                            {slidesData[index].description}
+                        <div className="h-px w-24 bg-gold/50" />
+                        <p className="text-xl md:text-2xl text-white/90 font-light leading-relaxed italic font-serif">
+                            {INSIGHTS_DATA[index].description}
                         </p>
                     </motion.div>
                 </AnimatePresence>
             </div>
 
-            {/* Right: 3D Card Stack */}
+            {/* Right: Glassmorphic Cards (Decoupled Data) */}
             <div className="w-full md:w-1/2 h-[500px] relative perspective-[1000px] touch-pan-y">
-                {slidesData.map((slide, i) => (
+                {INSIGHTS_DATA.map((slide, i) => (
                     <div
                         key={`${slide.id}-${tier}`}
-                        className={`w-[280px] h-[400px] rounded-2xl overflow-hidden ${tier === 'LOW' ? 'shadow-lg' : 'shadow-2xl'} border border-white/10 ${getSlideStyles(i)}`}
+                        className={`w-[280px] h-[420px] ${getSlideStyles(i)}`}
                     >
-                        {slide.type === 'video' ? (
-                            <video 
-                                src={slide.imageUrl} 
-                                autoPlay={index === i}
-                                loop 
-                                muted 
-                                playsInline 
-                                className="w-full h-full object-cover pointer-events-none" // Disable video pointer events to allow swipe
-                            />
-                        ) : (
-                            <Image 
-                                src={slide.imageUrl} 
-                                alt={slide.title} 
-                                fill
-                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                className="object-cover pointer-events-none" // Disable image drag
-                            />
-                        )}
+                        {/* Media Container - Reduced opacity for Glass Effect */}
+                        <div className="absolute inset-0 opacity-60 mix-blend-overlay">
+                            {slide.mediaType === 'video' ? (
+                                <video 
+                                    src={slide.mediaUrl} 
+                                    autoPlay={index === i}
+                                    loop 
+                                    muted 
+                                    playsInline 
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <Image 
+                                    src={slide.mediaUrl} 
+                                    alt={slide.title} 
+                                    fill
+                                    className="object-cover"
+                                    sizes="(max-width: 768px) 100vw, 33vw"
+                                />
+                            )}
+                        </div>
                         
-                        {/* Dark Gradient Overlay for readability if we add text on cards later */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+                        {/* Glass Reflection Gradient */}
+                        <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent pointer-events-none" />
                     </div>
                 ))}
             </div>
             
             {/* Mobile Hint */}
-            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 md:hidden text-white/40 text-sm animate-pulse">
-                Swipe to explore
+            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 md:hidden text-white/30 text-xs tracking-widest uppercase animate-pulse">
+                Swipe to reflect
             </div>
         </div>
     );

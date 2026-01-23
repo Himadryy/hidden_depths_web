@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Cinzel } from "next/font/google";
 import "./globals.css";
 import { PerformanceProvider } from "@/context/PerformanceProvider";
 import SmoothScroll from "@/components/SmoothScroll";
@@ -14,6 +14,12 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const cinzel = Cinzel({
+  variable: "--font-serif",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 export const viewport: Viewport = {
@@ -71,7 +77,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased overscroll-none`}
+        className={`${geistSans.variable} ${geistMono.variable} ${cinzel.variable} antialiased overscroll-none`}
       >
         <PerformanceProvider>
           <SmoothScroll>
