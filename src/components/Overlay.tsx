@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowDown, X } from 'lucide-react';
 import Image from 'next/image';
@@ -19,6 +19,38 @@ export default function Overlay() {
       setIntroFinished(true);
     }, 2500);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Back Button / History Support for Modal
+  useEffect(() => {
+    const handlePopState = () => {
+      // If user presses "Back" and the modal is open, this event fires.
+      // The URL hash will likely be gone now, so we just close the modal.
+      setIsModalOpen(false);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  const openModal = useCallback(() => {
+    setIsModalOpen(true);
+    // Push "fake" history state so the Back button has something to "undo"
+    window.history.pushState({ modal: true }, '', '#booking');
+  }, []);
+
+  const closeModal = useCallback(() => {
+    // If the URL has the hash, we go back (which triggers popstate -> closes modal)
+    // This keeps history clean.
+    if (window.location.hash === '#booking') {
+        window.history.back();
+    } else {
+        // Fallback if hash is missing for some reason
+        setIsModalOpen(false);
+    }
   }, []);
 
   return (
@@ -59,14 +91,14 @@ export default function Overlay() {
             exit={{ opacity: 0 }}
           >
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={closeModal}
                 className="absolute top-6 right-6 p-2 bg-[var(--background)] hover:bg-[var(--accent)] hover:text-[var(--background)] rounded-full text-[var(--foreground)] transition-all z-20 border border-glass"
               >
                 <X size={20} />
               </button>
               
               <div className="w-full h-full max-w-4xl mx-auto p-6 md:p-10">
-                  <BookingCalendar onClose={() => setIsModalOpen(false)} />
+                  <BookingCalendar onClose={closeModal} />
               </div>
           </motion.div>
         )}
@@ -118,7 +150,7 @@ export default function Overlay() {
                      transition={{ delay: 1, duration: 0.8 }}
                 >
                     <button 
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={openModal}
                         className="font-serif tracking-widest text-sm py-4 px-10 rounded-full border border-glass text-muted hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-all duration-500 shadow-sm"
                     >
                         BOOK AN INTRODUCTORY CALL
