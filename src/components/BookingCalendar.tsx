@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Clock, CheckCircle, Calendar as CalendarIcon, ArrowRight } from 'lucide-react';
-import emailjs from '@emailjs/browser';
+import { sendBookingEmail } from '@/lib/email';
 
 type ViewState = 'calendar' | 'slots' | 'form' | 'success';
 
@@ -58,42 +58,22 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Debug: Check if env vars are loaded
-    if (!process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || !process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY) {
-        console.error("Missing EmailJS Keys:", {
-            serviceId: !!process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
-            templateId: !!process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID,
-            publicKey: !!process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY
-        });
-        alert("System Configuration Error: Email keys missing.");
-        setIsSubmitting(false);
-        return;
-    }
-    
     try {
-        const templateParams = {
-            name, email,
-            date: selectedDate?.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
-            time: selectedTime,
+        await sendBookingEmail({
+            name,
+            email,
+            date: selectedDate?.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) || 'Unknown Date',
+            time: selectedTime || 'Unknown Time',
             duration: "30 Minutes",
-        };
-
-        console.log("Sending booking...", templateParams);
-
-        await emailjs.send(
-            process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
-            process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
-            templateParams,
-            process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!
-        );
+        });
         
         console.log("Booking success!");
         setIsSubmitting(false);
         setView('success');
     } catch (error) {
-        console.error("EmailJS Error:", error);
+        console.error("Booking Error:", error);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const msg = (error as any)?.text || "Something went wrong. Please try again.";
+        const msg = (error as any)?.message || "Something went wrong. Please check your network or try again later.";
         alert(`Booking Failed: ${msg}`);
         setIsSubmitting(false);
     }

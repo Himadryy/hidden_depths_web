@@ -41,3 +41,8 @@ Screenshot*
 _backup_vanilla/
 _backup_vite/
 _backup_assets/
+
+# PWA Artifacts
+public/sw.js
+public/workbox-*.js
+public/swe-worker-*.js
