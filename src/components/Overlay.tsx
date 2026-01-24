@@ -53,7 +53,7 @@ export default function Overlay() {
       <AnimatePresence>
         {isModalOpen && (
           <motion.div
-            className="fixed inset-0 z-[60] bg-glass backdrop-blur-2xl"
+            className="fixed inset-0 h-[100dvh] z-[60] bg-glass backdrop-blur-2xl overscroll-none"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

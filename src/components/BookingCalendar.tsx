@@ -311,7 +311,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
 
   return (
     <div 
-        className="h-full flex flex-col overflow-hidden"
+        className="h-full flex flex-col overflow-hidden overscroll-contain"
         onWheel={(e) => e.stopPropagation()}
         onTouchMove={(e) => e.stopPropagation()}
     >
