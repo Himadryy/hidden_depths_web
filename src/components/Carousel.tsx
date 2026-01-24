@@ -6,10 +6,12 @@ import Image from 'next/image';
 import { usePerformance } from '@/hooks/usePerformance';
 import { useDrag } from '@use-gesture/react';
 import { INSIGHTS_DATA } from '@/lib/data';
+import { useTheme } from '@/context/ThemeProvider';
 
 export default function Carousel() {
     const [index, setIndex] = useState(0);
     const { tier } = usePerformance();
+    const { theme } = useTheme();
 
     // Memoize the slides data to prevent re-renders
     const slides = useMemo(() => INSIGHTS_DATA, []);
@@ -82,7 +84,7 @@ export default function Carousel() {
                                     <video 
                                         src={slide.mediaUrl} 
                                         autoPlay loop muted playsInline 
-                                        className="w-full h-full object-cover opacity-30" // More transparent (brighter on white bg)
+                                        className={`w-full h-full object-cover ${theme === 'dark' ? 'opacity-30' : 'opacity-80'}`} // Adaptive opacity
                                     />
                                 ) : (
                                     <Image 
@@ -90,7 +92,7 @@ export default function Carousel() {
                                         alt={slide.title} 
                                         fill
                                         priority={i === 0}
-                                        className="object-cover opacity-30"
+                                        className={`object-cover ${theme === 'dark' ? 'opacity-30' : 'opacity-80'}`}
                                         sizes="100vw"
                                     />
                                 )}
