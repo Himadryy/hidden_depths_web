@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Clock, CheckCircle, Calendar as CalendarIcon, ArrowRight } from 'lucide-react';
+import { ChevronLeft, Clock, CheckCircle, Calendar as CalendarIcon, ArrowRight, Loader2 } from 'lucide-react';
 import { sendBookingEmail } from '@/lib/email';
+import { getBookedSlots, createBooking } from '@/lib/bookingService';
 
 type ViewState = 'calendar' | 'slots' | 'form' | 'success';
 
@@ -13,10 +14,22 @@ const TIME_SLOTS = [
   '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM'
 ];
 
+// Helper to ensure consistent Date format for DB (YYYY-MM-DD)
+// Uses local time to avoid timezone offset issues
+const formatDateForDB = (date: Date): string => {
+    const offset = date.getTimezoneOffset();
+    const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+    return localDate.toISOString().split('T')[0];
+};
+
 export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   const [view, setView] = useState<ViewState>('calendar');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  
+  // Database State
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -44,9 +57,21 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     return dates;
   }, [cycleOffset]);
 
-  const handleDateClick = (date: Date) => {
+  const handleDateClick = async (date: Date) => {
     setSelectedDate(date);
     setView('slots');
+    setIsLoadingSlots(true);
+    setBookedSlots([]); // Clear previous
+
+    try {
+        const dateStr = formatDateForDB(date);
+        const slots = await getBookedSlots(dateStr);
+        setBookedSlots(slots);
+    } catch (err) {
+        console.error("Failed to load slots", err);
+    } finally {
+        setIsLoadingSlots(false);
+    }
   };
 
   const handleTimeSelect = (time: string) => {
@@ -58,26 +83,256 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     setIsSubmitting(true);
     
+    if (!selectedDate || !selectedTime) return;
+
+    const dateStr = formatDateForDB(selectedDate);
+    const dateReadable = selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
     try {
-        await sendBookingEmail({
-            name,
-            email,
-            date: selectedDate?.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) || 'Unknown Date',
-            time: selectedTime || 'Unknown Time',
-            duration: "30 Minutes",
-        });
+        // 1. Secure the Booking in DB (The "Professional" Part)
+        const bookingResult = await createBooking(dateStr, selectedTime, name, email);
         
-        console.log("Booking success!");
+        if (!bookingResult.success) {
+            alert(bookingResult.error || "Booking failed.");
+            setIsSubmitting(false);
+            
+            // If it was taken, refresh the slots to show the user
+            if (bookingResult.error?.includes('just booked')) {
+                setView('slots');
+                handleDateClick(selectedDate); // Refresh slots
+            }
+            return;
+        }
+
+        // 2. Send Notification Email (The "Notification" Part)
+        // We do this AFTER securing the slot, so if email fails, the slot is still theirs.
+        try {
+            await sendBookingEmail({
+                name,
+                email,
+                date: dateReadable,
+                time: selectedTime,
+                duration: "30 Minutes",
+            });
+        } catch (emailError) {
+            console.warn("Email failed to send, but booking is secured in DB.", emailError);
+            // Optionally warn user, but usually success is better UX here since DB is truth
+        }
+        
+        console.log("Booking system success!");
         setIsSubmitting(false);
         setView('success');
     } catch (error) {
         console.error("Booking Error:", error);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const msg = (error as any)?.message || "Something went wrong. Please check your network or try again later.";
+        const msg = (error as any)?.message || "System error. Please try again.";
         alert(`Booking Failed: ${msg}`);
         setIsSubmitting(false);
     }
   };
+
+  // Styles using CSS Variables for Theming
+  const buttonStyle = "flex items-center justify-between p-4 rounded-xl text-left transition-all group relative overflow-hidden font-serif";
+  const passiveButtonStyle = "bg-[var(--background)] border border-glass text-muted hover:bg-[var(--accent)]/10 hover:border-[var(--accent)] hover:text-[var(--foreground)] shadow-sm";
+
+  const renderCalendar = () => (
+    <div className="space-y-6 h-full flex flex-col">
+        {/* Promotional Banner */}
+        <div className="bg-[var(--accent)]/10 border border-[var(--accent)]/20 p-3 rounded-lg text-center">
+            <p className="text-xs md:text-sm font-bold text-[var(--accent)] tracking-wide uppercase">
+                ✨ First Week Special: Sundays & Mondays are FREE!
+            </p>
+        </div>
+
+        <div className="flex flex-col gap-2">
+            <h3 className="text-2xl md:text-3xl font-serif text-theme">Select a Date</h3>
+            <div className="h-px w-12 bg-[var(--accent)] opacity-50" />
+            <p className="text-xs md:text-sm text-muted font-light mt-2">Available Sundays & Mondays.</p>
+        </div>
+        
+        {/* Rolling List of Dates - Single column on mobile, 2 cols on tablet+ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 overflow-y-auto pr-2 custom-scrollbar flex-1">
+            {availableDates.map((date, i) => (
+                <button
+                    key={i}
+                    onClick={() => handleDateClick(date)}
+                    className={`${buttonStyle} ${passiveButtonStyle}`}
+                >
+                    <div className="z-10">
+                        <span className="block text-lg md:text-xl">{date.toLocaleDateString('en-US', { weekday: 'long' })}</span>
+                        <span className="text-sm opacity-40 font-sans tracking-wide">{date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</span>
+                    </div>
+                    <ArrowRight size={18} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all text-[var(--accent)] z-10" />
+                </button>
+            ))}
+        </div>
+
+        {/* Cycle Controls */}
+        <div className="flex justify-between mt-auto pt-4 border-t border-glass">
+            <button 
+                onClick={() => setCycleOffset(Math.max(0, cycleOffset - 1))}
+                disabled={cycleOffset === 0}
+                className="text-xs font-bold uppercase tracking-widest text-muted hover:text-[var(--accent)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+                ← Previous Weeks
+            </button>
+            <button 
+                onClick={() => setCycleOffset(cycleOffset + 1)}
+                className="text-xs font-bold uppercase tracking-widest text-muted hover:text-[var(--accent)] transition-colors"
+            >
+                Next Weeks →
+            </button>
+        </div>
+    </div>
+  );
+
+  const renderSlots = () => (
+    <div className="space-y-8 h-full flex flex-col">
+        <div className="flex items-center gap-4">
+            <button onClick={() => setView('calendar')} className="p-2 -ml-2 rounded-full hover:bg-[var(--foreground)]/5 text-muted hover:text-theme transition-colors">
+                <ChevronLeft size={24} />
+            </button>
+            <div className="flex flex-col gap-1">
+                <h3 className="text-2xl font-serif text-theme">Select a Time</h3>
+                <p className="text-xs font-sans text-[var(--accent)] tracking-widest uppercase">
+                    {selectedDate?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                </p>
+            </div>
+        </div>
+        
+        {isLoadingSlots ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-muted">
+                <Loader2 className="animate-spin mb-4" size={32} />
+                <p className="text-xs uppercase tracking-widest">Checking Availability...</p>
+            </div>
+        ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 overflow-y-auto pr-2 custom-scrollbar pb-10">
+                {TIME_SLOTS.map((time) => {
+                    const isBooked = bookedSlots.includes(time);
+                    return (
+                        <button
+                            key={time}
+                            onClick={() => !isBooked && handleTimeSelect(time)}
+                            disabled={isBooked}
+                            className={`
+                                py-4 px-4 rounded-xl border flex items-center justify-center gap-2 group font-sans text-sm tracking-wide shadow-sm transition-all
+                                ${isBooked 
+                                    ? 'bg-black/5 dark:bg-white/5 border-transparent text-muted/30 cursor-not-allowed decoration-slice line-through decoration-muted/30' 
+                                    : 'bg-[var(--background)] border-glass text-muted hover:bg-[var(--accent)]/10 hover:border-[var(--accent)] hover:text-[var(--accent)]'
+                                }
+                            `}
+                        >
+                            <Clock size={14} className={isBooked ? "opacity-30" : "text-[var(--accent)]"} />
+                            {time}
+                            {isBooked && <span className="sr-only">(Booked)</span>}
+                        </button>
+                    );
+                })}
+            </div>
+        )}
+    </div>
+  );
+
+  const renderForm = () => (
+    <div className="space-y-8 h-full flex flex-col">
+        <div className="flex items-center gap-4">
+            <button onClick={() => setView('slots')} className="p-2 -ml-2 rounded-full hover:bg-[var(--foreground)]/5 text-muted hover:text-theme transition-colors">
+                <ChevronLeft size={24} />
+            </button>
+            <h3 className="text-2xl font-serif text-theme">Finalize Booking</h3>
+        </div>
+        
+        <div className="bg-[var(--accent)]/5 p-6 rounded-2xl border border-[var(--accent)]/20 flex items-start gap-5">
+            <div className="p-3 bg-[var(--background)] rounded-full text-[var(--accent)] shadow-sm">
+                <CalendarIcon size={20} />
+            </div>
+            <div>
+                <p className="text-theme font-serif text-xl mb-1">Introductory Session</p>
+                <p className="text-muted text-sm font-sans mb-2">30 Minutes • Video Call</p>
+                <div className="flex flex-col text-[var(--accent)] text-sm font-medium">
+                    <span>{selectedDate?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+                    <span>{selectedTime}</span>
+                </div>
+            </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6 flex-1">
+            <div className="space-y-2">
+                <label className="text-xs text-muted uppercase tracking-widest font-bold">Full Name</label>
+                <input 
+                    type="text" required value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full bg-[var(--background)] border border-glass rounded-xl p-4 text-theme focus:outline-none focus:border-[var(--accent)] transition-all"
+                    placeholder="Enter your name"
+                />
+            </div>
+            <div className="space-y-2">
+                <label className="text-xs text-muted uppercase tracking-widest font-bold">Email Address</label>
+                <input 
+                    type="email" required value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-[var(--background)] border border-glass rounded-xl p-4 text-theme focus:outline-none focus:border-[var(--accent)] transition-all"
+                    placeholder="Enter your email"
+                />
+            </div>
+            <button 
+                type="submit" disabled={isSubmitting}
+                className="w-full bg-[var(--foreground)] text-[var(--background)] font-serif tracking-widest text-sm py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all mt-auto disabled:opacity-50"
+            >
+                {isSubmitting ? 'SECURING SLOT...' : 'CONFIRM BOOKING'}
+            </button>
+        </form>
+    </div>
+  );
+
+  const renderSuccess = () => (
+    <div className="flex flex-col items-center justify-center h-full text-center space-y-8 py-10">
+        <motion.div 
+            initial={{ scale: 0 }} animate={{ scale: 1 }} 
+            className="w-24 h-24 bg-[var(--accent)] rounded-full flex items-center justify-center text-[var(--background)] mb-4 shadow-xl shadow-[var(--accent)]/20"
+        >
+            <CheckCircle size={48} />
+        </motion.div>
+        <div className="space-y-4">
+            <h3 className="text-4xl font-serif text-theme">Booking Confirmed</h3>
+            <p className="text-muted max-w-md mx-auto leading-relaxed">
+                Your sanctuary time is reserved for <br />
+                <span className="text-[var(--accent)] font-bold">{selectedDate?.toLocaleDateString()}</span> at <span className="text-[var(--accent)] font-bold">{selectedTime}</span>.
+            </p>
+        </div>
+        <button 
+            onClick={onClose}
+            className="mt-12 px-10 py-4 rounded-full border border-glass bg-[var(--background)] text-muted transition-all uppercase tracking-widest text-xs hover:border-[var(--accent)] hover:text-[var(--accent)]"
+        >
+            Return to Sanctuary
+        </button>
+    </div>
+  );
+
+  return (
+    <div 
+        className="h-full flex flex-col overflow-hidden"
+        onWheel={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+    >
+        <AnimatePresence mode='wait'>
+            <motion.div
+                key={view}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.4 }}
+                className="flex-1 h-full"
+            >
+                {view === 'calendar' && renderCalendar()}
+                {view === 'slots' && renderSlots()}
+                {view === 'form' && renderForm()}
+                {view === 'success' && renderSuccess()}
+            </motion.div>
+        </AnimatePresence>
+    </div>
+  );
+}
 
   // Styles using CSS Variables for Theming
   const buttonStyle = "flex items-center justify-between p-4 rounded-xl text-left transition-all group relative overflow-hidden font-serif";
