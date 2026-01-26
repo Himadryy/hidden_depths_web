@@ -11,19 +11,36 @@ function SuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
-  
-  // Extract data passed back from Stripe (we will configure Stripe to send these)
-  const name = searchParams.get('name') || '';
-  const email = searchParams.get('email') || '';
-  const date = searchParams.get('date') || '';
-  const time = searchParams.get('time') || '';
+  const [bookingDetails, setBookingDetails] = useState<{date: string, time: string} | null>(null);
 
   useEffect(() => {
     const finalizePaidBooking = async () => {
+      // 1. Try to get data from LocalStorage (Primary)
+      const stored = localStorage.getItem('pending_booking');
+      let name, email, date, time;
+
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        name = parsed.name;
+        email = parsed.email;
+        date = parsed.date;
+        time = parsed.time;
+        // Clean up
+        localStorage.removeItem('pending_booking');
+      } else {
+        // 2. Fallback to Search Params
+        name = searchParams.get('name') || '';
+        email = searchParams.get('email') || '';
+        date = searchParams.get('date') || '';
+        time = searchParams.get('time') || '';
+      }
+
       if (!name || !email || !date || !time) {
         setStatus('error');
         return;
       }
+
+      setBookingDetails({ date, time });
 
       try {
         // 1. Save to Supabase
@@ -55,7 +72,8 @@ function SuccessContent() {
     };
 
     finalizePaidBooking();
-  }, [name, email, date, time]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   return (
     <div className="min-h-screen bg-[var(--background)] flex items-center justify-center p-6">
@@ -88,11 +106,11 @@ function SuccessContent() {
             <div className="bg-glass border border-glass rounded-2xl p-6 space-y-4 text-left">
               <div className="flex items-center gap-4 text-theme">
                 <Calendar className="text-[var(--accent)]" size={20} />
-                <span className="font-serif">{new Date(date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+                <span className="font-serif">{bookingDetails ? new Date(bookingDetails.date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) : '...'}</span>
               </div>
               <div className="flex items-center gap-4 text-theme">
                 <Clock className="text-[var(--accent)]" size={20} />
-                <span className="font-sans">{time}</span>
+                <span className="font-sans">{bookingDetails?.time || '...'}</span>
               </div>
             </div>
 

@@ -120,16 +120,20 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     
     if (!selectedDate || !selectedTime) return;
 
-    // CHECK: Is this a paid session?
-    if (isPaidSession(selectedDate)) {
-        // PAYMENT WALL: Safely prevent booking for now
-        alert(`Information:\n\nSessions starting from Feb 8th are Paid Sessions (${SESSION_PRICE}).\n\nOur secure Razorpay integration is currently being finalized. Please check back soon or book a Free Session on Feb 1st or Feb 2nd.`);
-        setIsSubmitting(false);
-        return;
-    }
-
     const dateStr = formatDateForDB(selectedDate);
     const dateReadable = selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    // CHECK: Is this a paid session?
+    if (isPaidSession(selectedDate)) {
+        // SAVE PENDING DATA: So we can retrieve it on /payment-success
+        const pendingBooking = { name, email, date: dateStr, time: selectedTime };
+        localStorage.setItem('pending_booking', JSON.stringify(pendingBooking));
+
+        // RAZORPAY REDIRECT
+        const razorpayBaseUrl = "https://rzp.io/rzp/n1xNSvS";
+        window.location.href = razorpayBaseUrl;
+        return;
+    }
 
     try {
         // 1. Secure the Booking in DB (The "Professional" Part)
