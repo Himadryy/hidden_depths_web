@@ -41,7 +41,7 @@ const isTimePast = (timeStr: string, selectedDate: Date | null): boolean => {
 
 // DATE LOGIC: Payment Required after Feb 2nd, 2026
 const PAYMENT_START_DATE = new Date('2026-02-03');
-const SESSION_PRICE = "₹2500";
+const SESSION_PRICE = "₹99";
 
 const isPaidSession = (date: Date | null): boolean => {
     if (!date) return false;
