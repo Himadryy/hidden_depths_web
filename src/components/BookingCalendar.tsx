@@ -164,7 +164,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   const renderCalendar = () => (
     <div className="space-y-6 h-full flex flex-col">
         {/* Promotional Banner */}
-        <div className="bg-[var(--accent)]/10 border border-[var(--accent)]/20 p-3 rounded-lg text-center">
+        <div className="mt-10 md:mt-0 bg-[var(--accent)]/10 border border-[var(--accent)]/20 p-3 rounded-lg text-center">
             <p className="text-xs md:text-sm font-bold text-[var(--accent)] tracking-wide uppercase">
                 ✨ First Week Special: Sundays & Mondays are FREE!
             </p>
