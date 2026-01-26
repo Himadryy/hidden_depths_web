@@ -14,6 +14,31 @@ const TIME_SLOTS = [
   '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM'
 ];
 
+// Helper to check if a time slot is in the past relative to now
+const isTimePast = (timeStr: string, selectedDate: Date | null): boolean => {
+    if (!selectedDate) return false;
+    
+    const now = new Date();
+    // Check if selected date is today (ignoring time)
+    const isToday = selectedDate.getDate() === now.getDate() &&
+                    selectedDate.getMonth() === now.getMonth() &&
+                    selectedDate.getFullYear() === now.getFullYear();
+    
+    if (!isToday) return false;
+
+    // Parse time string "12:00 PM"
+    const [time, modifier] = timeStr.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+    
+    if (hours === 12 && modifier === 'AM') hours = 0;
+    if (hours !== 12 && modifier === 'PM') hours += 12;
+
+    const slotDate = new Date(selectedDate);
+    slotDate.setHours(hours, minutes, 0, 0);
+
+    return slotDate < now;
+};
+
 // Helper to ensure consistent Date format for DB (YYYY-MM-DD)
 // Uses local time to avoid timezone offset issues
 const formatDateForDB = (date: Date): string => {
@@ -37,14 +62,14 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
 
   const [cycleOffset, setCycleOffset] = useState(0);
 
-  // Logic: Get next available Sundays and Mondays (2 weeks per cycle)
+  // Logic: Get next available Sundays and Mondays (extended to 4 weeks per cycle)
   const availableDates = useMemo(() => {
     const dates: Date[] = [];
     const today = new Date();
-    // Start from today + offset, look ahead 14 days
-    const startDayOffset = cycleOffset * 14;
+    // Start from today + offset, look ahead 28 days (4 weeks)
+    const startDayOffset = cycleOffset * 28;
     
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 28; i++) {
         const d = new Date(today);
         d.setDate(today.getDate() + startDayOffset + i);
         const day = d.getDay();
@@ -186,7 +211,11 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     </div>
   );
 
-  const renderSlots = () => (
+  const renderSlots = () => {
+    // Filter slots based on current time if "Today" is selected
+    const visibleSlots = TIME_SLOTS.filter(time => !isTimePast(time, selectedDate));
+
+    return (
     <div className="space-y-8 h-full flex flex-col">
         <div className="flex items-center gap-4">
             <button onClick={() => setView('calendar')} className="p-2 -ml-2 rounded-full hover:bg-[var(--foreground)]/5 text-muted hover:text-theme transition-colors">
@@ -207,31 +236,38 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             </div>
         ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 overflow-y-auto pr-2 custom-scrollbar pb-10">
-                {TIME_SLOTS.map((time) => {
-                    const isBooked = bookedSlots.includes(time);
-                    return (
-                        <button
-                            key={time}
-                            onClick={() => !isBooked && handleTimeSelect(time)}
-                            disabled={isBooked}
-                            className={`
-                                py-4 px-4 rounded-xl border flex items-center justify-center gap-2 group font-sans text-sm tracking-wide shadow-sm transition-all
-                                ${isBooked 
-                                    ? 'bg-black/5 dark:bg-white/5 border-transparent text-muted/30 cursor-not-allowed decoration-slice line-through decoration-muted/30' 
-                                    : 'bg-[var(--background)] border-glass text-muted hover:bg-[var(--accent)]/10 hover:border-[var(--accent)] hover:text-[var(--accent)]'
-                                }
-                            `}
-                        >
-                            <Clock size={14} className={isBooked ? "opacity-30" : "text-[var(--accent)]"} />
-                            {time}
-                            {isBooked && <span className="sr-only">(Booked)</span>}
-                        </button>
-                    );
-                })}
+                {visibleSlots.length > 0 ? (
+                    visibleSlots.map((time) => {
+                        const isBooked = bookedSlots.includes(time);
+                        return (
+                            <button
+                                key={time}
+                                onClick={() => !isBooked && handleTimeSelect(time)}
+                                disabled={isBooked}
+                                className={`
+                                    py-4 px-4 rounded-xl border flex items-center justify-center gap-2 group font-sans text-sm tracking-wide shadow-sm transition-all
+                                    ${isBooked 
+                                        ? 'bg-black/5 dark:bg-white/5 border-transparent text-muted/30 cursor-not-allowed decoration-slice line-through decoration-muted/30' 
+                                        : 'bg-[var(--background)] border-glass text-muted hover:bg-[var(--accent)]/10 hover:border-[var(--accent)] hover:text-[var(--accent)]'
+                                    }
+                                `}
+                            >
+                                <Clock size={14} className={isBooked ? "opacity-30" : "text-[var(--accent)]"} />
+                                {time}
+                                {isBooked && <span className="sr-only">(Booked)</span>}
+                            </button>
+                        );
+                    })
+                ) : (
+                    <div className="col-span-full flex flex-col items-center justify-center text-muted py-10 opacity-60">
+                         <Clock size={32} className="mb-2" />
+                         <p className="text-sm">No available slots for today.</p>
+                    </div>
+                )}
             </div>
         )}
     </div>
-  );
+  )};
 
   const renderForm = () => (
     <div className="space-y-8 h-full flex flex-col">
