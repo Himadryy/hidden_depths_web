@@ -1,62 +1,73 @@
-# Hidden Depths - A Space to Think
+# Hidden Depths - Digital Sanctuary
 
-**Hidden Depths** is a digital sanctuary designed for clarity and guided thinking. It offers a unique, confidential environment for individuals who need a focused space to process their thoughts away from the distractions of traditional video calls.
+![Hidden Depths](public/logo.png)
 
-![Project Preview](/public/logo.png)
+> "When your head is full, and you need a space to think."
 
-## ✨ Features
+**Hidden Depths** is a modern digital sanctuary designed to provide mental clarity through anonymity and focused listening. It combines immersive WebGL visuals, a calming audio environment, and a secure 1-on-1 booking system to offer a unique mentoring experience.
 
-- **Focused Anonymity:** A design philosophy centered on user comfort and guided reflection.
-- **Interactive Media Carousel:** A smooth, 3D card-stack experience for navigating core concepts.
-- **Prismatic Background:** High-performance WebGL animations (OGL) providing a meditative visual anchor.
-- **Custom Booking System:** Integrated calendar and scheduling system with direct email notifications via EmailJS.
-- **Modern UI/UX:** Built with Tailwind CSS and Framer Motion for a premium, responsive feel.
-- **Performance Optimized:** Leveraging Next.js 16 features like optimized images and metadata.
+## 🌟 Core Features
 
-## 🛠️ Tech Stack
+-   **Immersive Atmosphere:** Custom 3D visuals using Voronoi fluid shaders (`CausticOcean`) and ambient audio integration.
+-   **Circadian Rhythm System:** Automatically transitions between "Morning Light" (Gold/White) and "Abyssal Night" (Dark/Gold) themes based on the user's local time.
+-   **Professional Booking Engine:** 
+    -   Smart scheduling (Sundays & Mondays only).
+    -   Double-booking protection via Supabase.
+    -   Payment integration via **Razorpay** (UPI/Cards).
+    -   Automated email confirmations via EmailJS.
+-   **PWA Ready:** Installable as a native-like app on iOS and Android with offline support.
+-   **Performance Optimized:** Tiered graphics rendering (`Low` vs `High` tiers) to ensure smooth 60fps performance on devices ranging from budget Androids to iPhone 16 Pro.
 
-- **Framework:** [Next.js 16](https://nextjs.org/) (App Router)
-- **Styling:** [Tailwind CSS](https://tailwindcss.com/)
-- **Animations:** [Framer Motion](https://www.framer.com/motion/) & [OGL](https://github.com/o-g-l/ogl) (WebGL)
-- **Icons:** [Lucide React](https://lucide.dev/)
-- **Email Service:** [EmailJS](https://www.emailjs.com/)
+## 🛠 Tech Stack
+
+-   **Framework:** [Next.js 16](https://nextjs.org/) (App Router, Static Export)
+-   **Language:** TypeScript
+-   **Styling:** Tailwind CSS v4, Framer Motion
+-   **Graphics:** React Three Fiber, OGL (WebGL)
+-   **Backend:** Supabase (Database), Cloudflare Pages (Hosting)
+-   **Payments:** Razorpay Integration
+-   **License:** AGPL-3.0
 
 ## 🚀 Getting Started
 
-### 1. Clone the repository
-```bash
-git clone https://github.com/Himadryy/hidden_depths_web.git
-cd hidden_depths_web
-```
+This project is deployed live at **[hidden-depths-web.pages.dev](https://hidden-depths-web.pages.dev)**.
 
-### 2. Install dependencies
-```bash
-npm install
-```
+### Local Development
 
-### 3. Environment Setup
-Create a `.env.local` file in the root directory and add your EmailJS credentials:
-```env
-NEXT_PUBLIC_EMAILJS_SERVICE_ID=your_service_id
-NEXT_PUBLIC_EMAILJS_TEMPLATE_ID=your_template_id
-NEXT_PUBLIC_EMAILJS_PUBLIC_KEY=your_public_key
-```
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/Himadryy/hidden_depths_web.git
+    cd hidden_depths_web
+    ```
 
-### 4. Run the development server
-```bash
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) to see the result.
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
 
-## 📦 Deployment
+3.  **Set up Environment Variables:**
+    Create a `.env.local` file with the following keys:
+    ```bash
+    NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_key
+    NEXT_PUBLIC_EMAILJS_SERVICE_ID=your_service_id
+    NEXT_PUBLIC_EMAILJS_TEMPLATE_ID=your_template_id
+    NEXT_PUBLIC_EMAILJS_PUBLIC_KEY=your_public_key
+    ```
 
-This project is optimized for deployment on the [Vercel Platform](https://vercel.com/new).
+4.  **Run the development server:**
+    ```bash
+    npm run dev
+    ```
 
-1. Push your code to GitHub.
-2. Connect your repository to Vercel.
-3. Add the Environment Variables from your `.env.local` to the Vercel project settings.
-4. Deploy!
+## 🛡️ License & Legal
+
+**Copyright © 2026 Himadryy.**
+
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+*   You are free to download and inspect the code for educational purposes.
+*   **Strict Copyleft:** If you modify this application and distribute it (or host it over a network), you **MUST** open-source your entire project under the same AGPL-3.0 license.
+*   **Proprietary Use:** Closed-source usage or commercial rebranding without permission is strictly prohibited.
 
 ---
-
-&copy; 2025 Hidden Depths. All Rights Reserved.
+*Built with heart and code in Kolkata.*

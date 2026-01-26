@@ -1,5 +1,9 @@
 # Security Policy
 
+## 🛡️ Protection Philosophy
+
+Hidden Depths is designed as a secure sanctuary. We prioritize user privacy, payment security (via Razorpay), and data integrity (via Supabase RLS).
+
 ## Supported Versions
 
 | Version | Supported          |
@@ -9,11 +13,12 @@
 
 ## Reporting a Vulnerability
 
-We take the security of our digital sanctuary seriously. If you discover a vulnerability:
+If you discover a security vulnerability within this project, please prioritize the safety of our users:
 
-1.  **Do NOT open a public issue.** We do not want to expose users to risk.
-2.  **Email:** Please email the maintainer directly (add your email here later) or open a **Draft Pull Request** with a description of the issue.
-3.  **Response:** We will acknowledge your report within 48 hours.
+1.  **Do NOT** open a public issue on GitHub.
+2.  **Contact:** Please report the issue by creating a private **Draft Security Advisory** on this repository or emailing the maintainer directly.
+3.  **Response:** We aim to acknowledge all security reports within 48 hours and will provide a timeline for the fix.
 
-## Auditing
-This project uses `npm audit` and strict dependency locking to ensure supply chain security.
+## Anti-Theft & Integrity
+
+This code is protected under **AGPL-3.0**. Unauthorized cloning, rebranding, or malicious injection of this codebase for commercial gain without adherence to the license will be legally pursued.

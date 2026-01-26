@@ -1,3 +1,14 @@
+/*
+ * HIDDEN DEPTHS - DIGITAL SANCTUARY
+ * Copyright (c) 2026 Himadryy. All Rights Reserved.
+ *
+ * This source code is licensed under the AGPL-3.0 License.
+ * unauthorized copying, modification, or distribution of this code,
+ * via any medium, without strict adherence to the license terms is prohibited.
+ *
+ * "The deeper you go, the more you find."
+ */
+
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Cinzel } from "next/font/google";
 import "./globals.css";
