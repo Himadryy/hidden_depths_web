@@ -41,7 +41,7 @@ const isTimePast = (timeStr: string, selectedDate: Date | null): boolean => {
 
 // DATE LOGIC: Payment Required after Feb 2nd, 2026
 const PAYMENT_START_DATE = new Date('2026-02-03');
-const SESSION_PRICE = "$50";
+const SESSION_PRICE = "₹2500";
 
 const isPaidSession = (date: Date | null): boolean => {
     if (!date) return false;
@@ -123,7 +123,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     // CHECK: Is this a paid session?
     if (isPaidSession(selectedDate)) {
         // PAYMENT WALL: Safely prevent booking for now
-        alert(`Information:\n\nSessions starting from Feb 8th are Paid Sessions (${SESSION_PRICE}).\n\nOur secure payment integration is currently being finalized. Please check back soon or book a Free Session on Feb 1st or Feb 2nd.`);
+        alert(`Information:\n\nSessions starting from Feb 8th are Paid Sessions (${SESSION_PRICE}).\n\nOur secure Razorpay integration is currently being finalized. Please check back soon or book a Free Session on Feb 1st or Feb 2nd.`);
         setIsSubmitting(false);
         return;
     }
