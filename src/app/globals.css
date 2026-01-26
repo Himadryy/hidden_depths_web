@@ -3,11 +3,11 @@
 :root {
   /* Default (Light) - Morning Sanctuary */
   --background: #F8F9FA;
-  --foreground: #1A1A1A;
+  --foreground: #000000;
   --accent: #B8860B; /* Deep Gold */
   --glass-panel: rgba(255, 255, 255, 0.6);
-  --glass-border: rgba(0, 0, 0, 0.05);
-  --text-muted: rgba(0, 0, 0, 0.6);
+  --glass-border: rgba(0, 0, 0, 0.1);
+  --text-muted: rgba(0, 0, 0, 0.8);
   
   --font-serif: var(--font-serif);
   --font-sans: var(--font-geist-sans);
@@ -16,11 +16,11 @@
 [data-theme='dark'] {
   /* Dark Mode - Abyssal Sanctuary */
   --background: #050505;
-  --foreground: #F5F5F5;
-  --accent: #E0B873; /* Bright Gold */
-  --glass-panel: rgba(0, 0, 0, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --text-muted: rgba(255, 255, 255, 0.6);
+  --foreground: #FFFFFF;
+  --accent: #FFD700; /* Pure Gold - Brighter */
+  --glass-panel: rgba(0, 0, 0, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --text-muted: rgba(255, 255, 255, 0.85);
 }
 
 body {

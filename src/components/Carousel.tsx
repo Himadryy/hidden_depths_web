@@ -84,7 +84,7 @@ export default function Carousel() {
                                     <video 
                                         src={slide.mediaUrl} 
                                         autoPlay loop muted playsInline 
-                                        className={`w-full h-full object-cover ${theme === 'dark' ? 'opacity-30' : 'opacity-80'}`} // Adaptive opacity
+                                        className={`w-full h-full object-cover ${theme === 'dark' ? 'opacity-55' : 'opacity-80'}`} // Adaptive opacity
                                     />
                                 ) : (
                                     <Image 
@@ -92,7 +92,7 @@ export default function Carousel() {
                                         alt={slide.title} 
                                         fill
                                         priority={i === 0}
-                                        className={`object-cover ${theme === 'dark' ? 'opacity-30' : 'opacity-80'}`}
+                                        className={`object-cover ${theme === 'dark' ? 'opacity-55' : 'opacity-80'}`}
                                         sizes="100vw"
                                     />
                                 )}
