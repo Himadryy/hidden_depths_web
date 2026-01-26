@@ -39,6 +39,15 @@ const isTimePast = (timeStr: string, selectedDate: Date | null): boolean => {
     return slotDate < now;
 };
 
+// DATE LOGIC: Payment Required after Feb 2nd, 2026
+const PAYMENT_START_DATE = new Date('2026-02-03');
+const SESSION_PRICE = "$50";
+
+const isPaidSession = (date: Date | null): boolean => {
+    if (!date) return false;
+    return date >= PAYMENT_START_DATE;
+};
+
 // Helper to ensure consistent Date format for DB (YYYY-MM-DD)
 // Uses local time to avoid timezone offset issues
 const formatDateForDB = (date: Date): string => {
@@ -111,6 +120,14 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     
     if (!selectedDate || !selectedTime) return;
 
+    // CHECK: Is this a paid session?
+    if (isPaidSession(selectedDate)) {
+        // PAYMENT WALL: Safely prevent booking for now
+        alert(`Information:\n\nSessions starting from Feb 8th are Paid Sessions (${SESSION_PRICE}).\n\nOur secure payment integration is currently being finalized. Please check back soon or book a Free Session on Feb 1st or Feb 2nd.`);
+        setIsSubmitting(false);
+        return;
+    }
+
     const dateStr = formatDateForDB(selectedDate);
     const dateReadable = selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -178,19 +195,25 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
         
         {/* Rolling List of Dates - Single column on mobile, 2 cols on tablet+ */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 overflow-y-auto pr-2 custom-scrollbar flex-1">
-            {availableDates.map((date, i) => (
-                <button
-                    key={i}
-                    onClick={() => handleDateClick(date)}
-                    className={`${buttonStyle} ${passiveButtonStyle}`}
-                >
-                    <div className="z-10">
-                        <span className="block text-lg md:text-xl">{date.toLocaleDateString('en-US', { weekday: 'long' })}</span>
-                        <span className="text-sm opacity-60 font-sans tracking-wide">{date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</span>
-                    </div>
-                    <ArrowRight size={18} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all text-[var(--accent)] z-10" />
-                </button>
-            ))}
+            {availableDates.map((date, i) => {
+                const isPaid = isPaidSession(date);
+                return (
+                    <button
+                        key={i}
+                        onClick={() => handleDateClick(date)}
+                        className={`${buttonStyle} ${passiveButtonStyle}`}
+                    >
+                        <div className="z-10">
+                            <span className="block text-lg md:text-xl">{date.toLocaleDateString('en-US', { weekday: 'long' })}</span>
+                            <span className="text-sm opacity-60 font-sans tracking-wide">
+                                {date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                                {isPaid && <span className="ml-2 text-[var(--accent)] font-bold">• {SESSION_PRICE}</span>}
+                            </span>
+                        </div>
+                        <ArrowRight size={18} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all text-[var(--accent)] z-10" />
+                    </button>
+                );
+            })}
         </div>
     </div>
   );
@@ -253,7 +276,10 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     </div>
   )};
 
-  const renderForm = () => (
+  const renderForm = () => {
+    const isPaid = isPaidSession(selectedDate);
+    
+    return (
     <div className="space-y-8 h-full flex flex-col">
         <div className="flex items-center gap-4">
             <button onClick={() => setView('slots')} className="p-2 -ml-2 rounded-full hover:bg-[var(--foreground)]/5 text-muted hover:text-theme transition-colors">
@@ -273,6 +299,12 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                     <span>{selectedDate?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
                     <span>{selectedTime}</span>
                 </div>
+                {/* Price Tag Display */}
+                {isPaid && (
+                     <div className="mt-2 inline-flex items-center px-2 py-1 bg-[var(--accent)] text-[var(--background)] text-xs font-bold uppercase tracking-wider rounded">
+                        Price: {SESSION_PRICE}
+                     </div>
+                )}
             </div>
         </div>
 
@@ -299,11 +331,11 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                 type="submit" disabled={isSubmitting}
                 className="w-full bg-[var(--foreground)] text-[var(--background)] font-serif tracking-widest text-sm py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all mt-auto disabled:opacity-50"
             >
-                {isSubmitting ? 'SECURING SLOT...' : 'CONFIRM BOOKING'}
+                {isSubmitting ? 'PROCESSING...' : (isPaid ? 'PROCEED TO PAYMENT' : 'CONFIRM BOOKING')}
             </button>
         </form>
     </div>
-  );
+  )};
 
   const renderSuccess = () => (
     <div className="flex flex-col items-center justify-center h-full text-center space-y-8 py-10">
