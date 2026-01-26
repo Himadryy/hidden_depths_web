@@ -60,18 +60,19 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [cycleOffset, setCycleOffset] = useState(0);
-
-  // Logic: Get next available Sundays and Mondays (extended to 4 weeks per cycle)
+  // Logic: Get next available Sundays and Mondays starting from Feb 1st till mid-Feb
   const availableDates = useMemo(() => {
     const dates: Date[] = [];
     const today = new Date();
-    // Start from today + offset, look ahead 28 days (4 weeks)
-    const startDayOffset = cycleOffset * 28;
     
-    for (let i = 0; i < 28; i++) {
-        const d = new Date(today);
-        d.setDate(today.getDate() + startDayOffset + i);
+    // Find the next Sunday (Feb 1st, 2026)
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() + (7 - today.getDay())); 
+
+    // Loop through 16 days from the next Sunday to cover up to Feb 16th
+    for (let i = 0; i < 16; i++) {
+        const d = new Date(startDate);
+        d.setDate(startDate.getDate() + i);
         const day = d.getDay();
         
         // 0 = Sunday, 1 = Monday
@@ -80,7 +81,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
         }
     }
     return dates;
-  }, [cycleOffset]);
+  }, []);
 
   const handleDateClick = async (date: Date) => {
     setSelectedDate(date);
@@ -190,23 +191,6 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                     <ArrowRight size={18} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all text-[var(--accent)] z-10" />
                 </button>
             ))}
-        </div>
-
-        {/* Cycle Controls */}
-        <div className="flex justify-between mt-auto pt-4 border-t border-glass">
-            <button 
-                onClick={() => setCycleOffset(Math.max(0, cycleOffset - 1))}
-                disabled={cycleOffset === 0}
-                className="text-xs font-bold uppercase tracking-widest text-muted hover:text-[var(--accent)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-                ← Previous Weeks
-            </button>
-            <button 
-                onClick={() => setCycleOffset(cycleOffset + 1)}
-                className="text-xs font-bold uppercase tracking-widest text-muted hover:text-[var(--accent)] transition-colors"
-            >
-                Next Weeks →
-            </button>
         </div>
     </div>
   );
