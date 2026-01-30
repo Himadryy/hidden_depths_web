@@ -27,7 +27,8 @@ export const createBooking = async (
   date: string,
   time: string,
   name: string,
-  email: string
+  email: string,
+  userId?: string
 ): Promise<{ success: boolean; error?: string }> => {
   
   // 1. Attempt to insert the booking
@@ -35,7 +36,7 @@ export const createBooking = async (
   const { error } = await supabase
     .from('bookings')
     .insert([
-      { date, time, name, email }
+      { date, time, name, email, user_id: userId }
     ]);
 
   if (error) {

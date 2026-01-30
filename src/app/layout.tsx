@@ -14,6 +14,7 @@ import { Geist, Geist_Mono, Cinzel } from "next/font/google";
 import "./globals.css";
 import { PerformanceProvider } from "@/context/PerformanceProvider";
 import { ThemeProvider } from "@/context/ThemeProvider";
+import { AuthProvider } from "@/context/AuthProvider";
 import SmoothScroll from "@/components/SmoothScroll";
 import DebugPanel from "@/components/DebugPanel";
 import SoundController from "@/components/SoundController";
@@ -93,11 +94,13 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <PerformanceProvider>
-            <SmoothScroll>
-              {children}
-              <SoundController />
-              <DebugPanel />
-            </SmoothScroll>
+            <AuthProvider>
+              <SmoothScroll>
+                {children}
+                <SoundController />
+                <DebugPanel />
+              </SmoothScroll>
+            </AuthProvider>
           </PerformanceProvider>
         </ThemeProvider>
       </body>

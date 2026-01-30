@@ -8,6 +8,8 @@ import Carousel from './Carousel';
 import BookingCalendar from './BookingCalendar';
 import { LANDING_CONTENT } from '@/lib/data';
 
+import UserMenu from './UserMenu';
+
 export default function Overlay() {
   const [introFinished, setIntroFinished] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -112,7 +114,7 @@ export default function Overlay() {
         transition={{ duration: 1.5, delay: 0.5 }}
       >
         {/* Header (Minimal) */}
-        <header className="fixed top-0 w-full p-8 flex justify-between items-center z-40">
+        <header className="fixed top-0 w-full p-8 flex justify-between items-center z-40 pointer-events-auto">
             <div className="flex items-center gap-4 group cursor-default">
                 <div className="relative w-10 h-10 opacity-80 hover:opacity-100 transition-all">
                     <Image 
@@ -123,10 +125,7 @@ export default function Overlay() {
                     />
                 </div>
             </div>
-            <nav className="flex gap-4 md:gap-8 text-[10px] md:text-xs font-serif tracking-[0.15em] uppercase text-muted">
-                <a href="#method" className="hover:text-[var(--accent)] transition-colors">Method</a>
-                <a href="#about" className="hover:text-[var(--accent)] transition-colors">About</a>
-            </nav>
+            <UserMenu />
         </header>
 
         <main className="max-w-4xl mx-auto px-6">

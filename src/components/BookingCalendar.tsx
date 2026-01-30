@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Clock, CheckCircle, Calendar as CalendarIcon, ArrowRight, Loader2 } from 'lucide-react';
 import { sendBookingEmail } from '@/lib/email';
 import { getBookedSlots, createBooking } from '@/lib/bookingService';
+import { useAuth } from '@/context/AuthProvider';
 
 type ViewState = 'calendar' | 'slots' | 'form' | 'success';
 
@@ -59,6 +60,7 @@ const formatDateForDB = (date: Date): string => {
 };
 
 export default function BookingCalendar({ onClose }: { onClose: () => void }) {
+  const { user } = useAuth();
   const [view, setView] = useState<ViewState>('calendar');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -67,8 +69,9 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
+  // Pre-fill if user exists
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(user?.email || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Logic: Get next available Sundays and Mondays starting from Feb 1st till mid-Feb
@@ -139,7 +142,13 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
 
     try {
         // 1. Secure the Booking in DB (The "Professional" Part)
-        const bookingResult = await createBooking(dateStr, selectedTime, name, email);
+        const bookingResult = await createBooking(
+            dateStr, 
+            selectedTime, 
+            name, 
+            email, 
+            user?.id // Pass User ID if logged in
+        );
         
         if (!bookingResult.success) {
             alert(bookingResult.error || "Booking failed.");
