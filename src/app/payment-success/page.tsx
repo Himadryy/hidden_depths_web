@@ -72,7 +72,6 @@ function SuccessContent() {
     };
 
     finalizePaidBooking();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   return (
@@ -129,7 +128,7 @@ function SuccessContent() {
             className="space-y-6"
           >
             <h1 className="font-serif text-2xl text-theme">Something went wrong</h1>
-            <p className="text-muted text-sm">We couldn't finalize your booking automatically. Please contact us with your payment receipt.</p>
+            <p className="text-muted text-sm">We couldn&apos;t finalize your booking automatically. Please contact us with your payment receipt.</p>
             <button 
               onClick={() => router.push('/')}
               className="px-8 py-3 bg-[var(--foreground)] text-[var(--background)] rounded-full text-sm font-bold uppercase tracking-widest"

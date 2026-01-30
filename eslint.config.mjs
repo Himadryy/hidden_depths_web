@@ -15,6 +15,7 @@ const eslintConfig = defineConfig([
     "dist/**",
     "_backup_vanilla/**",
     "_backup_vite/**",
+    "public/**",
   ]),
 ]);
 

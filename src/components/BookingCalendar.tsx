@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Clock, CheckCircle, Calendar as CalendarIcon, ArrowRight, Loader2 } from 'lucide-react';
 import { sendBookingEmail } from '@/lib/email';
@@ -28,7 +28,9 @@ const isTimePast = (timeStr: string, selectedDate: Date | null): boolean => {
 
     // Parse time string "12:00 PM"
     const [time, modifier] = timeStr.split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
+    const parts = time.split(':').map(Number);
+    let hours = parts[0];
+    const minutes = parts[1];
     
     if (hours === 12 && modifier === 'AM') hours = 0;
     if (hours !== 12 && modifier === 'PM') hours += 12;
