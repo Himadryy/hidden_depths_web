@@ -10,9 +10,8 @@ import { useAuth } from '@/context/AuthProvider';
 type ViewState = 'calendar' | 'slots' | 'form' | 'success';
 
 const TIME_SLOTS = [
-  '12:00 PM', '12:30 PM', '01:00 PM', '01:30 PM',
-  '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM',
-  '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM'
+  '11:00 AM', '11:45 AM', '12:30 PM',
+  '08:00 PM', '08:45 PM'
 ];
 
 // Helper to check if a time slot is in the past relative to now
