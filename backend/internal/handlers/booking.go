@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/Himadryy/hidden-depths-backend/internal/database"
@@ -10,6 +11,7 @@ import (
 	"github.com/Himadryy/hidden-depths-backend/internal/ws"
 	"github.com/Himadryy/hidden-depths-backend/pkg/response"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 )
 
 // GetBookedSlots returns all time slots booked for a specific date
@@ -47,9 +49,14 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub) {
 		return
 	}
 
+	// Generate Jitsi Meeting Link
+	// Format: https://meet.jit.si/HiddenDepths-[RandomID]-[Date]
+	meetingID := uuid.New().String()
+	booking.MeetingLink = fmt.Sprintf("https://meet.jit.si/HiddenDepths-%s-%s", meetingID[:8], booking.Date)
+
 	_, err := database.Pool.Exec(context.Background(),
-		"INSERT INTO bookings (date, time, name, email, user_id) VALUES ($1, $2, $3, $4, $5)",
-		booking.Date, booking.Time, booking.Name, booking.Email, booking.UserID,
+		"INSERT INTO bookings (date, time, name, email, user_id, meeting_link) VALUES ($1, $2, $3, $4, $5, $6)",
+		booking.Date, booking.Time, booking.Name, booking.Email, booking.UserID, booking.MeetingLink,
 	)
 
 	if err != nil {
@@ -71,7 +78,7 @@ func GetUserBookings(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("user_id") 
 	
 	rows, err := database.Pool.Query(context.Background(), 
-		"SELECT id, date, time, name, email, created_at FROM bookings WHERE user_id = $1 ORDER BY date DESC", 
+		"SELECT id, date, time, name, email, meeting_link, created_at FROM bookings WHERE user_id = $1 ORDER BY date DESC", 
 		userID,
 	)
 	if err != nil {
@@ -83,7 +90,7 @@ func GetUserBookings(w http.ResponseWriter, r *http.Request) {
 	var bookings []models.Booking
 	for rows.Next() {
 		var b models.Booking
-		if err := rows.Scan(&b.ID, &b.Date, &b.Time, &b.Name, &b.Email, &b.CreatedAt); err != nil {
+		if err := rows.Scan(&b.ID, &b.Date, &b.Time, &b.Name, &b.Email, &b.MeetingLink, &b.CreatedAt); err != nil {
 			continue
 		}
 		bookings = append(bookings, b)
