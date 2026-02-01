@@ -46,3 +46,4 @@ _backup_assets/
 public/sw.js
 public/workbox-*.js
 public/swe-worker-*.js
+backend/.env
