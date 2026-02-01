@@ -7,6 +7,7 @@ import (
 
 	"github.com/Himadryy/hidden-depths-backend/internal/database"
 	"github.com/Himadryy/hidden-depths-backend/internal/models"
+	"github.com/Himadryy/hidden-depths-backend/pkg/response"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -14,13 +15,13 @@ import (
 func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 	date := chi.URLParam(r, "date")
 	if date == "" {
-		http.Error(w, "Date is required", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Date is required")
 		return
 	}
 
 	rows, err := database.Pool.Query(context.Background(), "SELECT time FROM bookings WHERE date = $1", date)
 	if err != nil {
-		http.Error(w, "Failed to fetch slots", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to fetch slots")
 		return
 	}
 	defer rows.Close()
@@ -34,15 +35,14 @@ func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 		slots = append(slots, time)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(slots)
+	response.JSON(w, http.StatusOK, slots, "Slots fetched successfully")
 }
 
 // CreateBooking saves a new booking to the database
 func CreateBooking(w http.ResponseWriter, r *http.Request) {
 	var booking models.Booking
 	if err := json.NewDecoder(r.Body).Decode(&booking); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
@@ -52,31 +52,23 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		// Handle unique constraint violation (date, time)
-		// PostgreSQL error code 23505 is unique_violation
-		// With pgx, we can check the error code
-		// For simplicity in this step, we'll return a general error or check the message
-		http.Error(w, "Failed to create booking or slot already taken", http.StatusConflict)
+		response.Error(w, http.StatusConflict, "Failed to create booking or slot already taken")
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Booking successful"})
+	response.JSON(w, http.StatusCreated, nil, "Booking successful")
 }
 
 // GetUserBookings returns all bookings for the authenticated user
 func GetUserBookings(w http.ResponseWriter, r *http.Request) {
-	// Get user_id from context (set by AuthMiddleware)
-	userID := r.Context().Value("user_id") // We'll need to import the key or use a string
-	// To avoid circular imports, usually middleware defines the key type
-	// For now, let's assume it's passed as a string or handled via a helper
+	userID := r.Context().Value("user_id") 
 	
 	rows, err := database.Pool.Query(context.Background(), 
 		"SELECT id, date, time, name, email, created_at FROM bookings WHERE user_id = $1 ORDER BY date DESC", 
 		userID,
 	)
 	if err != nil {
-		http.Error(w, "Failed to fetch your bookings", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to fetch your bookings")
 		return
 	}
 	defer rows.Close()
@@ -90,8 +82,7 @@ func GetUserBookings(w http.ResponseWriter, r *http.Request) {
 		bookings = append(bookings, b)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(bookings)
+	response.JSON(w, http.StatusOK, bookings, "User bookings fetched")
 }
 
 // CancelBooking allows a user to cancel their own booking
@@ -100,27 +91,26 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("user_id").(string)
 
 	if bookingID == "" {
-		http.Error(w, "Booking ID is required", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Booking ID is required")
 		return
 	}
 
-	// Only delete if the booking belongs to the authenticated user
 	result, err := database.Pool.Exec(context.Background(),
 		"DELETE FROM bookings WHERE id = $1 AND user_id = $2",
 		bookingID, userID,
 	)
 
 	if err != nil {
-		http.Error(w, "Failed to cancel booking", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to cancel booking")
 		return
 	}
 
 	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
-		http.Error(w, "Booking not found or not authorized to cancel", http.StatusNotFound)
+		response.Error(w, http.StatusNotFound, "Booking not found or not authorized to cancel")
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	response.JSON(w, http.StatusOK, nil, "Booking cancelled successfully")
 }
 

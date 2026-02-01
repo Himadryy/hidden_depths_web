@@ -2,11 +2,11 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/Himadryy/hidden-depths-backend/internal/database"
+	"github.com/Himadryy/hidden-depths-backend/pkg/response"
 )
 
 type AdminStats struct {
@@ -23,7 +23,7 @@ func GetAdminStats(w http.ResponseWriter, r *http.Request) {
 	var total int
 	err := database.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM bookings").Scan(&total)
 	if err != nil {
-		http.Error(w, "Failed to count total bookings", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to count total bookings")
 		return
 	}
 
@@ -33,7 +33,7 @@ func GetAdminStats(w http.ResponseWriter, r *http.Request) {
 	var upcoming int
 	err = database.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM bookings WHERE date >= $1", today).Scan(&upcoming)
 	if err != nil {
-		http.Error(w, "Failed to count upcoming bookings", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to count upcoming bookings")
 		return
 	}
 
@@ -54,6 +54,5 @@ func GetAdminStats(w http.ResponseWriter, r *http.Request) {
 		Revenue:          revenue,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
+	response.JSON(w, http.StatusOK, stats, "Admin stats fetched")
 }
