@@ -3,24 +3,21 @@ package database
 import (
 	"context"
 	"fmt"
-	"log"
-	"os"
 
+	"github.com/Himadryy/hidden-depths-backend/pkg/logger"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var Pool *pgxpool.Pool
 
-func ConnectDB() error {
-	dbURL := os.Getenv("DATABASE_URL")
+func ConnectDB(dbURL string) error {
 	if dbURL == "" {
-		return fmt.Errorf("DATABASE_URL environment variable is not set")
+		return fmt.Errorf("database URL is empty")
 	}
-	log.Printf("Attempting to connect with URL (length: %d)", len(dbURL))
 
 	config, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
-		return fmt.Errorf("unable to parse DATABASE_URL: %v", err)
+		return fmt.Errorf("unable to parse database URL: %v", err)
 	}
 
 	Pool, err = pgxpool.NewWithConfig(context.Background(), config)
@@ -33,7 +30,7 @@ func ConnectDB() error {
 		return fmt.Errorf("unable to ping database: %v", err)
 	}
 
-	log.Println("Successfully connected to the database")
+	logger.Info("Successfully connected to the database")
 	return nil
 }
 
