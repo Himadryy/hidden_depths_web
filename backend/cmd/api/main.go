@@ -8,9 +8,11 @@ import (
 	"github.com/Himadryy/hidden-depths-backend/internal/database"
 	"github.com/Himadryy/hidden-depths-backend/internal/handlers"
 	"github.com/Himadryy/hidden-depths-backend/internal/middleware"
+	"github.com/Himadryy/hidden-depths-backend/internal/services"
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
+	"github.com/robfig/cron/v3"
 	"github.com/rs/cors"
 	"go.uber.org/zap"
 )
@@ -31,6 +33,13 @@ func main() {
 		sugar.Fatalf("Could not connect to database: %v", err)
 	}
 	defer database.CloseDB()
+
+	// Start Scheduler
+	c := cron.New()
+	// Run at minute 0 of every hour
+	c.AddFunc("0 * * * *", services.CheckAndSendReminders)
+	c.Start()
+	sugar.Info("Scheduler started")
 
 	r := chi.NewRouter()
 
