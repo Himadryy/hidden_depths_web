@@ -68,6 +68,12 @@ func main() {
 				r.Get("/my", handlers.GetUserBookings)
 			})
 		})
+
+		r.Route("/admin", func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware)
+			r.Use(middleware.AdminMiddleware)
+			r.Get("/stats", handlers.GetAdminStats)
+		})
 	})
 
 	port := os.Getenv("PORT")

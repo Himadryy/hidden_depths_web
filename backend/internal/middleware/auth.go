@@ -11,6 +11,7 @@ import (
 )
 
 const UserIDKey = "user_id"
+const UserEmailKey = "user_email"
 
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -55,8 +56,12 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Add User ID to context
+		// Extract Email
+		email, _ := claims["email"].(string)
+
+		// Add User ID and Email to context
 		ctx := context.WithValue(r.Context(), UserIDKey, userID)
+		ctx = context.WithValue(ctx, UserEmailKey, email)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
