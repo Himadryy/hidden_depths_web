@@ -160,9 +160,19 @@ export default function AdminDashboard() {
           <div className="bg-glass border border-glass p-8 rounded-3xl space-y-6">
             <h3 className="font-serif text-2xl flex items-center gap-3">
               <TrendingUp className="text-[var(--accent)]" size={20} />
-              Quick Insights
+              Quick Actions
             </h3>
             <div className="space-y-4">
+              <button 
+                onClick={() => router.push('/admin/insights')}
+                className="w-full flex items-center justify-between p-4 bg-[var(--background)] rounded-2xl border border-glass hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <LayoutDashboard size={18} className="text-[var(--accent)]" />
+                  <span className="text-sm">Manage Insights CMS</span>
+                </div>
+                <ArrowLeft size={16} className="rotate-180" />
+              </button>
               <div className="flex items-center justify-between p-4 bg-[var(--background)] rounded-2xl border border-glass">
                 <div className="flex items-center gap-3">
                   <Clock size={18} className="text-muted" />

@@ -94,3 +94,33 @@ func GetUserBookings(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(bookings)
 }
 
+// CancelBooking allows a user to cancel their own booking
+func CancelBooking(w http.ResponseWriter, r *http.Request) {
+	bookingID := chi.URLParam(r, "id")
+	userID := r.Context().Value("user_id").(string)
+
+	if bookingID == "" {
+		http.Error(w, "Booking ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Only delete if the booking belongs to the authenticated user
+	result, err := database.Pool.Exec(context.Background(),
+		"DELETE FROM bookings WHERE id = $1 AND user_id = $2",
+		bookingID, userID,
+	)
+
+	if err != nil {
+		http.Error(w, "Failed to cancel booking", http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected := result.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(w, "Booking not found or not authorized to cancel", http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+

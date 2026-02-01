@@ -16,6 +16,7 @@ func ConnectDB() error {
 	if dbURL == "" {
 		return fmt.Errorf("DATABASE_URL environment variable is not set")
 	}
+	log.Printf("Attempting to connect with URL (length: %d)", len(dbURL))
 
 	config, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {

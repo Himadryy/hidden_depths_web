@@ -68,6 +68,48 @@ export default function ProfilePage() {
     fetchBookings();
   }, [user, router]);
 
+  const handleCancel = async (bookingId: string) => {
+    if (!confirm('Are you sure you want to cancel this session? This action cannot be undone.')) return;
+
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+
+        // API Call
+        if (apiUrl && token) {
+            const res = await fetch(`${apiUrl}/bookings/${bookingId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (res.ok) {
+                // Remove from state immediately
+                setBookings(prev => prev.filter(b => b.id !== bookingId));
+            } else {
+                alert('Failed to cancel booking. Please try again.');
+            }
+            return;
+        }
+
+        // Supabase Fallback
+        const { error } = await supabase
+            .from('bookings')
+            .delete()
+            .eq('id', bookingId)
+            .eq('user_id', user!.id);
+
+        if (error) throw error;
+        setBookings(prev => prev.filter(b => b.id !== bookingId));
+
+    } catch (err) {
+        console.error("Cancellation error:", err);
+        alert('Could not cancel booking.');
+    }
+  };
+
   const upcomingBookings = bookings.filter(b => new Date(`${b.date}T${convertTo24Hour(b.time)}`) >= new Date());
   const pastBookings = bookings.filter(b => new Date(`${b.date}T${convertTo24Hour(b.time)}`) < new Date());
 
@@ -147,7 +189,10 @@ export default function ProfilePage() {
                                     <button className="flex-1 py-2 bg-[var(--foreground)] text-[var(--background)] rounded-lg text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-opacity">
                                         Join Link
                                     </button>
-                                    <button className="px-4 py-2 border border-glass text-red-400 hover:bg-red-500/10 hover:border-red-500/50 rounded-lg text-xs font-bold uppercase tracking-widest transition-all">
+                                    <button 
+                                        onClick={() => handleCancel(booking.id)}
+                                        className="px-4 py-2 border border-glass text-red-400 hover:bg-red-500/10 hover:border-red-500/50 rounded-lg text-xs font-bold uppercase tracking-widest transition-all"
+                                    >
                                         Cancel
                                     </button>
                                 </div>

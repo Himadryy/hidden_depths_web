@@ -66,13 +66,22 @@ func main() {
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.AuthMiddleware)
 				r.Get("/my", handlers.GetUserBookings)
+				r.Delete("/{id}", handlers.CancelBooking)
 			})
 		})
+
+		r.Get("/insights", handlers.GetAllInsights)
 
 		r.Route("/admin", func(r chi.Router) {
 			r.Use(middleware.AuthMiddleware)
 			r.Use(middleware.AdminMiddleware)
 			r.Get("/stats", handlers.GetAdminStats)
+			
+			r.Route("/insights", func(r chi.Router) {
+				r.Post("/", handlers.CreateInsight)
+				r.Put("/{id}", handlers.UpdateInsight)
+				r.Delete("/{id}", handlers.DeleteInsight)
+			})
 		})
 	})
 
