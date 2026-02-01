@@ -8,6 +8,7 @@ import (
 
 	"github.com/Himadryy/hidden-depths-backend/internal/database"
 	"github.com/Himadryy/hidden-depths-backend/internal/models"
+	"github.com/Himadryy/hidden-depths-backend/internal/services"
 	"github.com/Himadryy/hidden-depths-backend/internal/ws"
 	"github.com/Himadryy/hidden-depths-backend/pkg/response"
 	"github.com/go-chi/chi/v5"
@@ -42,7 +43,7 @@ func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateBooking saves a new booking to the database
-func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub) {
+func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *services.AuditService) {
 	var booking models.Booking
 	if err := json.NewDecoder(r.Body).Decode(&booking); err != nil {
 		response.Error(w, http.StatusBadRequest, "Invalid request payload")
@@ -54,10 +55,11 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub) {
 	meetingID := uuid.New().String()
 	booking.MeetingLink = fmt.Sprintf("https://meet.jit.si/HiddenDepths-%s-%s", meetingID[:8], booking.Date)
 
-	_, err := database.Pool.Exec(context.Background(),
-		"INSERT INTO bookings (date, time, name, email, user_id, meeting_link) VALUES ($1, $2, $3, $4, $5, $6)",
+	var newID string
+	err := database.Pool.QueryRow(context.Background(),
+		"INSERT INTO bookings (date, time, name, email, user_id, meeting_link) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
 		booking.Date, booking.Time, booking.Name, booking.Email, booking.UserID, booking.MeetingLink,
-	)
+	).Scan(&newID)
 
 	if err != nil {
 		response.Error(w, http.StatusConflict, "Failed to create booking or slot already taken")
@@ -69,6 +71,13 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub) {
 		"date": booking.Date,
 		"time": booking.Time,
 	})
+
+	// Audit Log
+	userID := ""
+	if booking.UserID != nil {
+		userID = *booking.UserID
+	}
+	audit.Log(r.Context(), "booking.create", userID, newID, "booking", r.RemoteAddr, r.UserAgent(), nil)
 
 	response.JSON(w, http.StatusCreated, nil, "Booking successful")
 }
@@ -100,7 +109,7 @@ func GetUserBookings(w http.ResponseWriter, r *http.Request) {
 }
 
 // CancelBooking allows a user to cancel their own booking
-func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub) {
+func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *services.AuditService) {
 	bookingID := chi.URLParam(r, "id")
 	userID := r.Context().Value("user_id").(string)
 
@@ -142,6 +151,9 @@ func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub) {
 		"date": date,
 		"time": time,
 	})
+
+	// Audit Log
+	audit.Log(r.Context(), "booking.cancel", userID, bookingID, "booking", r.RemoteAddr, r.UserAgent(), nil)
 
 	response.JSON(w, http.StatusOK, nil, "Booking cancelled successfully")
 }

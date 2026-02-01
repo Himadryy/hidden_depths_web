@@ -43,7 +43,10 @@ func main() {
 	c.Start()
 	logger.Info("Scheduler started")
 
-	// 5. Initialize WebSocket Hub
+	// 5. Initialize Services
+	auditService := services.NewAuditService()
+
+	// 6. Initialize WebSocket Hub
 	hub := ws.NewHub()
 	go hub.Run()
 	logger.Info("WebSocket Hub started")
@@ -80,7 +83,7 @@ func main() {
 		// Bookings
 		r.Route("/bookings", func(r chi.Router) {
 			r.Post("/", func(w http.ResponseWriter, r *http.Request) {
-				handlers.CreateBooking(w, r, hub)
+				handlers.CreateBooking(w, r, hub, auditService)
 			})
 			r.Get("/slots/{date}", handlers.GetBookedSlots)
 			
@@ -89,7 +92,7 @@ func main() {
 				r.Use(middleware.AuthMiddleware(cfg.JWTSecret))
 				r.Get("/my", handlers.GetUserBookings)
 				r.Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {
-					handlers.CancelBooking(w, r, hub)
+					handlers.CancelBooking(w, r, hub, auditService)
 				})
 				r.Get("/subscriptions/active", handlers.GetActiveSubscription)
 			})
