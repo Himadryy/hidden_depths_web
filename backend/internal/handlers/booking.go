@@ -7,6 +7,7 @@ import (
 
 	"github.com/Himadryy/hidden-depths-backend/internal/database"
 	"github.com/Himadryy/hidden-depths-backend/internal/models"
+	"github.com/Himadryy/hidden-depths-backend/internal/ws"
 	"github.com/Himadryy/hidden-depths-backend/pkg/response"
 	"github.com/go-chi/chi/v5"
 )
@@ -39,7 +40,7 @@ func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateBooking saves a new booking to the database
-func CreateBooking(w http.ResponseWriter, r *http.Request) {
+func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub) {
 	var booking models.Booking
 	if err := json.NewDecoder(r.Body).Decode(&booking); err != nil {
 		response.Error(w, http.StatusBadRequest, "Invalid request payload")
@@ -55,6 +56,12 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusConflict, "Failed to create booking or slot already taken")
 		return
 	}
+
+	// Broadcast the update
+	hub.Broadcast("SLOT_BOOKED", map[string]string{
+		"date": booking.Date,
+		"time": booking.Time,
+	})
 
 	response.JSON(w, http.StatusCreated, nil, "Booking successful")
 }
@@ -86,12 +93,24 @@ func GetUserBookings(w http.ResponseWriter, r *http.Request) {
 }
 
 // CancelBooking allows a user to cancel their own booking
-func CancelBooking(w http.ResponseWriter, r *http.Request) {
+func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub) {
 	bookingID := chi.URLParam(r, "id")
 	userID := r.Context().Value("user_id").(string)
 
 	if bookingID == "" {
 		response.Error(w, http.StatusBadRequest, "Booking ID is required")
+		return
+	}
+
+	// We need the date and time before deleting to broadcast
+	var date, time string
+	err := database.Pool.QueryRow(context.Background(),
+		"SELECT date, time FROM bookings WHERE id = $1 AND user_id = $2",
+		bookingID, userID,
+	).Scan(&date, &time)
+
+	if err != nil {
+		response.Error(w, http.StatusNotFound, "Booking not found or not authorized")
 		return
 	}
 
@@ -110,6 +129,12 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusNotFound, "Booking not found or not authorized to cancel")
 		return
 	}
+
+	// Broadcast the update
+	hub.Broadcast("SLOT_CANCELLED", map[string]string{
+		"date": date,
+		"time": time,
+	})
 
 	response.JSON(w, http.StatusOK, nil, "Booking cancelled successfully")
 }

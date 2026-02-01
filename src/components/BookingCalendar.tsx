@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Clock, CheckCircle, Calendar as CalendarIcon, ArrowRight, Loader2 } from 'lucide-react';
 import { sendBookingEmail } from '@/lib/email';
@@ -72,6 +72,48 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState(user?.email || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Real-time updates via WebSockets
+  useEffect(() => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+    if (!apiUrl) return;
+
+    // Convert http(s) to ws(s)
+    const wsUrl = apiUrl.replace(/^http/, 'ws') + '/ws';
+    let socket: WebSocket;
+
+    const connect = () => {
+        socket = new WebSocket(wsUrl);
+
+        socket.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                const { type, payload } = message;
+
+                if (!selectedDate) return;
+                const currentDateStr = formatDateForDB(selectedDate);
+
+                if (payload.date === currentDateStr) {
+                    if (type === 'SLOT_BOOKED') {
+                        setBookedSlots(prev => Array.from(new Set([...prev, payload.time])));
+                    } else if (type === 'SLOT_CANCELLED') {
+                        setBookedSlots(prev => prev.filter(t => t !== payload.time));
+                    }
+                }
+            } catch (err) {
+                console.error('WS Message error:', err);
+            }
+        };
+
+        socket.onclose = () => {
+            // Reconnect after 5 seconds if closed
+            setTimeout(connect, 5000);
+        };
+    };
+
+    connect();
+    return () => socket?.close();
+  }, [selectedDate]);
 
   // Logic: Get next available Sundays and Mondays starting from today
   const availableDates = useMemo(() => {

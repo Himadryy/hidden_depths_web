@@ -9,6 +9,7 @@ import (
 	"github.com/Himadryy/hidden-depths-backend/internal/handlers"
 	"github.com/Himadryy/hidden-depths-backend/internal/middleware"
 	"github.com/Himadryy/hidden-depths-backend/internal/services"
+	"github.com/Himadryy/hidden-depths-backend/internal/ws"
 	"github.com/Himadryy/hidden-depths-backend/pkg/logger"
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
@@ -42,12 +43,17 @@ func main() {
 	c.Start()
 	logger.Info("Scheduler started")
 
-	// 5. Setup Router & Middleware
+	// 5. Initialize WebSocket Hub
+	hub := ws.NewHub()
+	go hub.Run()
+	logger.Info("WebSocket Hub started")
+
+	// 6. Setup Router & Middleware
 	r := chi.NewRouter()
 
 	r.Use(chiMiddleware.RequestID)
 	r.Use(chiMiddleware.RealIP)
-	r.Use(chiMiddleware.Logger) // Chi's default logger is fine, but we'll use ours for business logic
+	r.Use(chiMiddleware.Logger)
 	r.Use(chiMiddleware.Recoverer)
 	r.Use(chiMiddleware.Timeout(60 * time.Second))
 
@@ -62,22 +68,29 @@ func main() {
 	})
 	r.Use(corsHandler.Handler)
 
-	// 6. Define Routes
+	// 7. Define Routes
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte("ok"))
 		})
 
+		// WebSocket Endpoint
+		r.Get("/ws", hub.ServeWS)
+
 		// Bookings
 		r.Route("/bookings", func(r chi.Router) {
-			r.Post("/", handlers.CreateBooking)
+			r.Post("/", func(w http.ResponseWriter, r *http.Request) {
+				handlers.CreateBooking(w, r, hub)
+			})
 			r.Get("/slots/{date}", handlers.GetBookedSlots)
 			
 			// Protected User Routes
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.AuthMiddleware(cfg.JWTSecret))
 				r.Get("/my", handlers.GetUserBookings)
-				r.Delete("/{id}", handlers.CancelBooking)
+				r.Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {
+					handlers.CancelBooking(w, r, hub)
+				})
 			})
 		})
 
