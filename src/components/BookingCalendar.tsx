@@ -72,6 +72,45 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState(user?.email || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Coupon State
+  const [couponCode, setCouponCode] = useState('');
+  const [discount, setDiscount] = useState(0);
+
+  const validateCoupon = async () => {
+    if (!couponCode) return;
+    
+    try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+        if (!apiUrl) {
+            alert("Coupons are not available right now.");
+            return;
+        }
+
+        const res = await fetch(`${apiUrl}/coupons/validate/${couponCode}`);
+        const data = await res.json();
+
+        if (data.success) {
+            const coupon = data.data;
+            let val = 0;
+            if (coupon.discount_type === 'percentage') {
+                val = (99 * coupon.discount_value) / 100;
+            } else {
+                val = coupon.discount_value;
+            }
+            // Cap at 99
+            if (val > 99) val = 99;
+            setDiscount(val);
+            alert(`Coupon Applied! You saved ₹${val}`);
+        } else {
+            setDiscount(0);
+            alert(data.error || "Invalid coupon code");
+        }
+    } catch (err) {
+        console.error("Coupon error", err);
+        alert("Failed to validate coupon");
+    }
+  };
 
   // Real-time updates via WebSockets
   useEffect(() => {
@@ -353,8 +392,11 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                 </div>
                 {/* Price Tag Display */}
                 {isPaid && (
-                     <div className="mt-2 inline-flex items-center px-2 py-1 bg-[var(--accent)] text-[var(--background)] text-xs font-bold uppercase tracking-wider rounded">
-                        Price: {SESSION_PRICE}
+                     <div className="mt-2 flex flex-col gap-1">
+                        <div className="inline-flex items-center px-2 py-1 bg-[var(--accent)] text-[var(--background)] text-xs font-bold uppercase tracking-wider rounded w-fit">
+                            Price: {discount ? `₹${99 - discount} (Saved ₹${discount})` : SESSION_PRICE}
+                        </div>
+                        {couponCode && discount > 0 && <span className="text-[10px] text-green-500 font-bold tracking-widest uppercase">Coupon Applied</span>}
                      </div>
                 )}
             </div>
@@ -379,11 +421,35 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                     placeholder="Enter your email"
                 />
             </div>
+
+            {/* Coupon Input */}
+            {isPaid && (
+                <div className="space-y-2">
+                    <label className="text-xs text-muted uppercase tracking-widest font-bold">Discount Code</label>
+                    <div className="flex gap-2">
+                        <input 
+                            type="text" 
+                            value={couponCode}
+                            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                            className="flex-1 bg-[var(--background)] border border-glass rounded-xl p-4 text-theme focus:outline-none focus:border-[var(--accent)] transition-all"
+                            placeholder="WELCOME50"
+                        />
+                        <button
+                            type="button"
+                            onClick={validateCoupon}
+                            className="px-4 py-2 bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/50 rounded-xl font-bold uppercase text-xs hover:bg-[var(--accent)] hover:text-[var(--background)] transition-all"
+                        >
+                            Apply
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <button 
                 type="submit" disabled={isSubmitting}
                 className="w-full bg-[var(--foreground)] text-[var(--background)] font-serif tracking-widest text-sm py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all mt-auto disabled:opacity-50"
             >
-                {isSubmitting ? 'PROCESSING...' : (isPaid ? 'PROCEED TO PAYMENT' : 'CONFIRM BOOKING')}
+                {isSubmitting ? 'PROCESSING...' : (isPaid ? `PROCEED TO PAYMENT ${discount > 0 ? `(₹${99-discount})` : ''}` : 'CONFIRM BOOKING')}
             </button>
         </form>
     </div>
