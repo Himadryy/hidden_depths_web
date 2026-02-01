@@ -371,15 +371,15 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     const isPaid = isPaidSession(selectedDate);
     
     return (
-    <div className="space-y-8 h-full flex flex-col">
-        <div className="flex items-center gap-4">
+    <div className="space-y-6 h-full flex flex-col overflow-y-auto pb-safe">
+        <div className="flex items-center gap-4 shrink-0">
             <button onClick={() => setView('slots')} className="p-2 -ml-2 rounded-full hover:bg-[var(--foreground)]/5 text-muted hover:text-theme transition-colors">
                 <ChevronLeft size={24} />
             </button>
             <h3 className="text-2xl font-serif text-theme">Finalize Booking</h3>
         </div>
         
-        <div className="bg-[var(--accent)]/5 p-6 rounded-2xl border border-[var(--accent)]/20 flex items-start gap-5">
+        <div className="bg-[var(--accent)]/5 p-6 rounded-2xl border border-[var(--accent)]/20 flex items-start gap-5 shrink-0">
             <div className="p-3 bg-[var(--background)] rounded-full text-[var(--accent)] shadow-sm">
                 <CalendarIcon size={20} />
             </div>
@@ -402,7 +402,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6 flex-1">
+        <form onSubmit={handleSubmit} className="space-y-6 flex-1 flex flex-col">
             <div className="space-y-2">
                 <label className="text-xs text-muted uppercase tracking-widest font-bold">Full Name</label>
                 <input 
@@ -447,7 +447,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
 
             <button 
                 type="submit" disabled={isSubmitting}
-                className="w-full bg-[var(--foreground)] text-[var(--background)] font-serif tracking-widest text-sm py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all mt-auto disabled:opacity-50"
+                className="w-full bg-[var(--foreground)] text-[var(--background)] font-serif tracking-widest text-sm py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all mt-auto disabled:opacity-50 shrink-0 mb-4"
             >
                 {isSubmitting ? 'PROCESSING...' : (isPaid ? `PROCEED TO PAYMENT ${discount > 0 ? `(₹${99-discount})` : ''}` : 'CONFIRM BOOKING')}
             </button>
