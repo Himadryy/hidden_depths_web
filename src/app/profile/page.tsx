@@ -13,6 +13,7 @@ interface Booking {
   time: string;
   name: string;
   email: string;
+  meeting_link?: string;
   created_at: string;
 }
 
@@ -186,8 +187,12 @@ export default function ProfilePage() {
                                     </div>
                                 </div>
                                 <div className="mt-6 pt-4 border-t border-glass flex gap-3">
-                                    <button className="flex-1 py-2 bg-[var(--foreground)] text-[var(--background)] rounded-lg text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-opacity">
-                                        Join Link
+                                    <button 
+                                        onClick={() => booking.meeting_link && window.open(booking.meeting_link, '_blank')}
+                                        disabled={!booking.meeting_link}
+                                        className="flex-1 py-2 bg-[var(--foreground)] text-[var(--background)] rounded-lg text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Join Session
                                     </button>
                                     <button 
                                         onClick={() => handleCancel(booking.id)}
