@@ -91,11 +91,15 @@ func main() {
 				r.Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {
 					handlers.CancelBooking(w, r, hub)
 				})
+				r.Get("/subscriptions/active", handlers.GetActiveSubscription)
 			})
 		})
 
 		// Insights (Public)
 		r.Get("/insights", handlers.GetAllInsights)
+
+		// Coupons & Subs (Public Validation)
+		r.Get("/coupons/validate/{code}", handlers.ValidateCoupon)
 
 		// Admin Portal (Double Protected)
 		r.Route("/admin", func(r chi.Router) {
