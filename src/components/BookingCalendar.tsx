@@ -74,19 +74,15 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState(user?.email || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Logic: Get next available Sundays and Mondays starting from Feb 1st till mid-Feb
+  // Logic: Get next available Sundays and Mondays starting from today
   const availableDates = useMemo(() => {
     const dates: Date[] = [];
     const today = new Date();
     
-    // Find the next Sunday (Feb 1st, 2026)
-    const startDate = new Date(today);
-    startDate.setDate(today.getDate() + (7 - today.getDay())); 
-
-    // Loop through 16 days from the next Sunday to cover up to Feb 16th
-    for (let i = 0; i < 16; i++) {
-        const d = new Date(startDate);
-        d.setDate(startDate.getDate() + i);
+    // Check next 21 days (3 weeks) to find all Sundays and Mondays
+    for (let i = 0; i < 21; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
         const day = d.getDay();
         
         // 0 = Sunday, 1 = Monday

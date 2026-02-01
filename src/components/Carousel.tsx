@@ -84,6 +84,14 @@ export default function Carousel() {
                                     <video 
                                         src={slide.mediaUrl} 
                                         autoPlay loop muted playsInline 
+                                        onError={(e) => {
+                                            // Fallback to a solid background or a placeholder if video fails
+                                            (e.target as HTMLVideoElement).style.display = 'none';
+                                            const parent = (e.target as HTMLVideoElement).parentElement;
+                                            if (parent) {
+                                                parent.style.background = 'linear-gradient(to bottom, #1a1a1a, #000000)';
+                                            }
+                                        }}
                                         className={`w-full h-full object-cover ${theme === 'dark' ? 'opacity-55' : 'opacity-80'}`} // Adaptive opacity
                                     />
                                 ) : (

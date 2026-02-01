@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { User, LogOut, LogIn } from 'lucide-react';
+import { User, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/AuthProvider';
 import AuthModal from './AuthModal';
 import { motion, AnimatePresence } from 'framer-motion';

@@ -114,7 +114,7 @@ export default function Overlay() {
         transition={{ duration: 1.5, delay: 0.5 }}
       >
         {/* Header (Minimal) */}
-        <header className="fixed top-0 w-full p-8 flex justify-between items-center z-40 pointer-events-auto">
+        <header className="fixed top-0 w-full px-safe pt-safe flex justify-between items-center z-40 pointer-events-auto">
             <div className="flex items-center gap-4 group cursor-default">
                 <div className="relative w-10 h-10 opacity-80 hover:opacity-100 transition-all">
                     <Image 
@@ -184,7 +184,7 @@ export default function Overlay() {
 
         </main>
 
-        <footer className="text-center py-12 text-muted text-xs font-serif tracking-widest uppercase opacity-60">
+        <footer className="text-center py-12 pb-safe text-muted text-xs font-serif tracking-widest uppercase opacity-60">
             &copy; 2026 HIDDEN DEPTHS.
         </footer>
       </motion.div>
