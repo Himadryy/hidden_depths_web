@@ -20,6 +20,7 @@ function SuccessContent() {
       let name, email, date, time;
 
       if (stored) {
+        console.log("Found pending booking in localStorage");
         const parsed = JSON.parse(stored);
         name = parsed.name;
         email = parsed.email;
@@ -28,6 +29,7 @@ function SuccessContent() {
         // Clean up
         localStorage.removeItem('pending_booking');
       } else {
+        console.log("No localStorage data, checking URL params");
         // 2. Fallback to Search Params
         name = searchParams.get('name') || '';
         email = searchParams.get('email') || '';
@@ -35,7 +37,10 @@ function SuccessContent() {
         time = searchParams.get('time') || '';
       }
 
+      console.log("Finalizing booking with:", { name, email, date, time });
+
       if (!name || !email || !date || !time) {
+        console.error("Missing booking details");
         setStatus('error');
         return;
       }
