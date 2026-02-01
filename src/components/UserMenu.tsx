@@ -51,6 +51,16 @@ export default function UserMenu() {
                             
                             <button
                                 onClick={() => {
+                                    window.location.href = '/profile';
+                                }}
+                                className="w-full text-left px-4 py-3 text-sm text-theme hover:bg-[var(--accent)]/10 transition-colors flex items-center gap-2"
+                            >
+                                <User size={14} />
+                                My Profile
+                            </button>
+
+                            <button
+                                onClick={() => {
                                     signOut();
                                     setIsMenuOpen(false);
                                 }}

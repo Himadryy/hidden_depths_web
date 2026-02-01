@@ -1,5 +1,7 @@
 import { supabase } from './supabase';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
 export interface Booking {
   id: string;
   date: string; // Format: "YYYY-MM-DD"
@@ -10,6 +12,16 @@ export interface Booking {
 }
 
 export const getBookedSlots = async (date: string): Promise<string[]> => {
+  if (API_URL) {
+    try {
+      const response = await fetch(`${API_URL}/bookings/slots/${date}`);
+      if (!response.ok) throw new Error('Failed to fetch slots');
+      return await response.json();
+    } catch (err) {
+      console.error('Go API error, falling back to Supabase:', err);
+    }
+  }
+
   const { data, error } = await supabase
     .from('bookings')
     .select('time')
@@ -30,6 +42,23 @@ export const createBooking = async (
   email: string,
   userId?: string
 ): Promise<{ success: boolean; error?: string }> => {
+  if (API_URL) {
+    try {
+      const response = await fetch(`${API_URL}/bookings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, time, name, email, user_id: userId }),
+      });
+
+      if (response.ok) return { success: true };
+      if (response.status === 409) {
+        return { success: false, error: 'This slot was just booked by someone else. Please choose another time.' };
+      }
+      throw new Error('Failed to create booking');
+    } catch (err) {
+      console.error('Go API error, falling back to Supabase:', err);
+    }
+  }
   
   // 1. Attempt to insert the booking
   // The database should have a UNIQUE constraint on (date, time)
