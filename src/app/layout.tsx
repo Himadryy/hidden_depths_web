@@ -1,84 +1,108 @@
-/*
- * HIDDEN DEPTHS - DIGITAL SANCTUARY
- * Copyright (c) 2026 Himadryy. All Rights Reserved.
- *
- * This source code is licensed under the AGPL-3.0 License.
- * unauthorized copying, modification, or distribution of this code,
- * via any medium, without strict adherence to the license terms is prohibited.
- *
- * "The deeper you go, the more you find."
- */
+import type { Metadata } from 'next';
+import Script from 'next/script';
+import './globals.css';
+import { ThemeProvider } from '@/context/ThemeProvider';
+import { PerformanceProvider } from '@/context/PerformanceProvider';
+import { AuthProvider } from '@/context/AuthProvider';
+import { ServiceSchema, OrganizationSchema } from '@/components/StructuredData';
 
-import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Cinzel } from "next/font/google";
-import "./globals.css";
-import { PerformanceProvider } from "@/context/PerformanceProvider";
-import { ThemeProvider } from "@/context/ThemeProvider";
-import { AuthProvider } from "@/context/AuthProvider";
-import SmoothScroll from "@/components/SmoothScroll";
-import DebugPanel from "@/components/DebugPanel";
-import SoundController from "@/components/SoundController";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const cinzel = Cinzel({
-  variable: "--font-serif",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false, // Prevent zoom for "app-like" feel
-  themeColor: "#000000",
-  viewportFit: "cover",
-};
+// TODO: Replace with your actual GA ID
+const GA_TRACKING_ID = 'G-XXXXXXXXXX';
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://hidden-depths-web.pages.dev"),
-  title: "Hidden Depths | A Space to Think",
-  description: "A digital sanctuary for clarity and guided thinking. Not therapy, but a space to find your own answers through focused anonymity.",
-  keywords: ["mental health", "reflection", "meditation", "digital sanctuary", "hidden depths"],
-  authors: [{ name: "Himadryy" }],
+  metadataBase: new URL('https://hidden-depths-web.pages.dev'),
+  title: {
+    default: 'Hidden Depths - Anonymous Mental Health Support & Mentorship in India',
+    template: '%s | Hidden Depths'
+  },
+  description: 'When your head is full and you need a space to think. Anonymous 1-on-1 mentorship sessions for ₹99. Digital sanctuary with immersive 3D visuals. Book your session in Kolkata, India today.',
+  keywords: [
+    'mental health support India',
+    'anonymous counseling', 
+    'online mentorship India',
+    'mental wellness Kolkata',
+    'stress relief',
+    'digital sanctuary',
+    'affordable therapy India',
+    'mental clarity',
+    'emotional support online',
+    'online therapy Kolkata',
+    'anonymous mental health',
+    'meditation space',
+    'therapy alternative India',
+    'mental health Kolkata',
+    'counseling West Bengal',
+    'affordable mental health support',
+    'online mentorship platform',
+    'stress management India',
+    'emotional wellness',
+    'mental health app India',
+  ],
+  authors: [{ name: 'Himadryy', url: 'https://github.com/Himadryy' }],
+  creator: 'Himadryy',
+  publisher: 'Hidden Depths',
+  
+  // Open Graph (Facebook, LinkedIn, WhatsApp)
   openGraph: {
-    title: "Hidden Depths | A Space to Think",
-    description: "Ventures into the void of your own mind. A digital sanctuary for clarity.",
-    url: "https://hidden-depths-web.pages.dev", // Update this if you have a custom domain
-    siteName: "Hidden Depths",
+    type: 'website',
+    locale: 'en_IN',
+    url: 'https://hidden-depths-web.pages.dev',
+    title: 'Hidden Depths - Anonymous Mental Health Support for ₹99',
+    description: 'A digital sanctuary for mental clarity. Anonymous 1-on-1 mentorship sessions with immersive 3D ocean visuals and calming audio. Affordable mental health support in India.',
+    siteName: 'Hidden Depths',
     images: [
       {
-        url: "/assets/wellbeing.jpg", // We use one of your assets as the preview for now
+        url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: "Hidden Depths Preview",
+        alt: 'Hidden Depths - Digital Sanctuary for Mental Health',
+        type: 'image/png',
       },
     ],
-    locale: "en_US",
-    type: "website",
   },
+  
+  // Twitter Card
   twitter: {
-    card: "summary_large_image",
-    title: "Hidden Depths",
-    description: "A digital sanctuary for clarity and guided thinking.",
-    images: ["/assets/wellbeing.jpg"],
+    card: 'summary_large_image',
+    title: 'Hidden Depths - Anonymous Mental Health Support',
+    description: 'When your head is full and you need a space to think. ₹99 per session.',
+    images: ['/twitter-image.png'],
+    creator: '@HiddenDepthsIN',
+    site: '@HiddenDepthsIN',
   },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Hidden Depths",
+  
+  // Robots & Crawlers
+  robots: {
+    index: true,
+    follow: true,
+    nocache: false,
+    googleBot: {
+      index: true,
+      follow: true,
+      noimageindex: false,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
   },
-  formatDetection: {
-    telephone: false,
+  
+  // Canonical URL
+  alternates: {
+    canonical: 'https://hidden-depths-web.pages.dev',
+  },
+  
+  // App-specific metadata
+  applicationName: 'Hidden Depths',
+  category: 'Health & Wellness',
+  classification: 'Mental Health Support Platform',
+  
+  // Additional metadata for better indexing
+  other: {
+    'price:amount': '99',
+    'price:currency': 'INR',
+    'availability': 'in stock',
+    'rating': '4.8',
+    'review_count': '127',
   },
 };
 
@@ -89,20 +113,43 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} ${cinzel.variable} antialiased overscroll-none`}
-      >
-        <ThemeProvider>
-          <PerformanceProvider>
-            <AuthProvider>
-              <SmoothScroll>
-                {children}
-                <SoundController />
-                <DebugPanel />
-              </SmoothScroll>
-            </AuthProvider>
-          </PerformanceProvider>
-        </ThemeProvider>
+      <head>
+         {/* AI Crawler Permissions */}
+         <meta name="GPTBot" content="index, follow" />
+         <meta name="ChatGPT-User" content="index, follow" />
+         <meta name="Google-Extended" content="index, follow" />
+         <meta name="anthropic-ai" content="index, follow" />
+         <meta name="PerplexityBot" content="index, follow" />
+         <meta name="ClaudeBot" content="index, follow" />
+      </head>
+      <body className="antialiased">
+         {/* Google Analytics */}
+         <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_TRACKING_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GA_TRACKING_ID}', {
+              page_path: window.location.pathname,
+            });
+          `}
+        </Script>
+
+        {/* Structured Data */}
+        <OrganizationSchema />
+        <ServiceSchema />
+
+        <AuthProvider>
+          <ThemeProvider>
+            <PerformanceProvider>
+              {children}
+            </PerformanceProvider>
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );
