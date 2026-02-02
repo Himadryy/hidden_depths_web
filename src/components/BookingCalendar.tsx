@@ -223,7 +223,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             selectedTime, 
             name, 
             email, 
-            user?.id // Pass User ID if logged in
+            user?.id || null // Ensure explicit null if undefined
         );
         
         if (!bookingResult.success) {

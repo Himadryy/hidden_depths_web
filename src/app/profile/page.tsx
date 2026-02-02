@@ -18,12 +18,14 @@ interface Booking {
 }
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading) return;
+    
     if (!user) {
       router.push('/');
       return;

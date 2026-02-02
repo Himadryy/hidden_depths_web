@@ -9,10 +9,14 @@ import BookingCalendar from './BookingCalendar';
 import { LANDING_CONTENT } from '@/lib/data';
 
 import UserMenu from './UserMenu';
+import { useAuth } from '@/context/AuthProvider';
+import AuthModal from './AuthModal';
 
 export default function Overlay() {
+  const { user } = useAuth();
   const [introFinished, setIntroFinished] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Intro Animation Sequence
   useEffect(() => {
@@ -39,10 +43,14 @@ export default function Overlay() {
   }, []);
 
   const openModal = useCallback(() => {
+    if (!user) {
+        setIsAuthModalOpen(true);
+        return;
+    }
     setIsModalOpen(true);
     // Push "fake" history state so the Back button has something to "undo"
     window.history.pushState({ modal: true }, '', '#booking');
-  }, []);
+  }, [user]);
 
   const closeModal = useCallback(() => {
     // If the URL has the hash, we go back (which triggers popstate -> closes modal)
@@ -57,6 +65,7 @@ export default function Overlay() {
 
   return (
     <>
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
       {/* Intro Overlay - Adaptive */}
       <AnimatePresence>
         {!introFinished && (

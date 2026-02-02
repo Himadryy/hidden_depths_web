@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { User, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/AuthProvider';
 import AuthModal from './AuthModal';
@@ -8,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function UserMenu() {
   const { user, signOut } = useAuth();
+  const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -51,7 +53,8 @@ export default function UserMenu() {
                             
                             <button
                                 onClick={() => {
-                                    window.location.href = '/profile';
+                                    router.push('/profile');
+                                    setIsMenuOpen(false);
                                 }}
                                 className="w-full text-left px-4 py-3 text-sm text-theme hover:bg-[var(--accent)]/10 transition-colors flex items-center gap-2"
                             >
