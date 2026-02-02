@@ -79,6 +79,22 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	}
 	audit.Log(r.Context(), "booking.create", userID, newID, "booking", r.RemoteAddr, r.UserAgent(), nil)
 
+	// Send Confirmation Email
+	go func() {
+		subject := "Confirmed: Your Journey Begins"
+		body := fmt.Sprintf(`
+			<h2>Welcome, %s.</h2>
+			<p>Your sanctuary session is confirmed for <strong>%s at %s</strong>.</p>
+			<p>We look forward to speaking with you.</p>
+			<p><strong>Your Secure Video Link:</strong></p>
+			<p><a href="%s" style="padding: 10px 20px; background-color: #E0B873; color: black; text-decoration: none; border-radius: 5px;">Join Session</a></p>
+			<br>
+			<p>You can also manage your bookings from your <a href="https://hidden-depths-web.pages.dev/profile">Profile</a>.</p>
+		`, booking.Name, booking.Date, booking.Time, booking.MeetingLink)
+		
+		_ = services.SendEmail(booking.Email, subject, body)
+	}()
+
 	response.JSON(w, http.StatusCreated, nil, "Booking successful")
 }
 
