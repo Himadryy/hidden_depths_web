@@ -130,6 +130,7 @@ export default function Overlay() {
                         src="/logo.png" 
                         alt="Logo" 
                         fill
+                        priority
                         className="object-contain invert dark:invert-0" 
                     />
                 </div>
