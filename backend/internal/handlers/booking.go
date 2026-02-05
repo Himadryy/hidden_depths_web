@@ -100,7 +100,7 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 
 		client := razorpay.NewClient(keyID, keySecret)
 		data := map[string]interface{}{
-			"amount":   booking.Amount * 100, // Amount in paise
+			"amount":   int(booking.Amount * 100), // Amount in paise (must be int)
 			"currency": "INR",
 			"receipt":  uuid.New().String(),
 		}
