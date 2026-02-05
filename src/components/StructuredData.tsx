@@ -128,3 +128,54 @@ export function BreadcrumbSchema({ items }: { items: Array<{ name: string; url: 
     />
   );
 }
+
+export function ArticleSchema({
+  title,
+  description,
+  datePublished,
+  dateModified,
+  authorName,
+  imageUrl,
+  url,
+}: {
+  title: string;
+  description: string;
+  datePublished: string;
+  dateModified: string;
+  authorName: string;
+  imageUrl: string;
+  url: string;
+}) {
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: title,
+    description: description,
+    image: imageUrl,
+    datePublished: datePublished,
+    dateModified: dateModified,
+    author: {
+      '@type': 'Person',
+      name: authorName,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Hidden Depths',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://hidden-depths-web.pages.dev/logo.png',
+      },
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': url,
+    },
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}

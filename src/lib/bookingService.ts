@@ -11,6 +11,16 @@ export interface Booking {
   created_at: string;
 }
 
+export interface CreateBookingResponse {
+  success: boolean;
+  error?: string;
+  booking_id?: string;
+  order_id?: string;
+  amount?: number;
+  currency?: string;
+  key_id?: string;
+}
+
 export const getBookedSlots = async (date: string): Promise<string[]> => {
   if (API_URL) {
     try {
@@ -22,10 +32,12 @@ export const getBookedSlots = async (date: string): Promise<string[]> => {
     }
   }
 
+  // Fallback: Supabase Direct
   const { data, error } = await supabase
     .from('bookings')
     .select('time')
-    .eq('date', date);
+    .eq('date', date)
+    .neq('payment_status', 'failed'); // Don't show failed bookings
 
   if (error) {
     console.error('Error fetching booked slots:', error);
@@ -41,41 +53,68 @@ export const createBooking = async (
   name: string,
   email: string,
   userId?: string
-): Promise<{ success: boolean; error?: string }> => {
-  if (API_URL) {
-    try {
-      const response = await fetch(`${API_URL}/bookings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, time, name, email, user_id: userId }),
-      });
-
-      if (response.ok) return { success: true };
-      if (response.status === 409) {
-        return { success: false, error: 'This slot was just booked by someone else. Please choose another time.' };
-      }
-      throw new Error('Failed to create booking');
-    } catch (err) {
-      console.error('Go API error, falling back to Supabase:', err);
-    }
+): Promise<CreateBookingResponse> => {
+  if (!API_URL) {
+      return { success: false, error: "Backend API not configured" };
   }
-  
-  // 1. Attempt to insert the booking
-  // The database should have a UNIQUE constraint on (date, time)
-  const { error } = await supabase
-    .from('bookings')
-    .insert([
-      { date, time, name, email, user_id: userId }
-    ]);
 
-  if (error) {
-    // Code 23505 is PostgreSQL for "unique_violation"
-    if (error.code === '23505') {
+  try {
+    const response = await fetch(`${API_URL}/bookings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date, time, name, email, user_id: userId }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+        return { 
+            success: true,
+            booking_id: data.booking_id,
+            order_id: data.order_id,
+            amount: data.amount,
+            currency: data.currency,
+            key_id: data.key_id
+        };
+    }
+    
+    if (response.status === 409) {
       return { success: false, error: 'This slot was just booked by someone else. Please choose another time.' };
     }
-    console.error('Booking creation error:', error);
-    return { success: false, error: 'Failed to secure the booking. Please try again.' };
+    
+    throw new Error(data.error || 'Failed to create booking');
+  } catch (err) {
+    console.error('Booking Error:', err);
+    return { success: false, error: 'System error. Please try again.' };
   }
+};
 
-  return { success: true };
+export const verifyPayment = async (
+    bookingId: string,
+    razorpayPaymentId: string,
+    razorpayOrderId: string,
+    razorpaySignature: string
+): Promise<{ success: boolean; error?: string }> => {
+    try {
+        const response = await fetch(`${API_URL}/bookings/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                booking_id: bookingId,
+                razorpay_payment_id: razorpayPaymentId,
+                razorpay_order_id: razorpayOrderId,
+                razorpay_signature: razorpaySignature
+            }),
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            return { success: false, error: data.error || 'Payment verification failed' };
+        }
+
+        return { success: true };
+    } catch (err) {
+        console.error("Verification Error:", err);
+        return { success: false, error: "Network error during verification" };
+    }
 };

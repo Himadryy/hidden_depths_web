@@ -85,6 +85,9 @@ func main() {
 			r.Post("/", func(w http.ResponseWriter, r *http.Request) {
 				handlers.CreateBooking(w, r, hub, auditService)
 			})
+			r.Post("/verify", func(w http.ResponseWriter, r *http.Request) {
+				handlers.VerifyPayment(w, r, hub, auditService)
+			})
 			r.Get("/slots/{date}", handlers.GetBookedSlots)
 			
 			// Protected User Routes

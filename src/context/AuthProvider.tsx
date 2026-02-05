@@ -25,11 +25,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const initializeAuth = async () => {
-      // Get initial session
-      const { data: { session: initialSession } } = await supabase.auth.getSession();
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-      setLoading(false);
+      try {
+        // Get initial session
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.warn("Auth initialization warning:", error.message);
+          // If token is invalid, clear it so user can log in fresh
+          if (error.message.includes("Refresh Token")) {
+            await supabase.auth.signOut();
+          }
+          setLoading(false);
+          return;
+        }
+
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+      } catch (err) {
+        console.error("Critical Auth Error:", err);
+      } finally {
+        setLoading(false);
+      }
 
       // Listen for changes (sign in, sign out, etc.)
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {

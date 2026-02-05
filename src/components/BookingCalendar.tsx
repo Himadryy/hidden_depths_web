@@ -4,8 +4,16 @@ import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Clock, CheckCircle, Calendar as CalendarIcon, ArrowRight, Loader2 } from 'lucide-react';
 import { sendBookingEmail } from '@/lib/email';
-import { getBookedSlots, createBooking } from '@/lib/bookingService';
+import { getBookedSlots, createBooking, verifyPayment } from '@/lib/bookingService';
 import { useAuth } from '@/context/AuthProvider';
+import Script from 'next/script';
+
+// Extend Window interface for Razorpay
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 type ViewState = 'calendar' | 'slots' | 'form' | 'success';
 
@@ -204,26 +212,14 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     const dateStr = formatDateForDB(selectedDate);
     const dateReadable = selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-    // CHECK: Is this a paid session?
-    if (isPaidSession(selectedDate)) {
-        // SAVE PENDING DATA: So we can retrieve it on /payment-success
-        const pendingBooking = { name, email, date: dateStr, time: selectedTime };
-        localStorage.setItem('pending_booking', JSON.stringify(pendingBooking));
-
-        // RAZORPAY REDIRECT
-        const razorpayBaseUrl = "https://rzp.io/rzp/n1xNSvS";
-        window.location.href = razorpayBaseUrl;
-        return;
-    }
-
     try {
-        // 1. Secure the Booking in DB (The "Professional" Part)
+        // 1. Initiate Booking (Create 'Pending' Slot & Razorpay Order if paid)
         const bookingResult = await createBooking(
             dateStr, 
             selectedTime, 
             name, 
             email, 
-            user?.id || null // Ensure explicit null if undefined
+            user?.id
         );
         
         if (!bookingResult.success) {
@@ -238,24 +234,63 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             return;
         }
 
-        // 2. Send Notification Email (The "Notification" Part)
-        // We do this AFTER securing the slot, so if email fails, the slot is still theirs.
-        try {
-            await sendBookingEmail({
-                name,
-                email,
-                date: dateReadable,
-                time: selectedTime,
-                duration: "30 Minutes",
+        // 2. Handle Payment Flow
+        if (bookingResult.order_id) {
+            // Check if Razorpay is loaded
+            if (!window.Razorpay) {
+                alert("Payment gateway failed to load. Please refresh.");
+                setIsSubmitting(false);
+                return;
+            }
+
+            const options = {
+                key: bookingResult.key_id, // Enter the Key ID generated from the Dashboard
+                amount: bookingResult.amount, // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
+                currency: bookingResult.currency,
+                name: "Hidden Depths",
+                description: "Sanctuary Session",
+                image: "https://hidden-depths-web.pages.dev/logo.png",
+                order_id: bookingResult.order_id, // This is a sample Order ID. Pass the `id` obtained in the response of Step 1
+                handler: async function (response: any) {
+                    // 3. Verify Payment on Backend
+                    const verify = await verifyPayment(
+                        bookingResult.booking_id!,
+                        response.razorpay_payment_id,
+                        response.razorpay_order_id,
+                        response.razorpay_signature
+                    );
+                    
+                    if (verify.success) {
+                        setView('success');
+                    } else {
+                        alert("Payment verification failed. Please contact support.");
+                    }
+                    setIsSubmitting(false);
+                },
+                prefill: {
+                    name: name,
+                    email: email,
+                    contact: "" // If you have phone number
+                },
+                notes: {
+                    address: "Hidden Depths Digital Sanctuary"
+                },
+                theme: {
+                    color: "#E0B873"
+                }
+            };
+            
+            const rzp1 = new window.Razorpay(options);
+            rzp1.on('payment.failed', function (response: any){
+                alert("Payment Failed: " + response.error.description);
+                setIsSubmitting(false);
             });
-        } catch (emailError) {
-            console.warn("Email failed to send, but booking is secured in DB.", emailError);
-            // Optionally warn user, but usually success is better UX here since DB is truth
+            rzp1.open();
+        } else {
+            // Free Session - Already confirmed by createBooking
+            setView('success');
+            setIsSubmitting(false);
         }
-        
-        console.log("Booking system success!");
-        setIsSubmitting(false);
-        setView('success');
     } catch (error) {
         console.error("Booking Error:", error);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -480,6 +515,11 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   );
 
   return (
+    <>
+    <Script
+        id="razorpay-checkout-js"
+        src="https://checkout.razorpay.com/v1/checkout.js"
+    />
     <div 
         className="h-full flex flex-col overflow-hidden overscroll-contain"
         onWheel={(e) => e.stopPropagation()}
@@ -501,5 +541,6 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             </motion.div>
         </AnimatePresence>
     </div>
+    </>
   );
 }
