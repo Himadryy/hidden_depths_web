@@ -31,7 +31,7 @@ COPY --from=builder /app/main .
 COPY --from=builder /app/migrations ./migrations
 
 # Expose port
-EXPOSE 8080
+EXPOSE 8081
 
 # Command to run the application
 CMD ["./main"]

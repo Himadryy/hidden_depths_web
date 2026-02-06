@@ -22,13 +22,13 @@ import (
 )
 
 // Helper to check if payment is required
-func isPaidSession(dateStr string) bool {
+func isPaidSession(dateStr string) (bool, error) {
 	t, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {
-		return false
+		return false, err
 	}
 	paymentStart, _ := time.Parse("2006-01-02", "2026-02-03")
-	return t.After(paymentStart) || t.Equal(paymentStart)
+	return t.After(paymentStart) || t.Equal(paymentStart), nil
 }
 
 // GetBookedSlots returns all time slots booked for a specific date (excluding failed ones)
@@ -80,7 +80,12 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	meetingID := uuid.New().String()
 	booking.MeetingLink = fmt.Sprintf("https://meet.jit.si/HiddenDepths-%s-%s", meetingID[:8], booking.Date)
 	
-	isPaid := isPaidSession(booking.Date)
+	isPaid, err := isPaidSession(booking.Date)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "Invalid date format")
+		return
+	}
+	
 	booking.Amount = 0
 	booking.PaymentStatus = "paid" // Default for free sessions
 
@@ -117,7 +122,7 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 
 	// 4. Insert into Database
 	var newID string
-	err := database.Pool.QueryRow(context.Background(),
+	err = database.Pool.QueryRow(context.Background(),
 		`INSERT INTO bookings 
 		(date, time, name, email, user_id, meeting_link, payment_status, razorpay_order_id, amount) 
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 

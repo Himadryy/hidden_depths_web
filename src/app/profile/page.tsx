@@ -46,7 +46,9 @@ export default function ProfilePage() {
             });
             if (res.ok) {
                 const data = await res.json();
-                setBookings(data || []);
+                // Handle Go backend wrapper { success: true, data: [...] }
+                const bookingsArray = Array.isArray(data) ? data : (data.data || []);
+                setBookings(bookingsArray);
                 return;
             }
         }

@@ -26,7 +26,9 @@ export const getBookedSlots = async (date: string): Promise<string[]> => {
     try {
       const response = await fetch(`${API_URL}/bookings/slots/${date}`);
       if (!response.ok) throw new Error('Failed to fetch slots');
-      return await response.json();
+      const data = await response.json();
+      // Handle Go response wrapper if present, otherwise return raw array
+      return Array.isArray(data) ? data : (data.data || []);
     } catch (err) {
       console.error('Go API error, falling back to Supabase:', err);
     }
@@ -68,13 +70,15 @@ export const createBooking = async (
     const data = await response.json();
 
     if (response.ok) {
+        // Handle Go backend wrapper { success: true, data: { ... } }
+        const result = data.data || data;
         return { 
             success: true,
-            booking_id: data.booking_id,
-            order_id: data.order_id,
-            amount: data.amount,
-            currency: data.currency,
-            key_id: data.key_id
+            booking_id: result.booking_id,
+            order_id: result.order_id,
+            amount: result.amount,
+            currency: result.currency,
+            key_id: result.key_id
         };
     }
     
