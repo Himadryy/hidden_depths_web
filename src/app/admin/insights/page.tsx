@@ -230,8 +230,10 @@ export default function InsightsCMS() {
 
                             <div className="space-y-6">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] uppercase font-bold tracking-widest text-muted">Title</label>
+                                    <label htmlFor="insight-title" className="text-[10px] uppercase font-bold tracking-widest text-muted">Title</label>
                                     <input 
+                                        id="insight-title"
+                                        name="title"
                                         type="text" required
                                         value={formData.title}
                                         onChange={e => setFormData({...formData, title: e.target.value})}
@@ -241,8 +243,10 @@ export default function InsightsCMS() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-[10px] uppercase font-bold tracking-widest text-muted">Description</label>
+                                    <label htmlFor="insight-description" className="text-[10px] uppercase font-bold tracking-widest text-muted">Description</label>
                                     <textarea 
+                                        id="insight-description"
+                                        name="description"
                                         required rows={4}
                                         value={formData.description}
                                         onChange={e => setFormData({...formData, description: e.target.value})}
@@ -271,8 +275,10 @@ export default function InsightsCMS() {
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[10px] uppercase font-bold tracking-widest text-muted">Sort Order</label>
+                                        <label htmlFor="insight-order" className="text-[10px] uppercase font-bold tracking-widest text-muted">Sort Order</label>
                                         <input 
+                                            id="insight-order"
+                                            name="order"
                                             type="number"
                                             value={formData.order}
                                             onChange={e => setFormData({...formData, order: parseInt(e.target.value)})}
@@ -282,11 +288,13 @@ export default function InsightsCMS() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-[10px] uppercase font-bold tracking-widest text-muted">Media URL (Path or External)</label>
+                                    <label htmlFor="insight-media-url" className="text-[10px] uppercase font-bold tracking-widest text-muted">Media URL (Path or External)</label>
                                     <div className="flex gap-4">
                                         <div className="relative flex-1">
                                             {formData.mediaType === 'image' ? <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" size={18} /> : <Video className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" size={18} />}
                                             <input 
+                                                id="insight-media-url"
+                                                name="mediaUrl"
                                                 type="text" required
                                                 value={formData.mediaUrl}
                                                 onChange={e => setFormData({...formData, mediaUrl: e.target.value})}

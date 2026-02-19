@@ -43,7 +43,11 @@ func Load() (*Config, error) {
 	}
 
 	if cfg.AllowedOrigins == nil {
-		cfg.AllowedOrigins = []string{"http://localhost:3000", "https://hidden-depths-web.pages.dev"}
+		cfg.AllowedOrigins = []string{
+			"http://localhost:3000", 
+			"http://127.0.0.1:3000",
+			"https://hidden-depths-web.pages.dev",
+		}
 	}
 
 	return cfg, nil

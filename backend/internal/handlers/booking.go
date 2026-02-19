@@ -39,9 +39,13 @@ func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Only fetch slots that are NOT failed (paid or pending)
+	// Only fetch slots that are NOT failed. 
+	// Pending slots are only considered 'booked' if they were created within the last 15 minutes.
 	rows, err := database.Pool.Query(context.Background(), 
-		"SELECT time FROM bookings WHERE date = $1 AND payment_status != 'failed'", date)
+		`SELECT time FROM bookings 
+		 WHERE date = $1 
+		 AND (payment_status = 'paid' OR (payment_status = 'pending' AND created_at > NOW() - INTERVAL '15 minutes'))`, 
+		date)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "Failed to fetch slots")
 		return

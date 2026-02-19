@@ -24,13 +24,25 @@ export interface CreateBookingResponse {
 export const getBookedSlots = async (date: string): Promise<string[]> => {
   if (API_URL) {
     try {
-      const response = await fetch(`${API_URL}/bookings/slots/${date}`);
-      if (!response.ok) throw new Error('Failed to fetch slots');
+      // Normalize URL (remove trailing slash) and ensure path is correct
+      const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+      const url = `${baseUrl}/bookings/slots/${date}`;
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.warn(`Go API returned ${response.status} for slots. Falling back.`);
+        throw new Error('Failed to fetch slots');
+      }
+      
       const data = await response.json();
-      // Handle Go response wrapper if present, otherwise return raw array
       return Array.isArray(data) ? data : (data.data || []);
     } catch (err) {
-      console.error('Go API error, falling back to Supabase:', err);
+      // Only log as error if it's not a standard fetch failure (to keep console clean during local dev without backend)
+      if (err instanceof TypeError && err.message === 'Failed to fetch') {
+        console.debug('Backend unreachable, using Supabase fallback.');
+      } else {
+        console.error('Go API error, falling back to Supabase:', err);
+      }
     }
   }
 
@@ -61,7 +73,8 @@ export const createBooking = async (
   }
 
   try {
-    const response = await fetch(`${API_URL}/bookings`, {
+    const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+    const response = await fetch(`${baseUrl}/bookings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ date, time, name, email, user_id: userId }),
@@ -100,7 +113,8 @@ export const verifyPayment = async (
     razorpaySignature: string
 ): Promise<{ success: boolean; error?: string }> => {
     try {
-        const response = await fetch(`${API_URL}/bookings/verify`, {
+        const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+        const response = await fetch(`${baseUrl}/bookings/verify`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

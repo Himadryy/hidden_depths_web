@@ -37,9 +37,10 @@ func main() {
 	}
 	defer database.CloseDB()
 
-	// 4. Start Background Scheduler (Email Reminders)
+	// 4. Start Background Scheduler (Email Reminders & Cleanup)
 	c := cron.New()
 	c.AddFunc("0 * * * *", services.CheckAndSendReminders)
+	c.AddFunc("*/15 * * * *", services.CleanupAbandonedBookings)
 	c.Start()
 	logger.Info("Scheduler started")
 

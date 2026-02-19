@@ -89,7 +89,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     if (!couponCode) return;
     
     try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+        const apiUrl = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
         if (!apiUrl) {
             alert("Coupons are not available right now.");
             return;
@@ -309,7 +309,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
         {/* Promotional Banner */}
         <div className="mt-10 md:mt-0 bg-[var(--accent)]/10 border border-[var(--accent)]/20 p-3 rounded-lg text-center">
             <p className="text-xs md:text-sm font-bold text-[var(--accent)] tracking-wide uppercase">
-                ✨ First Week Special: Sundays & Mondays are FREE!
+                ✨ Limited Slots: Sundays & Mondays Only
             </p>
         </div>
 
@@ -437,37 +437,46 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6 flex-1 flex flex-col">
+        <form onSubmit={handleSubmit} className="space-y-6 flex-1 flex flex-col pb-24">
             <div className="space-y-2">
-                <label className="text-xs text-muted uppercase tracking-widest font-bold">Full Name</label>
+                <label htmlFor="booking-name" className="text-xs text-muted uppercase tracking-widest font-bold">Full Name</label>
                 <input 
+                    id="booking-name"
+                    name="name"
                     type="text" required value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full bg-[var(--background)] border border-glass rounded-xl p-4 text-theme focus:outline-none focus:border-[var(--accent)] transition-all"
                     placeholder="Enter your name"
+                    autoComplete="name"
                 />
             </div>
             <div className="space-y-2">
-                <label className="text-xs text-muted uppercase tracking-widest font-bold">Email Address</label>
+                <label htmlFor="booking-email" className="text-xs text-muted uppercase tracking-widest font-bold">Email Address</label>
                 <input 
+                    id="booking-email"
+                    name="email"
                     type="email" required value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full bg-[var(--background)] border border-glass rounded-xl p-4 text-theme focus:outline-none focus:border-[var(--accent)] transition-all"
                     placeholder="Enter your email"
+                    autoComplete="email"
                 />
             </div>
 
             {/* Coupon Input */}
             {isPaid && (
                 <div className="space-y-2">
-                    <label className="text-xs text-muted uppercase tracking-widest font-bold">Discount Code</label>
+                    <label htmlFor="booking-coupon" className="text-xs text-muted uppercase tracking-widest font-bold">Discount Code</label>
                     <div className="flex gap-2">
                         <input 
+                            id="booking-coupon"
+                            name="coupon"
                             type="text" 
                             value={couponCode}
                             onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                             className="flex-1 bg-[var(--background)] border border-glass rounded-xl p-4 text-theme focus:outline-none focus:border-[var(--accent)] transition-all"
                             placeholder="WELCOME50"
+                            autoComplete="off"
                         />
                         <button
                             type="button"

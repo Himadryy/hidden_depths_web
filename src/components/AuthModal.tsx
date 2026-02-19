@@ -113,25 +113,30 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: A
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                        <label className="text-xs text-muted uppercase tracking-widest font-bold ml-1">Email</label>
+                        <label htmlFor="auth-email" className="text-xs text-muted uppercase tracking-widest font-bold ml-1">Email</label>
                         <div className="relative">
                             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" size={18} />
                             <input
+                                id="auth-email"
+                                name="email"
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
                                 className="w-full bg-[var(--background)] border border-glass rounded-xl py-3 pl-12 pr-4 text-theme focus:outline-none focus:border-[var(--accent)] transition-all placeholder:text-muted/50"
                                 placeholder="name@example.com"
+                                autoComplete="email"
                             />
                         </div>
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-xs text-muted uppercase tracking-widest font-bold ml-1">Password</label>
+                        <label htmlFor="auth-password" className="text-xs text-muted uppercase tracking-widest font-bold ml-1">Password</label>
                         <div className="relative">
                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" size={18} />
                             <input
+                                id="auth-password"
+                                name="password"
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
@@ -139,6 +144,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'signin' }: A
                                 minLength={6}
                                 className="w-full bg-[var(--background)] border border-glass rounded-xl py-3 pl-12 pr-4 text-theme focus:outline-none focus:border-[var(--accent)] transition-all placeholder:text-muted/50"
                                 placeholder="••••••••"
+                                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
                             />
                         </div>
                     </div>

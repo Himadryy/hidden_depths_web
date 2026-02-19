@@ -64,3 +64,22 @@ func CheckAndSendReminders() {
 		}
 	}
 }
+
+// CleanupAbandonedBookings marks pending bookings older than 30 minutes as 'failed'
+func CleanupAbandonedBookings() {
+	log.Println("Running abandoned booking cleanup...")
+	
+	result, err := database.Pool.Exec(context.Background(),
+		"UPDATE bookings SET payment_status = 'failed' WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '30 minutes'",
+	)
+	
+	if err != nil {
+		log.Printf("Error during cleanup: %v", err)
+		return
+	}
+	
+	rows := result.RowsAffected()
+	if rows > 0 {
+		log.Printf("Cleaned up %d abandoned bookings", rows)
+	}
+}
