@@ -13,9 +13,8 @@ import (
 const UserIDKey = "user_id"
 const UserEmailKey = "user_email"
 const SupabaseAuthURL = "https://msriduejyxcdpvcawacj.supabase.co/auth/v1/user"
-const SupabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zcmlkdWVqeXhjZHB2Y2F3YWNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyMjg1MzcsImV4cCI6MjA4NDgwNDUzN30.0ISyTWngMwf0MzOSAT8TH1sUvfLRXjPCHn8qcgvB1nM"
 
-func AuthMiddleware(jwtSecret string) func(http.Handler) http.Handler {
+func AuthMiddleware(jwtSecret, supabaseAnonKey string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
@@ -54,7 +53,7 @@ func AuthMiddleware(jwtSecret string) func(http.Handler) http.Handler {
 			if userID == "" {
 				req, _ := http.NewRequest("GET", SupabaseAuthURL, nil)
 				req.Header.Set("Authorization", "Bearer "+tokenString)
-				req.Header.Set("apikey", SupabaseAnonKey)
+				req.Header.Set("apikey", supabaseAnonKey)
 				
 				client := &http.Client{}
 				resp, err := client.Do(req)

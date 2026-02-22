@@ -90,7 +90,7 @@ func main() {
 			
 						// Protected User Routes
 						r.Group(func(r chi.Router) {
-							r.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+							r.Use(middleware.AuthMiddleware(cfg.JWTSecret, cfg.SupabaseAnonKey))
 							r.Post("/", func(w http.ResponseWriter, r *http.Request) {
 								handlers.CreateBooking(w, r, hub, auditService)
 							})
@@ -109,7 +109,7 @@ func main() {
 
 		// Admin Portal (Double Protected)
 		r.Route("/admin", func(r chi.Router) {
-			r.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+			r.Use(middleware.AuthMiddleware(cfg.JWTSecret, cfg.SupabaseAnonKey))
 			r.Use(middleware.AdminMiddleware(cfg.AdminEmails))
 			
 			r.Get("/stats", handlers.GetAdminStats)
