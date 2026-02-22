@@ -49,3 +49,4 @@ public/swe-worker-*.js
 backend/.env
 backend/jwt.secret
 __pycache__/
+testsprite_tests/tmp/
