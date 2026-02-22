@@ -1,0 +1,67 @@
+{
+  "tech_stack": ["Next.js 16", "Go", "Chi", "PostgreSQL", "Supabase", "Razorpay", "Tailwind CSS"],
+  "features": [
+    {
+      "name": "Booking System",
+      "description": "Public booking system restricted to Sundays and Mondays. Payment required for dates on or after 2026-02-03. Pending slots expire after 15 minutes if unpaid.",
+      "api_doc": {
+        "openapi": "3.0.0",
+        "info": { "title": "Booking API", "version": "1.0.0" },
+        "paths": {
+          "/api/bookings": {
+            "post": {
+              "summary": "Create booking. Required: date (YYYY-MM-DD), time, name, email. Optional: user_id.",
+              "requestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "required": ["date", "time", "name", "email"],
+                      "properties": {
+                        "date": { "type": "string" },
+                        "time": { "type": "string" },
+                        "name": { "type": "string" },
+                        "email": { "type": "string" },
+                        "user_id": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/api/bookings/verify": {
+            "post": {
+              "summary": "Verify Razorpay payment.",
+              "requestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "required": ["booking_id", "razorpay_payment_id", "razorpay_order_id", "razorpay_signature"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/api/bookings/slots/{date}": {
+            "get": { "summary": "Get booked slots for a date. Ignores pending slots > 15 mins old." }
+          }
+        }
+      }
+    },
+    {
+      "name": "Admin API",
+      "description": "Protected admin routes.",
+      "api_doc": {
+        "openapi": "3.0.0",
+        "paths": {
+          "/api/admin/stats": {
+            "get": { "summary": "Get dashboard stats. Requires Admin JWT." }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "status": "commited",
+  "type": "backend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:8081",
+  "backendAuthType": "Bearer token",
+  "backendCredential": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImQ5YWIwNWFkLWIzZWQtNDkwYi05MzMyLTg1ZWJiNjgwZWY4YyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL21zcmlkdWVqeXhjZHB2Y2F3YWNqLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiIzODRmZTE1Yy1kYzY0LTQ0ZjgtOWVhNC04MGIzN2U3NTQwMTMiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzcwNjMzMjAzLCJpYXQiOjE3NzA2Mjk2MDMsImVtYWlsIjoiaGltYWRyeWRleTA5QGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiLCJnb29nbGUiXX0sInVzZXJfbWV0YWRhdGEiOnsiYXZhdGFyX3VybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hL0FDZzhvY0lpWllaR1otdHRGU0NJemtXd1AwLTZfbEQ4dTIwYnNnQ1hLVDNDOXo5TnBreUdnZz1zOTYtYyIsImVtYWlsIjoiaGltYWRyeWRleTA5QGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJmdWxsX25hbWUiOiJIaW1hZHJ5IERleSIsImlzcyI6Imh0dHBzOi8vYWNjb3VudHMuZ29vZ2xlLmNvbSIsIm5hbWUiOiJIaW1hZHJ5IERleSIsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwicGljdHVyZSI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hL0FDZzhvY0lpWllaR1otdHRGU0NJemtXd1AwLTZfbEQ4dTIwYnNnQ1hLVDNDOXo5TnBreUdnZz1zOTYtYyIsInByb3ZpZGVyX2lkIjoiMTE0MTk3MDY1MDk1NDMzNTkyNzk3Iiwic3ViIjoiMTE0MTk3MDY1MDk1NDMzNTkyNzk3In0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3NzAzMDkwOTV9XSwic2Vzc2lvbl9pZCI6IjU1MzgyY2RmLWE4MDMtNDRmYi05YTliLTYwYmZiNDU3NDRjNyIsImlzX2Fub255bW91cyI6ZmFsc2V9.4dNQ0wmuo9lTZnSeQLrRoPvmXRUfXrUq-hb6DE8LJKD3qL9_2-MoAZIK37zjjvKppM_oSgnd67AZLGXttVKa6A",
+  "executionArgs": {
+    "projectName": "HiddenDepths-Website",
+    "projectPath": "/Users/himadrydey/VS Code folders/HiddenDepths-Website",
+    "testIds": [],
+    "additionalInstruction": "Run all 6 backend test cases in the testsprite_tests folder. All tests should pass now.",
+    "envs": {
+      "API_KEY": "sk-user-LlJJ7U4uB_vu9Kfp3P26N_Dt69xlxG7tEaY2s1E9QItP0xUxPbXN8OqFOk6hTXV5fAroubwM6GPiiPl5IoL8qhZ9RI_7CAUXoJrlCNBx1QxGPeIxFoNcpxQqjAmeQS3PXek"
+    }
+  },
+  "serverPort": 54127,
+  "proxy": "http://6319ab84-cbc4-4049-b556-75fb1f1d7a3f:2R6MiGE69XgCD34FMmpjkJZg2pcOTwEJ@tun.testsprite.com:8080"
+}

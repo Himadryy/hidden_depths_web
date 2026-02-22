@@ -80,6 +80,18 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		return
 	}
 
+	// 1b. Day of week restriction (Sundays & Mondays only)
+	t, err := time.Parse("2006-01-02", booking.Date)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "Invalid date format")
+		return
+	}
+	weekday := t.Weekday()
+	if weekday != time.Sunday && weekday != time.Monday {
+		response.Error(w, http.StatusBadRequest, "Bookings are only allowed on Sundays and Mondays")
+		return
+	}
+
 	// 2. Generate Meeting Link (Pre-generate, but only email on success)
 	meetingID := uuid.New().String()
 	booking.MeetingLink = fmt.Sprintf("https://meet.jit.si/HiddenDepths-%s-%s", meetingID[:8], booking.Date)

@@ -1,0 +1,384 @@
+[
+  {
+    "id": "TC001",
+    "title": "Load landing page with correct time-based theme",
+    "description": "Verify the landing page loads with the correct theme based on the user's local time, displaying Morning Light theme in the morning hours and Abyssal Night theme during night hours.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Set device local time to 08:00 AM"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the landing page"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm Morning Light theme is applied with corresponding WebGL visuals and ambient audio"
+      },
+      {
+        "type": "action",
+        "description": "Set device local time to 10:00 PM"
+      },
+      {
+        "type": "action",
+        "description": "Reload the landing page"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm Abyssal Night theme is applied with corresponding WebGL visuals and ambient audio"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Display immersive 3D visuals and ambient audio on landing page",
+    "description": "Check that the landing page shows full-screen WebGL 3D Voronoi fluid shaders with smooth animations and plays calming ambient audio by default.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the landing page"
+      },
+      {
+        "type": "assertion",
+        "description": "Ensure full-screen WebGL CausticOcean shaders are rendered and animations run smoothly"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify calming ambient audio is playing"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Booking can be created only for Sundays and Mondays",
+    "description": "Validate that booking is restricted strictly to Sundays and Mondays only when selecting dates for appointment scheduling.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open booking page and view available dates"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify selectable dates are only Sundays and Mondays"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to select a date that is Tuesday"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm that the Tuesday date is not selectable"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Prevent double bookings for the same slot",
+    "description": "Verify the system enforces no double-booking for the same date and time slot using backend database locking and validation.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Create a booking for Sunday at 10 AM"
+      },
+      {
+        "type": "assertion",
+        "description": "Booking is created successfully with status confirmed"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to create a second booking for the same Sunday 10 AM slot"
+      },
+      {
+        "type": "assertion",
+        "description": "Booking request is rejected/prevented due to slot already being booked"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Complete booking flow including payment and confirmation email",
+    "description": "Test the end-to-end booking flow where user selects valid slot, proceeds with Razorpay payment, and receives automated booking confirmation email.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Select available booking slot on Sunday"
+      },
+      {
+        "type": "action",
+        "description": "Enter valid contact information"
+      },
+      {
+        "type": "action",
+        "description": "Proceed to payment using Razorpay"
+      },
+      {
+        "type": "assertion",
+        "description": "Payment is processed successfully"
+      },
+      {
+        "type": "assertion",
+        "description": "Booking is created and recorded in Supabase database"
+      },
+      {
+        "type": "assertion",
+        "description": "Automated booking confirmation email is received via EmailJS"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Validate Razorpay payment signature verification",
+    "description": "Ensure Razorpay payment signatures are correctly verified to confirm authenticity of payment responses during booking.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Simulate Razorpay payment response with valid signature for a booking"
+      },
+      {
+        "type": "assertion",
+        "description": "Signature verification passes and booking payment is accepted"
+      },
+      {
+        "type": "action",
+        "description": "Simulate Razorpay payment response with invalid signature"
+      },
+      {
+        "type": "assertion",
+        "description": "Signature verification fails and payment is rejected"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Admin login with JWT authentication",
+    "description": "Verify that admin users can login to the admin panel using valid JWT tokens and that invalid tokens are rejected.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Attempt admin login with valid credentials"
+      },
+      {
+        "type": "assertion",
+        "description": "JWT token is generated and admin panel access granted"
+      },
+      {
+        "type": "action",
+        "description": "Attempt admin login with invalid credentials"
+      },
+      {
+        "type": "assertion",
+        "description": "Access denied with appropriate error"
+      },
+      {
+        "type": "action",
+        "description": "Try accessing protected admin API routes without a JWT token"
+      },
+      {
+        "type": "assertion",
+        "description": "Access denied due to missing or invalid JWT"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Admin booking management functionality",
+    "description": "Test admin capabilities to view bookings, update booking statuses, and add meeting links to confirmed bookings.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as admin with JWT"
+      },
+      {
+        "type": "action",
+        "description": "Access booking dashboard"
+      },
+      {
+        "type": "assertion",
+        "description": "Bookings list is displayed with correct data"
+      },
+      {
+        "type": "action",
+        "description": "Update status of a booking to 'confirmed'"
+      },
+      {
+        "type": "assertion",
+        "description": "Booking status is updated and saved correctly"
+      },
+      {
+        "type": "action",
+        "description": "Add meeting link to a confirmed booking"
+      },
+      {
+        "type": "assertion",
+        "description": "Meeting link is saved and displayed properly in booking details"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Booking API input validation and error handling",
+    "description": "Verify that the booking API validates inputs correctly and returns appropriate error messages for invalid or missing data.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Send booking request with missing required fields"
+      },
+      {
+        "type": "assertion",
+        "description": "API returns 400 Bad Request with descriptive validation error messages"
+      },
+      {
+        "type": "action",
+        "description": "Send booking request with invalid date (non-Sunday/Monday)"
+      },
+      {
+        "type": "assertion",
+        "description": "API returns error informing the date is not allowed for booking"
+      },
+      {
+        "type": "action",
+        "description": "Send booking request with malformed contact information"
+      },
+      {
+        "type": "assertion",
+        "description": "API rejects request due to invalid contact details"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "PWA installation and offline support",
+    "description": "Confirm that the app can be installed as a Progressive Web App on supported platforms and can function offline with cached content.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open the app on a supported mobile device or desktop"
+      },
+      {
+        "type": "action",
+        "description": "Trigger PWA installation prompt and install the app"
+      },
+      {
+        "type": "assertion",
+        "description": "App is installed and launched natively with PWA features"
+      },
+      {
+        "type": "action",
+        "description": "Disconnect network and launch the installed PWA app"
+      },
+      {
+        "type": "assertion",
+        "description": "App loads landing page and cached content successfully offline"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Performance validation of tiered graphics rendering at 60fps",
+    "description": "Verify that the performance optimization tiered graphics rendering maintains smooth 60fps experience on various devices ranging from budget Androids to high-end iPhones.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Load the landing page on a budget Android device"
+      },
+      {
+        "type": "assertion",
+        "description": "Rendering runs at 60fps with tiered graphics settings automatically applied"
+      },
+      {
+        "type": "action",
+        "description": "Load the landing page on a high-end iPhone"
+      },
+      {
+        "type": "assertion",
+        "description": "Rendering runs at 60fps with highest graphics settings"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Security: Verify CORS restrictions on API endpoints",
+    "description": "Ensure that the backend APIs enforce proper CORS policies, preventing unauthorized cross-origin requests.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Send API request to booking endpoint from authorized origin"
+      },
+      {
+        "type": "assertion",
+        "description": "Request is accepted and processed successfully"
+      },
+      {
+        "type": "action",
+        "description": "Send same API request from unauthorized origin"
+      },
+      {
+        "type": "assertion",
+        "description": "Request is blocked by CORS policy"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Rate limiting on booking creation endpoint",
+    "description": "Verify that rate limiting is enforced on booking creation API to prevent abuse by limiting number of requests per IP or user within a timeframe.",
+    "category": "security",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Send multiple booking creation requests rapidly from the same client"
+      },
+      {
+        "type": "assertion",
+        "description": "API rejects requests beyond rate limit with appropriate error code"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Admin analytics and insights display",
+    "description": "Validate that the admin panel correctly displays analytics data and booking insights with real-time updates.",
+    "category": "functional",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as admin"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to analytics and insights section in admin panel"
+      },
+      {
+        "type": "assertion",
+        "description": "Charts and data summaries are displayed accurately reflecting booking activity"
+      }
+    ]
+  }
+]
