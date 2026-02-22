@@ -48,3 +48,4 @@ public/workbox-*.js
 public/swe-worker-*.js
 backend/.env
 backend/jwt.secret
+__pycache__/

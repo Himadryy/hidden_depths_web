@@ -1,62 +1,94 @@
 import requests
 import threading
+import random
 from test_config import BASE_URL, HEADERS
 
 BOOKING_ENDPOINT = f"{BASE_URL}/api/bookings"
 TIMEOUT = 30
 
-def create_booking(slot_payload, result_list, index):
+def create_booking(payload, results, index):
     try:
-        response = requests.post(BOOKING_ENDPOINT, json=slot_payload, headers=HEADERS, timeout=TIMEOUT)
-        result_list[index] = response
+        response = requests.post(BOOKING_ENDPOINT, json=payload, headers=HEADERS, timeout=TIMEOUT)
+        results[index] = response
     except Exception as e:
-        result_list[index] = e
+        results[index] = e
+
+def cleanup_booking(booking_id):
+    if booking_id:
+        try:
+            del_url = f"{BOOKING_ENDPOINT}/{booking_id}"
+            requests.delete(del_url, headers=HEADERS, timeout=TIMEOUT)
+            print(f"🧹 Cleaned up booking {booking_id}")
+        except Exception as e:
+            print(f"⚠️ Cleanup failed: {e}")
 
 def test_prevent_double_booking_for_same_slot():
-    booking_date = "2026-02-23"  # upcoming Sunday
-    booking_time = "10:00"
-
-    booking_payload = {
+    # Use a Monday (2026-02-23 is Monday)
+    booking_date = "2026-02-23" 
+    
+    # Generate random time to avoid conflicts with previous runs
+    random_minute = random.randint(10, 59)
+    booking_time = f"09:{random_minute} PM"
+    
+    # Valid Payload matching backend struct
+    payload = {
         "date": booking_date,
         "time": booking_time,
-        "user_email": "testuser@example.com",
-        "mentor_email": "mentor@example.com",
-        "phone": "+1234567890",
-        "notes": "Test booking for concurrency"
+        "name": "Concurrent Tester",
+        "email": "concurrent@example.com",
+        "user_id": "6b658fa1-045c-4c78-b62f-ebe18dd72da4" # Valid User ID
     }
 
+    print(f"🚀 Testing Double Booking for {booking_date} at {booking_time}...")
+    
     results = [None, None]
+    
+    # Simulate 2 simultaneous requests
+    t1 = threading.Thread(target=create_booking, args=(payload, results, 0))
+    t2 = threading.Thread(target=create_booking, args=(payload, results, 1))
 
-    thread1 = threading.Thread(target=create_booking, args=(booking_payload, results, 0))
-    thread2 = threading.Thread(target=create_booking, args=(booking_payload, results, 1))
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
 
-    thread1.start()
-    thread2.start()
-    thread1.join()
-    thread2.join()
+    success_count = 0
+    fail_count = 0
+    created_booking_id = None
 
-    success_responses = []
-    error_responses = []
-
-    for res in results:
+    for i, res in enumerate(results):
         if isinstance(res, Exception):
-            error_responses.append(res)
+            print(f"❌ Request {i+1} Exception: {res}")
+            fail_count += 1
         else:
-            if res.status_code == 201:
-                success_responses.append(res)
+            print(f"📝 Request {i+1} Status: {res.status_code}")
+            if res.status_code in [200, 201]:
+                success_count += 1
+                try:
+                    # Handle both response formats
+                    data = res.json().get("data", {}) if "data" in res.json() else res.json()
+                    created_booking_id = data.get("booking_id") or data.get("id")
+                except:
+                    pass
+            elif res.status_code == 409:
+                fail_count += 1
             else:
-                error_responses.append(res)
+                print(f"⚠️ Unexpected status: {res.status_code} Body: {res.text}")
+                fail_count += 1
 
-    assert len(success_responses) == 1, f"Expected exactly one successful booking, got {len(success_responses)}"
-    assert len(error_responses) == 1, f"Expected one failed booking due to double-booking prevention, got {len(error_responses)}"
+    # Cleanup immediately
+    if created_booking_id:
+        cleanup_booking(created_booking_id)
 
-    try:
-        booking_id_created = success_responses[0].json().get("id")
-        if booking_id_created:
-            delete_url = f"{BOOKING_ENDPOINT}/{booking_id_created}"
-            del_resp = requests.delete(delete_url, headers=HEADERS, timeout=TIMEOUT)
-            assert del_resp.status_code in (200, 204), "Cleanup delete failed"
-    except Exception:
-        pass
+    # Assertions
+    if success_count == 1 and fail_count == 1:
+        print("✅ TC002 PASSED: Exactly one booking succeeded, one failed.")
+    elif success_count == 0:
+        raise AssertionError("❌ TC002 FAILED: Both requests failed (maybe slot already taken?).")
+    elif success_count == 2:
+        raise AssertionError("❌ TC002 FAILED: Race condition! Both bookings succeeded (Double Booking occurred).")
+    else:
+        raise AssertionError(f"❌ TC002 FAILED: Unexpected outcome. Success: {success_count}, Fail: {fail_count}")
 
-test_prevent_double_booking_for_same_slot()
+if __name__ == "__main__":
+    test_prevent_double_booking_for_same_slot()
