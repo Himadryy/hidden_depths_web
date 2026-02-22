@@ -74,9 +74,19 @@ export const createBooking = async (
 
   try {
     const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+    
+    // Get Auth Token
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${baseUrl}/bookings`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headers,
       body: JSON.stringify({ date, time, name, email, user_id: userId }),
     });
 
