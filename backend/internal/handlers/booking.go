@@ -260,6 +260,46 @@ func finalizeBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit 
 	}()
 }
 
+// GetRecommendedSlots provides a score for each available slot on a date
+func GetRecommendedSlots(w http.ResponseWriter, r *http.Request) {
+	date := chi.URLParam(r, "date")
+	if date == "" {
+		response.Error(w, http.StatusBadRequest, "Date is required")
+		return
+	}
+
+	// 1. Fetch booked slots
+	rows, err := database.Pool.Query(context.Background(), 
+		"SELECT time FROM bookings WHERE date = $1 AND payment_status != 'failed'", 
+		date)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "Failed to check availability")
+		return
+	}
+	defer rows.Close()
+
+	bookedMap := make(map[string]bool)
+	for rows.Next() {
+		var t string
+		rows.Scan(&t)
+		bookedMap[t] = true
+	}
+
+	// 2. Filter available
+	allTimes := []string{"11:00 AM", "11:45 AM", "12:30 PM", "08:00 PM", "08:45 PM"}
+	available := []string{}
+	for _, t := range allTimes {
+		if !bookedMap[t] {
+			available = append(available, t)
+		}
+	}
+
+	// 3. Neural-inspired scoring
+	scores := services.RecommendSlots(available, date)
+	
+	response.JSON(w, http.StatusOK, scores, "Recommendations calculated")
+}
+
 // GetUserBookings returns all bookings for the authenticated user
 func GetUserBookings(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("user_id") 

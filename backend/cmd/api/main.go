@@ -84,6 +84,7 @@ func main() {
 		// Bookings
 		r.Route("/bookings", func(r chi.Router) {
 			r.Get("/slots/{date}", handlers.GetBookedSlots)
+			r.Get("/recommendations/{date}", handlers.GetRecommendedSlots)
 			r.Post("/verify", func(w http.ResponseWriter, r *http.Request) {
 				handlers.VerifyPayment(w, r, hub, auditService)
 			})

@@ -74,6 +74,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   
   // Database State
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [recommendations, setRecommendations] = useState<Record<string, number>>({});
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
   // Pre-fill if user exists
@@ -186,11 +187,20 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     setView('slots');
     setIsLoadingSlots(true);
     setBookedSlots([]); // Clear previous
+    setRecommendations({});
 
     try {
         const dateStr = formatDateForDB(date);
-        const slots = await getBookedSlots(dateStr);
+        
+        // Fetch Availability & Neural Recommendations in parallel
+        const [slots, recRes] = await Promise.all([
+            getBookedSlots(dateStr),
+            fetch(`${(process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')}/bookings/recommendations/${dateStr}`)
+                .then(res => res.ok ? res.json() : { data: {} })
+        ]);
+
         setBookedSlots(slots);
+        setRecommendations(recRes.data || {});
     } catch (err) {
         console.error("Failed to load slots", err);
     } finally {
@@ -347,6 +357,10 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   const renderSlots = () => {
     // Filter slots based on current time if "Today" is selected
     const visibleSlots = TIME_SLOTS.filter(time => !isTimePast(time, selectedDate));
+    
+    // Find the highest scoring slot for the "Recommended" badge
+    const maxScore = Math.max(...Object.values(recommendations), 0);
+    const recommendedSlot = Object.keys(recommendations).find(k => recommendations[k] === maxScore && recommendations[k] > 0.7);
 
     return (
     <div className="space-y-8 h-full flex flex-col">
@@ -372,21 +386,32 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                 {visibleSlots.length > 0 ? (
                     visibleSlots.map((time) => {
                         const isBooked = bookedSlots.includes(time);
+                        const isRecommended = time === recommendedSlot;
+
                         return (
                             <button
                                 key={time}
                                 onClick={() => !isBooked && handleTimeSelect(time)}
                                 disabled={isBooked}
                                 className={`
-                                    py-4 px-4 rounded-xl border flex items-center justify-center gap-2 group font-sans text-sm tracking-wide shadow-sm transition-all
+                                    py-4 px-4 rounded-xl border flex flex-col items-center justify-center gap-1 group font-sans text-sm tracking-wide shadow-sm transition-all relative
                                     ${isBooked 
                                         ? 'bg-black/5 dark:bg-white/5 border-transparent text-muted/30 cursor-not-allowed decoration-slice line-through decoration-muted/30' 
-                                        : 'bg-[var(--background)] border-glass text-muted hover:bg-[var(--accent)]/10 hover:border-[var(--accent)] hover:text-[var(--accent)]'
+                                        : isRecommended
+                                            ? 'bg-[var(--accent)]/10 border-[var(--accent)] text-[var(--accent)] font-bold ring-1 ring-[var(--accent)]/30'
+                                            : 'bg-[var(--background)] border-glass text-muted hover:bg-[var(--accent)]/10 hover:border-[var(--accent)] hover:text-[var(--accent)]'
                                     }
                                 `}
                             >
-                                <Clock size={14} className={isBooked ? "opacity-30" : "text-[var(--accent)]"} />
-                                {time}
+                                {isRecommended && !isBooked && (
+                                    <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-[var(--accent)] text-[var(--background)] text-[8px] font-black px-2 py-0.5 rounded-full tracking-tighter animate-pulse">
+                                        RECOMMENDED
+                                    </span>
+                                )}
+                                <div className="flex items-center gap-2">
+                                    <Clock size={14} className={isBooked ? "opacity-30" : "text-[var(--accent)]"} />
+                                    {time}
+                                </div>
                                 {isBooked && <span className="sr-only">(Booked)</span>}
                             </button>
                         );
