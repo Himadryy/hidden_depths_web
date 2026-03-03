@@ -35,7 +35,8 @@ export default function ProfilePage() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+        const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+        const apiUrl = rawApiUrl.endsWith('/') ? rawApiUrl.slice(0, -1) : rawApiUrl;
         
         // Use Go API if available
         if (apiUrl && token) {
@@ -79,7 +80,8 @@ export default function ProfilePage() {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+        const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+        const apiUrl = rawApiUrl.endsWith('/') ? rawApiUrl.slice(0, -1) : rawApiUrl;
 
         // API Call
         if (apiUrl && token) {

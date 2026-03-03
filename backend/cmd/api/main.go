@@ -83,23 +83,25 @@ func main() {
 
 		// Bookings
 		r.Route("/bookings", func(r chi.Router) {
-						r.Post("/verify", func(w http.ResponseWriter, r *http.Request) {
-							handlers.VerifyPayment(w, r, hub, auditService)
-						})
-						r.Get("/slots/{date}", handlers.GetBookedSlots)
-			
-						// Protected User Routes
-						r.Group(func(r chi.Router) {
-							r.Use(middleware.AuthMiddleware(cfg.JWTSecret, cfg.SupabaseAnonKey))
-							r.Post("/", func(w http.ResponseWriter, r *http.Request) {
-								handlers.CreateBooking(w, r, hub, auditService)
-							})
-							r.Get("/my", handlers.GetUserBookings)
-							r.Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {
-								handlers.CancelBooking(w, r, hub, auditService)
-							})
-							r.Get("/subscriptions/active", handlers.GetActiveSubscription)
-						})		})
+			r.Get("/slots/{date}", handlers.GetBookedSlots)
+			r.Post("/verify", func(w http.ResponseWriter, r *http.Request) {
+				handlers.VerifyPayment(w, r, hub, auditService)
+			})
+
+			// Protected User Routes
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.AuthMiddleware(cfg.JWTSecret, cfg.SupabaseAnonKey))
+				
+				r.Get("/my", handlers.GetUserBookings)
+				r.Get("/subscriptions/active", handlers.GetActiveSubscription)
+				r.Post("/", func(w http.ResponseWriter, r *http.Request) {
+					handlers.CreateBooking(w, r, hub, auditService)
+				})
+				r.Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {
+					handlers.CancelBooking(w, r, hub, auditService)
+				})
+			})
+		})
 
 		// Insights (Public)
 		r.Get("/insights", handlers.GetAllInsights)
