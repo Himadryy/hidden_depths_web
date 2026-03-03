@@ -34,8 +34,12 @@ export const getBookedSlots = async (date: string): Promise<string[]> => {
         throw new Error('Failed to fetch slots');
       }
       
-      const data = await response.json();
-      return Array.isArray(data) ? data : (data.data || []);
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const data = await response.json();
+        return Array.isArray(data) ? data : (data.data || []);
+      }
+      return [];
     } catch (err) {
       // Only log as error if it's not a standard fetch failure (to keep console clean during local dev without backend)
       if (err instanceof TypeError && err.message === 'Failed to fetch') {
@@ -90,7 +94,15 @@ export const createBooking = async (
       body: JSON.stringify({ date, time, name, email, user_id: userId }),
     });
 
-    const data = await response.json();
+    // Check if response is JSON before parsing
+    const contentType = response.headers.get('content-type');
+    let data;
+    if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+    } else {
+        const text = await response.text();
+        throw new Error(text || `Server returned ${response.status}`);
+    }
 
     if (response.ok) {
         // Handle Go backend wrapper { success: true, data: { ... } }
@@ -110,9 +122,9 @@ export const createBooking = async (
     }
     
     throw new Error(data.error || 'Failed to create booking');
-  } catch (err) {
+  } catch (err: any) {
     console.error('Booking Error:', err);
-    return { success: false, error: 'System error. Please try again.' };
+    return { success: false, error: err.message || 'System error. Please try again.' };
   }
 };
 
@@ -135,14 +147,19 @@ export const verifyPayment = async (
             }),
         });
 
+        const contentType = response.headers.get('content-type');
+        let data;
+        if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
+        }
+
         if (!response.ok) {
-            const data = await response.json();
-            return { success: false, error: data.error || 'Payment verification failed' };
+            return { success: false, error: (data && data.error) || 'Payment verification failed' };
         }
 
         return { success: true };
-    } catch (err) {
+        } catch (err: any) {
         console.error("Verification Error:", err);
-        return { success: false, error: "Network error during verification" };
-    }
-};
+        return { success: false, error: err.message || "Network error during verification" };
+        }
+        };

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Himadryy/hidden-depths-backend/pkg/response"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -19,13 +20,13 @@ func AuthMiddleware(jwtSecret, supabaseAnonKey string) func(http.Handler) http.H
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				http.Error(w, "Authorization header required", http.StatusUnauthorized)
+				response.Error(w, http.StatusUnauthorized, "Authorization header required")
 				return
 			}
 
 			bearerToken := strings.Split(authHeader, " ")
 			if len(bearerToken) != 2 || strings.ToLower(bearerToken[0]) != "bearer" {
-				http.Error(w, "Invalid authorization header format", http.StatusUnauthorized)
+				response.Error(w, http.StatusUnauthorized, "Invalid authorization header format")
 				return
 			}
 
@@ -58,7 +59,7 @@ func AuthMiddleware(jwtSecret, supabaseAnonKey string) func(http.Handler) http.H
 				client := &http.Client{}
 				resp, err := client.Do(req)
 				if err != nil || resp.StatusCode != 200 {
-					http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
+					response.Error(w, http.StatusUnauthorized, "Invalid or expired token")
 					return
 				}
 				defer resp.Body.Close()
@@ -74,7 +75,7 @@ func AuthMiddleware(jwtSecret, supabaseAnonKey string) func(http.Handler) http.H
 			}
 
 			if userID == "" {
-				http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
+				response.Error(w, http.StatusUnauthorized, "Invalid or expired token")
 				return
 			}
 
