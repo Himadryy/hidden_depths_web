@@ -17,29 +17,44 @@ type Message struct {
 
 // Hub maintains the set of active clients and broadcasts messages
 type Hub struct {
-	clients    map[*websocket.Conn]bool
-	broadcast  chan Message
-	register   chan *websocket.Conn
-	unregister chan *websocket.Conn
-	mu         sync.Mutex
+	clients        map[*websocket.Conn]bool
+	broadcast      chan Message
+	register       chan *websocket.Conn
+	unregister     chan *websocket.Conn
+	mu             sync.Mutex
+	allowedOrigins []string
 }
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		// In production, validate origin against allowed list
-		return true 
-	},
-}
+var upgrader websocket.Upgrader
 
-func NewHub() *Hub {
-	return &Hub{
-		clients:    make(map[*websocket.Conn]bool),
-		broadcast:  make(chan Message),
-		register:   make(chan *websocket.Conn),
-		unregister: make(chan *websocket.Conn),
+func NewHub(allowedOrigins []string) *Hub {
+	hub := &Hub{
+		clients:        make(map[*websocket.Conn]bool),
+		broadcast:      make(chan Message),
+		register:       make(chan *websocket.Conn),
+		unregister:     make(chan *websocket.Conn),
+		allowedOrigins: allowedOrigins,
 	}
+
+	upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin: func(r *http.Request) bool {
+			origin := r.Header.Get("Origin")
+			if origin == "" {
+				return true
+			}
+			for _, allowed := range hub.allowedOrigins {
+				if origin == allowed {
+					return true
+				}
+			}
+			logger.Warn("WebSocket origin rejected", zap.String("origin", origin))
+			return false
+		},
+	}
+
+	return hub
 }
 
 func (h *Hub) Run() {

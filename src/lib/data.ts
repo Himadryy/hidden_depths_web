@@ -51,13 +51,16 @@ export const INSIGHTS_DATA: Insight[] = [
 
 // Simulation of an Async Database Fetch (Phase 1 Requirement)
 export const fetchInsights = async (): Promise<Insight[]> => {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  const apiUrl = rawApiUrl.endsWith('/') ? rawApiUrl.slice(0, -1) : rawApiUrl;
   if (apiUrl) {
     try {
       const res = await fetch(`${apiUrl}/insights`);
       if (res.ok) {
         const data = await res.json();
-        if (data && data.length > 0) return data;
+        // Unwrap Go backend {success, data} wrapper
+        const insights = Array.isArray(data) ? data : (data.data || []);
+        if (insights.length > 0) return insights;
       }
     } catch (err) {
       console.warn('Failed to fetch insights from API, using fallback data.', err);

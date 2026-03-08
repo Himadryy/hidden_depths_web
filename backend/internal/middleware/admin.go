@@ -3,6 +3,8 @@ package middleware
 import (
 	"net/http"
 	"strings"
+
+	"github.com/Himadryy/hidden-depths-backend/pkg/response"
 )
 
 func AdminMiddleware(adminEmails []string) func(http.Handler) http.Handler {
@@ -11,14 +13,13 @@ func AdminMiddleware(adminEmails []string) func(http.Handler) http.Handler {
 			// 1. Get email from context (set by AuthMiddleware)
 			email, ok := r.Context().Value(UserEmailKey).(string)
 			if !ok || email == "" {
-				http.Error(w, "Unauthorized: Email required", http.StatusUnauthorized)
+				response.Error(w, http.StatusUnauthorized, "Email required for admin access")
 				return
 			}
 
 			// 2. Check against allowed admin emails
 			if len(adminEmails) == 0 {
-				// Fail safe: if no admins configured, nobody is admin
-				http.Error(w, "Unauthorized: No admins configured", http.StatusForbidden)
+				response.Error(w, http.StatusForbidden, "No admins configured")
 				return
 			}
 
@@ -31,7 +32,7 @@ func AdminMiddleware(adminEmails []string) func(http.Handler) http.Handler {
 			}
 
 			if !isAllowed {
-				http.Error(w, "Forbidden: Admin access only", http.StatusForbidden)
+				response.Error(w, http.StatusForbidden, "Admin access only")
 				return
 			}
 

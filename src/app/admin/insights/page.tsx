@@ -45,14 +45,16 @@ export default function InsightsCMS() {
     order: 0
   });
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
 
   const fetchInsights = async () => {
     try {
       const res = await fetch(`${apiUrl}/insights`);
       if (res.ok) {
         const data = await res.json();
-        setInsights(data || []);
+        // Unwrap Go backend {success, data} wrapper
+        const insightsArray = Array.isArray(data) ? data : (data.data || []);
+        setInsights(insightsArray);
       }
     } catch (err) {
       console.error('Error fetching insights:', err);

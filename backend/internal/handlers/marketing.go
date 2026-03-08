@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
 	"time"
 
@@ -20,7 +19,7 @@ func ValidateCoupon(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var c models.Coupon
-	err := database.Pool.QueryRow(context.Background(),
+	err := database.Pool.QueryRow(r.Context(),
 		`SELECT id, code, discount_type, discount_value, max_uses, uses_count, valid_until, is_active 
 		 FROM coupons WHERE code = $1`, code,
 	).Scan(&c.ID, &c.Code, &c.DiscountType, &c.DiscountValue, &c.MaxUses, &c.UsesCount, &c.ValidUntil, &c.IsActive)
@@ -51,10 +50,14 @@ func ValidateCoupon(w http.ResponseWriter, r *http.Request) {
 
 // GetActiveSubscription checks if the user has an active mentorship plan
 func GetActiveSubscription(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("user_id").(string)
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok || userID == "" {
+		response.Error(w, http.StatusUnauthorized, "User ID not found in token")
+		return
+	}
 
 	var sub models.Subscription
-	err := database.Pool.QueryRow(context.Background(),
+	err := database.Pool.QueryRow(r.Context(),
 		`SELECT id, plan_name, status, expires_at FROM subscriptions 
 		 WHERE user_id = $1 AND status = 'active' AND expires_at > now() 
 		 LIMIT 1`, userID,

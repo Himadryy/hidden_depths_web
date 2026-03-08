@@ -36,7 +36,8 @@ export default function AdminDashboard() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+        const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+        const apiUrl = rawApiUrl.endsWith('/') ? rawApiUrl.slice(0, -1) : rawApiUrl;
 
         if (!apiUrl || !token) {
           throw new Error('API Configuration missing');
@@ -56,7 +57,8 @@ export default function AdminDashboard() {
         if (!res.ok) throw new Error('Failed to fetch stats');
 
         const data = await res.json();
-        setStats(data);
+        // Unwrap Go backend {success, data} wrapper
+        setStats(data.data || data);
       } catch (err) {
         console.error('Admin API error:', err);
         setError('Failed to connect to the backend server.');

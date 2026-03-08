@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
@@ -13,7 +12,7 @@ import (
 
 // GetAllInsights returns all insights ordered by sort_order
 func GetAllInsights(w http.ResponseWriter, r *http.Request) {
-	rows, err := database.Pool.Query(context.Background(),
+	rows, err := database.Pool.Query(r.Context(),
 		"SELECT id, title, description, media_url, media_type, sort_order FROM insights ORDER BY sort_order ASC",
 	)
 	if err != nil {
@@ -42,7 +41,7 @@ func CreateInsight(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := database.Pool.QueryRow(context.Background(),
+	err := database.Pool.QueryRow(r.Context(),
 		"INSERT INTO insights (title, description, media_url, media_type, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING id",
 		i.Title, i.Description, i.MediaURL, i.MediaType, i.SortOrder,
 	).Scan(&i.ID)
@@ -64,7 +63,7 @@ func UpdateInsight(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := database.Pool.Exec(context.Background(),
+	_, err := database.Pool.Exec(r.Context(),
 		"UPDATE insights SET title=$1, description=$2, media_url=$3, media_type=$4, sort_order=$5 WHERE id=$6",
 		i.Title, i.Description, i.MediaURL, i.MediaType, i.SortOrder, id,
 	)
@@ -80,7 +79,7 @@ func UpdateInsight(w http.ResponseWriter, r *http.Request) {
 // DeleteInsight removes an insight (Admin Only)
 func DeleteInsight(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	_, err := database.Pool.Exec(context.Background(), "DELETE FROM insights WHERE id=$1", id)
+	_, err := database.Pool.Exec(r.Context(), "DELETE FROM insights WHERE id=$1", id)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "Failed to delete insight")
 		return

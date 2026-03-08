@@ -1,7 +1,11 @@
 package main
 
 import (
+	"context"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/Himadryy/hidden-depths-backend/internal/config"
@@ -11,6 +15,7 @@ import (
 	"github.com/Himadryy/hidden-depths-backend/internal/services"
 	"github.com/Himadryy/hidden-depths-backend/internal/ws"
 	"github.com/Himadryy/hidden-depths-backend/pkg/logger"
+	"github.com/Himadryy/hidden-depths-backend/pkg/response"
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/robfig/cron/v3"
@@ -47,12 +52,12 @@ func main() {
 	// 5. Initialize Services
 	auditService := services.NewAuditService()
 
-	// 6. Initialize WebSocket Hub
-	hub := ws.NewHub()
+	// 6. Initialize WebSocket Hub (with origin validation)
+	hub := ws.NewHub(cfg.AllowedOrigins)
 	go hub.Run()
 	logger.Info("WebSocket Hub started")
 
-	// 6. Setup Router & Middleware
+	// 7. Setup Router & Middleware
 	r := chi.NewRouter()
 
 	r.Use(chiMiddleware.RequestID)
@@ -72,10 +77,10 @@ func main() {
 	})
 	r.Use(corsHandler.Handler)
 
-	// 7. Define Routes
+	// 8. Define Routes
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("ok"))
+			response.JSON(w, http.StatusOK, map[string]string{"status": "ok"}, "Healthy")
 		})
 
 		// WebSocket Endpoint
@@ -128,9 +133,37 @@ func main() {
 		})
 	})
 
-	// 7. Start Server
-	logger.Info("Server starting", zap.String("port", cfg.Port), zap.String("env", cfg.Environment))
-	if err := http.ListenAndServe(":"+cfg.Port, r); err != nil {
-		logger.Fatal("Server failed to start", zap.Error(err))
+	// 9. Start Server with Graceful Shutdown
+	srv := &http.Server{
+		Addr:         ":" + cfg.Port,
+		Handler:      r,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
+
+	// Start server in goroutine
+	go func() {
+		logger.Info("Server starting", zap.String("port", cfg.Port), zap.String("env", cfg.Environment))
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("Server failed to start", zap.Error(err))
+		}
+	}()
+
+	// Wait for interrupt signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	logger.Info("Shutting down server...")
+
+	// Give outstanding requests 10 seconds to complete
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	c.Stop()
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Fatal("Server forced to shutdown", zap.Error(err))
+	}
+
+	logger.Info("Server exited gracefully")
 }

@@ -30,7 +30,7 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	cfg := &Config{
-		Port:           getEnv("PORT", "8080"),
+		Port:           getEnv("PORT", "8081"),
 		Environment:    getEnv("ENVIRONMENT", "development"),
 		DatabaseURL:    getEnv("DATABASE_URL", ""),
 		JWTSecret:      getEnv("JWT_SECRET", ""),
@@ -49,6 +49,7 @@ func Load() (*Config, error) {
 			"http://localhost:3000", 
 			"http://127.0.0.1:3000",
 			"https://hidden-depths-web.pages.dev",
+			"https://hiddendepthsweb-production.up.railway.app",
 		}
 	}
 

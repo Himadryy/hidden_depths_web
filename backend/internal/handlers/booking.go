@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -41,7 +40,7 @@ func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 
 	// Only fetch slots that are NOT failed. 
 	// Pending slots are only considered 'booked' if they were created within the last 15 minutes.
-	rows, err := database.Pool.Query(context.Background(), 
+	rows, err := database.Pool.Query(r.Context(), 
 		`SELECT time FROM bookings 
 		 WHERE date = $1 
 		 AND (payment_status = 'paid' OR (payment_status = 'pending' AND created_at > NOW() - INTERVAL '15 minutes'))`, 
@@ -92,6 +91,23 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		return
 	}
 
+	// 1c. Check for double-booking (slot already taken by a paid or recent pending booking)
+	var existingCount int
+	err = database.Pool.QueryRow(r.Context(),
+		`SELECT COUNT(*) FROM bookings 
+		 WHERE date = $1 AND time = $2 
+		 AND (payment_status = 'paid' OR (payment_status = 'pending' AND created_at > NOW() - INTERVAL '15 minutes'))`,
+		booking.Date, booking.Time,
+	).Scan(&existingCount)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "Failed to check slot availability")
+		return
+	}
+	if existingCount > 0 {
+		response.Error(w, http.StatusConflict, "This slot is already booked. Please choose another time.")
+		return
+	}
+
 	// 2. Generate Meeting Link (Pre-generate, but only email on success)
 	meetingID := uuid.New().String()
 	booking.MeetingLink = fmt.Sprintf("https://meet.jit.si/HiddenDepths-%s-%s", meetingID[:8], booking.Date)
@@ -138,7 +154,7 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 
 	// 4. Insert into Database
 	var newID string
-	err = database.Pool.QueryRow(context.Background(),
+	err = database.Pool.QueryRow(r.Context(),
 		`INSERT INTO bookings 
 		(date, time, name, email, user_id, meeting_link, payment_status, razorpay_order_id, amount) 
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
@@ -194,15 +210,14 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	if expectedSignature != req.RazorpaySignature {
 		response.Error(w, http.StatusUnauthorized, "Invalid payment signature")
 		
-		// Optionally mark as failed in DB
-		database.Pool.Exec(context.Background(), 
+		database.Pool.Exec(r.Context(), 
 			"UPDATE bookings SET payment_status = 'failed' WHERE id = $1", req.BookingID)
 		return
 	}
 
 	// 2. Fetch Booking Details
 	var b models.Booking
-	err := database.Pool.QueryRow(context.Background(),
+	err := database.Pool.QueryRow(r.Context(),
 		"SELECT id, date, time, name, email, meeting_link, user_id FROM bookings WHERE id = $1",
 		req.BookingID,
 	).Scan(&b.ID, &b.Date, &b.Time, &b.Name, &b.Email, &b.MeetingLink, &b.UserID)
@@ -213,7 +228,7 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	}
 
 	// 3. Update DB
-	_, err = database.Pool.Exec(context.Background(),
+	_, err = database.Pool.Exec(r.Context(),
 		"UPDATE bookings SET payment_status = 'paid', razorpay_payment_id = $1 WHERE id = $2",
 		req.RazorpayPaymentID, req.BookingID,
 	)
@@ -269,7 +284,7 @@ func GetRecommendedSlots(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 1. Fetch booked slots
-	rows, err := database.Pool.Query(context.Background(), 
+	rows, err := database.Pool.Query(r.Context(), 
 		"SELECT time FROM bookings WHERE date = $1 AND payment_status != 'failed'", 
 		date)
 	if err != nil {
@@ -302,9 +317,13 @@ func GetRecommendedSlots(w http.ResponseWriter, r *http.Request) {
 
 // GetUserBookings returns all bookings for the authenticated user
 func GetUserBookings(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("user_id") 
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok || userID == "" {
+		response.Error(w, http.StatusUnauthorized, "User ID not found in token")
+		return
+	}
 	
-	rows, err := database.Pool.Query(context.Background(), 
+	rows, err := database.Pool.Query(r.Context(), 
 		`SELECT id, date, time, name, email, meeting_link, payment_status, amount, created_at 
 		FROM bookings WHERE user_id = $1 ORDER BY date DESC`, 
 		userID,
@@ -330,7 +349,11 @@ func GetUserBookings(w http.ResponseWriter, r *http.Request) {
 // CancelBooking allows a user to cancel their own booking
 func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *services.AuditService) {
 	bookingID := chi.URLParam(r, "id")
-	userID := r.Context().Value("user_id").(string)
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok || userID == "" {
+		response.Error(w, http.StatusUnauthorized, "User ID not found in token")
+		return
+	}
 
 	if bookingID == "" {
 		response.Error(w, http.StatusBadRequest, "Booking ID is required")
@@ -339,7 +362,7 @@ func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 
 	// We need the date and time before deleting to broadcast
 	var date, time string
-	err := database.Pool.QueryRow(context.Background(),
+	err := database.Pool.QueryRow(r.Context(),
 		"SELECT date, time FROM bookings WHERE id = $1 AND user_id = $2",
 		bookingID, userID,
 	).Scan(&date, &time)
@@ -349,7 +372,7 @@ func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		return
 	}
 
-	result, err := database.Pool.Exec(context.Background(),
+	result, err := database.Pool.Exec(r.Context(),
 		"DELETE FROM bookings WHERE id = $1 AND user_id = $2",
 		bookingID, userID,
 	)

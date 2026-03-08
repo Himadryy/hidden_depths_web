@@ -123,11 +123,12 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
 
   // Real-time updates via WebSockets
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-    if (!apiUrl) return;
+    const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+    if (!rawApiUrl) return;
 
-    // Convert http(s) to ws(s)
-    const wsUrl = apiUrl.replace(/^http/, 'ws') + '/ws';
+    // Normalize URL and convert http(s) to ws(s)
+    const baseUrl = rawApiUrl.replace(/\/$/, '');
+    const wsUrl = baseUrl.replace(/^http/, 'ws') + '/ws';
     let socket: WebSocket;
 
     const connect = () => {
