@@ -72,7 +72,7 @@ export default function ProfilePage() {
     };
 
     fetchBookings();
-  }, [user, router]);
+  }, [user, authLoading, router]);
 
   const handleCancel = async (bookingId: string) => {
     if (!confirm('Are you sure you want to cancel this session? This action cannot be undone.')) return;
