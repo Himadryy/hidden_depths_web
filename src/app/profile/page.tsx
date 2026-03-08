@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthProvider';
 import { motion } from 'framer-motion';
 import { Calendar, Clock, Loader2, ArrowLeft, History, CalendarDays } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { getApiUrl } from '@/lib/api';
 
 interface Booking {
   id: string;
@@ -35,8 +36,7 @@ export default function ProfilePage() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
-        const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-        const apiUrl = rawApiUrl.endsWith('/') ? rawApiUrl.slice(0, -1) : rawApiUrl;
+        const apiUrl = getApiUrl();
         
         // Use Go API if available
         if (apiUrl && token) {
@@ -80,8 +80,7 @@ export default function ProfilePage() {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
-        const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-        const apiUrl = rawApiUrl.endsWith('/') ? rawApiUrl.slice(0, -1) : rawApiUrl;
+        const apiUrl = getApiUrl();
 
         // API Call
         if (apiUrl && token) {

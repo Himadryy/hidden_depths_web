@@ -17,6 +17,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { getApiUrl } from '@/lib/api';
 import Image from 'next/image';
 
 interface Insight {
@@ -45,7 +46,7 @@ export default function InsightsCMS() {
     order: 0
   });
 
-  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+  const apiUrl = getApiUrl();
 
   const fetchInsights = async () => {
     try {

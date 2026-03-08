@@ -49,10 +49,11 @@ export const INSIGHTS_DATA: Insight[] = [
   }
 ];
 
+import { getApiUrl } from './api';
+
 // Simulation of an Async Database Fetch (Phase 1 Requirement)
 export const fetchInsights = async (): Promise<Insight[]> => {
-  const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-  const apiUrl = rawApiUrl.endsWith('/') ? rawApiUrl.slice(0, -1) : rawApiUrl;
+  const apiUrl = getApiUrl();
   if (apiUrl) {
     try {
       const res = await fetch(`${apiUrl}/insights`);

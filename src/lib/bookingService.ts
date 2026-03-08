@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
+import { getApiUrl } from './api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+const API_URL = getApiUrl();
 
 export interface Booking {
   id: string;

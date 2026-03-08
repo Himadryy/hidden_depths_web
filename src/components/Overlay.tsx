@@ -141,34 +141,45 @@ export default function Overlay() {
         <main className="max-w-4xl mx-auto px-6">
             
             {/* Hero Section */}
-            <section className="h-screen flex flex-col justify-center text-center items-center space-y-10 relative -mt-16">
+            <section className="h-screen flex flex-col justify-center text-center items-center space-y-12 relative -mt-16">
                 <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
+                    initial={{ opacity: 0, y: 40, filter: 'blur(12px)' }}
+                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                    transition={{ duration: 1.4, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
                 >
-                    <h1 className="font-serif text-5xl md:text-7xl font-medium leading-tight text-theme">
-                        When Your Head is Full <br />
-                        <span className="text-[var(--accent)] italic">and You Need a Space to Think.</span>
+                    <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl font-medium leading-[1.1] text-theme tracking-tight">
+                        When your head is full, <br />
+                        <span className="text-[var(--accent)] italic font-light tracking-normal">you need a space to think.</span>
                     </h1>
                 </motion.div>
 
                 <motion.div
-                     initial={{ opacity: 0, scale: 0.95 }}
-                     animate={{ opacity: 1, scale: 1 }}
-                     transition={{ delay: 1, duration: 0.8 }}
+                     initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
+                     animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                     transition={{ duration: 1.2, delay: 1.2, ease: [0.16, 1, 0.3, 1] }}
                 >
                     <button 
                         onClick={openModal}
-                        className="font-serif tracking-widest text-sm py-4 px-10 rounded-full border border-glass text-muted hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-all duration-500 shadow-sm"
+                        className="group relative overflow-hidden font-sans tracking-[0.2em] text-xs font-semibold py-5 px-12 rounded-full border border-glass text-theme transition-all duration-700 hover:border-[var(--accent)] hover:shadow-[0_0_40px_-10px_var(--accent)] bg-glass hover:bg-transparent"
                     >
-                        BOOK AN INTRODUCTORY CALL
+                        <span className="relative z-10 transition-colors duration-500 group-hover:text-[var(--accent)]">BOOK AN INTRODUCTORY CALL</span>
+                        <div className="absolute inset-0 h-full w-full scale-0 rounded-full transition-all duration-500 group-hover:scale-100 group-hover:bg-[var(--accent)]/5" />
                     </button>
                 </motion.div>
                 
-                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce opacity-20 text-theme">
-                    <ArrowDown size={24} />
-                </div>
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 2, duration: 1 }}
+                    className="absolute bottom-12 left-1/2 -translate-x-1/2 opacity-40 hover:opacity-100 transition-opacity text-theme"
+                >
+                    <motion.div
+                        animate={{ y: [0, 8, 0] }}
+                        transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                    >
+                        <ArrowDown size={20} strokeWidth={1.5} />
+                    </motion.div>
+                </motion.div>
             </section>
 
             {/* Carousel Section */}
@@ -178,16 +189,21 @@ export default function Overlay() {
 
             {/* Full-Screen Typography Sections */}
             {LANDING_CONTENT.map((section) => (
-                <section key={section.id} id={section.id} className="h-screen flex flex-col justify-center items-center text-center">
+                <section key={section.id} id={section.id} className="min-h-screen flex flex-col justify-center items-center text-center py-20">
                     <motion.div
-                        className="p-10 md:p-16 max-w-4xl"
-                        initial={{ opacity: 0, y: 50 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, amount: 0.5 }}
-                        transition={{ duration: 1 }}
+                        className="p-8 md:p-16 max-w-3xl"
+                        initial={{ opacity: 0, y: 60, filter: 'blur(10px)' }}
+                        whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                     >
-                        <h2 className="font-serif text-4xl md:text-6xl text-[var(--accent)] mb-12 leading-snug">{section.title}</h2>
-                        <p className="text-xl md:text-2xl leading-relaxed text-muted font-light">{section.content}</p>
+                        <h2 className="font-serif text-3xl md:text-5xl lg:text-6xl text-[var(--accent)] mb-8 leading-tight tracking-tight">
+                            {section.title}
+                        </h2>
+                        <div className="h-px w-16 bg-[var(--accent)]/30 mx-auto mb-10" />
+                        <p className="text-lg md:text-2xl leading-relaxed text-theme font-light opacity-90">
+                            {section.content}
+                        </p>
                     </motion.div>
                 </section>
             ))}

@@ -6,6 +6,7 @@ import { ChevronLeft, Clock, CheckCircle, Calendar as CalendarIcon, ArrowRight, 
 import { sendBookingEmail } from '@/lib/email';
 import { getBookedSlots, createBooking, verifyPayment } from '@/lib/bookingService';
 import { useAuth } from '@/context/AuthProvider';
+import { getApiUrl } from '@/lib/api';
 import Script from 'next/script';
 
 // Extend Window interface for Razorpay
@@ -90,7 +91,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     if (!couponCode) return;
     
     try {
-        const apiUrl = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+        const apiUrl = getApiUrl();
         if (!apiUrl) {
             alert("Coupons are not available right now.");
             return;
@@ -123,12 +124,11 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
 
   // Real-time updates via WebSockets
   useEffect(() => {
-    const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+    const rawApiUrl = getApiUrl();
     if (!rawApiUrl) return;
 
     // Normalize URL and convert http(s) to ws(s)
-    const baseUrl = rawApiUrl.replace(/\/$/, '');
-    const wsUrl = baseUrl.replace(/^http/, 'ws') + '/ws';
+    const wsUrl = rawApiUrl.replace(/^http/, 'ws') + '/ws';
     let socket: WebSocket;
 
     const connect = () => {
@@ -196,7 +196,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
         // Fetch Availability & Neural Recommendations in parallel
         const [slots, recRes] = await Promise.all([
             getBookedSlots(dateStr),
-            fetch(`${(process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')}/bookings/recommendations/${dateStr}`)
+            fetch(`${getApiUrl()}/bookings/recommendations/${dateStr}`)
                 .then(res => res.ok ? res.json() : { data: {} })
         ]);
 

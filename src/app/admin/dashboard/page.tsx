@@ -15,6 +15,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { getApiUrl } from '@/lib/api';
 
 interface Stats {
   total_bookings: number;
@@ -36,8 +37,7 @@ export default function AdminDashboard() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
-        const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-        const apiUrl = rawApiUrl.endsWith('/') ? rawApiUrl.slice(0, -1) : rawApiUrl;
+        const apiUrl = getApiUrl();
 
         if (!apiUrl || !token) {
           throw new Error('API Configuration missing');
