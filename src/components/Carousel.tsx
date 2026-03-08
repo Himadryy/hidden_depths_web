@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { usePerformance } from '@/hooks/usePerformance';
@@ -12,8 +12,10 @@ import { Insight } from '@/types/schema';
 export default function Carousel() {
     const [index, setIndex] = useState(0);
     const [slides, setSlides] = useState<Insight[]>([]);
+    const [paused, setPaused] = useState(false);
     const { tier } = usePerformance();
     const { theme } = useTheme();
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // Fetch slides from API or fallback
     useEffect(() => {
@@ -56,11 +58,16 @@ export default function Carousel() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [prevSlide, nextSlide]);
 
-    // Auto-rotate
+    // Auto-rotate (respects pause state)
     useEffect(() => {
-        const timer = setInterval(() => nextSlide(), 7000); 
-        return () => clearInterval(timer);
-    }, [nextSlide]);
+        if (paused) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            timerRef.current = null;
+            return;
+        }
+        timerRef.current = setInterval(() => nextSlide(), 7000);
+        return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    }, [nextSlide, paused]);
 
     // "The Lens" mask style
     const lensMask = {
@@ -75,14 +82,24 @@ export default function Carousel() {
     }
 
     if (slides.length === 0) return (
-        <div className="w-full h-screen flex items-center justify-center">
-            <Loader2 className="animate-spin text-[var(--accent)]" />
+        <div className="w-full h-screen flex items-center justify-center" aria-label="Insights carousel" role="region">
+            <p className="text-muted text-lg">Insights</p>
+            <Loader2 className="animate-spin text-[var(--accent)] ml-3" />
         </div>
     );
 
     return (
-        <div className="w-full h-screen flex flex-col items-center justify-center py-20 relative cursor-grab active:cursor-grabbing" {...bind()}>
-            
+        <div
+            className="w-full h-screen flex flex-col items-center justify-center py-20 relative cursor-grab active:cursor-grabbing"
+            aria-label="Insights carousel"
+            role="region"
+            {...bind()}
+        >
+            {/* Section Heading */}
+            <h2 className="absolute top-8 left-1/2 -translate-x-1/2 z-20 text-xs uppercase tracking-[0.3em] text-muted font-sans">
+                Insights
+            </h2>
+
             {/* Background Media Layer (Bleeds into void) */}
             <div className="absolute inset-0 w-full h-full z-0">
                 <AnimatePresence>
@@ -101,14 +118,13 @@ export default function Carousel() {
                                         src={slide.mediaUrl} 
                                         autoPlay loop muted playsInline 
                                         onError={(e) => {
-                                            // Fallback to a solid background or a placeholder if video fails
                                             (e.target as HTMLVideoElement).style.display = 'none';
                                             const parent = (e.target as HTMLVideoElement).parentElement;
                                             if (parent) {
                                                 parent.style.background = 'linear-gradient(to bottom, #1a1a1a, #000000)';
                                             }
                                         }}
-                                        className={`w-full h-full object-cover ${theme === 'dark' ? 'opacity-55' : 'opacity-80'}`} // Adaptive opacity
+                                        className={`w-full h-full object-cover ${theme === 'dark' ? 'opacity-55' : 'opacity-80'}`}
                                     />
                                 ) : (
                                     <Image 
@@ -131,7 +147,6 @@ export default function Carousel() {
                 className="relative z-10 w-full h-full flex items-center justify-center px-6"
                 style={tier === 'LOW' ? lowTierLensMask : lensMask}
             >
-                {/* Centered Text Content */}
                 <div className="max-w-3xl text-center space-y-8 pointer-events-none">
                     <AnimatePresence mode='wait'>
                         <motion.div
@@ -142,18 +157,64 @@ export default function Carousel() {
                             transition={{ duration: 0.8, ease: "circOut" }}
                             className="space-y-6"
                         >
-                            {/* Heading: Golden */}
-                            <h2 className="font-serif font-bold text-5xl md:text-7xl text-gold tracking-wide leading-tight">
+                            <h3 className="font-serif font-bold text-5xl md:text-7xl text-gold tracking-wide leading-tight">
                                 {slides[index].title}
-                            </h2>
+                            </h3>
                             <div className="h-px w-24 bg-gold/50 mx-auto shadow-sm" />
-                            {/* Description: White with shadow for readability on light backgrounds */}
                             <p className="text-xl md:text-3xl text-white font-bold leading-relaxed italic font-serif drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
                                 {slides[index].description}
                             </p>
                         </motion.div>
                     </AnimatePresence>
                 </div>
+            </div>
+
+            {/* Carousel Controls */}
+            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-20 flex items-center gap-6 pointer-events-auto">
+                <button
+                    onClick={prevSlide}
+                    aria-label="Previous slide"
+                    className="px-4 py-2 text-sm text-white/70 hover:text-white border border-white/20 hover:border-white/50 rounded-full backdrop-blur-sm transition-all"
+                >
+                    ← Prev
+                </button>
+
+                {/* Dot indicators */}
+                <div className="flex items-center gap-2" role="tablist" aria-label="Carousel slides">
+                    {slides.map((_, i) => (
+                        <button
+                            key={i}
+                            role="tab"
+                            aria-selected={i === index}
+                            aria-label={`Slide ${i + 1} of ${slides.length}`}
+                            onClick={() => setIndex(i)}
+                            className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                                i === index ? 'bg-[var(--accent)] scale-125' : 'bg-white/30 hover:bg-white/60'
+                            }`}
+                        />
+                    ))}
+                </div>
+
+                <button
+                    onClick={nextSlide}
+                    aria-label="Next slide"
+                    className="px-4 py-2 text-sm text-white/70 hover:text-white border border-white/20 hover:border-white/50 rounded-full backdrop-blur-sm transition-all"
+                >
+                    Next →
+                </button>
+
+                <button
+                    onClick={() => setPaused(p => !p)}
+                    aria-label={paused ? 'Play auto-rotate' : 'Pause auto-rotate'}
+                    className="px-3 py-2 text-sm text-white/70 hover:text-white border border-white/20 hover:border-white/50 rounded-full backdrop-blur-sm transition-all"
+                >
+                    {paused ? '▶ Play' : '⏸ Pause'}
+                </button>
+            </div>
+
+            {/* Slide counter */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 text-xs text-white/40">
+                Slide {index + 1} of {slides.length}
             </div>
         </div>
     );

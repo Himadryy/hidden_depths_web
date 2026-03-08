@@ -183,7 +183,7 @@ export default function Overlay() {
             </section>
 
             {/* Carousel Section */}
-            <section className="h-screen w-screen -translate-x-1/2 left-1/2 relative flex items-center justify-center">
+            <section id="insights" className="h-screen w-screen -translate-x-1/2 left-1/2 relative flex items-center justify-center">
                 <Carousel />
             </section>
 
