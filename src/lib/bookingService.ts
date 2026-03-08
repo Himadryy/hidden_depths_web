@@ -88,7 +88,7 @@ export const createBooking = async (
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${baseUrl}/bookings`, {
+    const response = await fetch(`${baseUrl}/bookings/`, {
       method: 'POST',
       headers: headers,
       body: JSON.stringify({ date, time, name, email, user_id: userId }),

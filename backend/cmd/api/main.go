@@ -95,6 +95,9 @@ func main() {
 				
 				r.Get("/my", handlers.GetUserBookings)
 				r.Get("/subscriptions/active", handlers.GetActiveSubscription)
+				r.Post("", func(w http.ResponseWriter, r *http.Request) {
+					handlers.CreateBooking(w, r, hub, auditService)
+				})
 				r.Post("/", func(w http.ResponseWriter, r *http.Request) {
 					handlers.CreateBooking(w, r, hub, auditService)
 				})
