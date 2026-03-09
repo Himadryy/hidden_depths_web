@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/Himadryy/hidden-depths-backend/pkg/logger"
 	"github.com/Himadryy/hidden-depths-backend/pkg/response"
 	"github.com/golang-jwt/jwt/v5"
+	"go.uber.org/zap"
 )
 
 const UserIDKey = "user_id"
@@ -52,26 +55,43 @@ func AuthMiddleware(jwtSecret, supabaseAnonKey string) func(http.Handler) http.H
 
 			// 2. Fallback: Remote Supabase Verification (Slow but supports ES256/Google)
 			if userID == "" {
-				req, _ := http.NewRequest("GET", SupabaseAuthURL, nil)
+				ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+				defer cancel()
+
+				req, err := http.NewRequestWithContext(ctx, "GET", SupabaseAuthURL, nil)
+				if err != nil {
+					logger.Error("Failed to create Supabase auth request", zap.Error(err))
+					response.Error(w, http.StatusUnauthorized, "Invalid or expired token")
+					return
+				}
 				req.Header.Set("Authorization", "Bearer "+tokenString)
 				req.Header.Set("apikey", supabaseAnonKey)
 				
-				client := &http.Client{}
+				client := &http.Client{Timeout: 5 * time.Second}
 				resp, err := client.Do(req)
-				if err != nil || resp.StatusCode != 200 {
+				if err != nil {
+					logger.Error("Supabase auth request failed", zap.Error(err))
 					response.Error(w, http.StatusUnauthorized, "Invalid or expired token")
 					return
 				}
 				defer resp.Body.Close()
+
+				if resp.StatusCode != 200 {
+					response.Error(w, http.StatusUnauthorized, "Invalid or expired token")
+					return
+				}
 				
 				var userResp struct {
 					ID    string `json:"id"`
 					Email string `json:"email"`
 				}
-				if err := json.NewDecoder(resp.Body).Decode(&userResp); err == nil {
-					userID = userResp.ID
-					email = userResp.Email
+				if err := json.NewDecoder(resp.Body).Decode(&userResp); err != nil {
+					logger.Error("Failed to decode Supabase auth response", zap.Error(err))
+					response.Error(w, http.StatusUnauthorized, "Invalid or expired token")
+					return
 				}
+				userID = userResp.ID
+				email = userResp.Email
 			}
 
 			if userID == "" {

@@ -3,18 +3,18 @@ package services
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/Himadryy/hidden-depths-backend/internal/database"
+	"github.com/Himadryy/hidden-depths-backend/pkg/logger"
+	"go.uber.org/zap"
 )
 
 // CheckAndSendReminders runs every hour to find bookings happening tomorrow
 func CheckAndSendReminders() {
-	log.Println("Running reminder check...")
+	logger.Info("Running reminder check...")
 
 	// Calculate "Tomorrow" date string (YYYY-MM-DD)
-	// Example: If today is 2026-02-01, we want to remind bookings for 2026-02-02
 	tomorrow := time.Now().Add(24 * time.Hour).Format("2006-01-02")
 
 	rows, err := database.Pool.Query(context.Background(),
@@ -22,7 +22,7 @@ func CheckAndSendReminders() {
 		tomorrow,
 	)
 	if err != nil {
-		log.Printf("Error querying reminders: %v", err)
+		logger.Error("Error querying reminders", zap.Error(err))
 		return
 	}
 	defer rows.Close()
@@ -30,7 +30,7 @@ func CheckAndSendReminders() {
 	for rows.Next() {
 		var id, name, email, timeSlot, meetingLink string
 		if err := rows.Scan(&id, &name, &email, &timeSlot, &meetingLink); err != nil {
-			log.Printf("Error scanning booking: %v", err)
+			logger.Error("Error scanning booking for reminder", zap.Error(err))
 			continue
 		}
 
@@ -48,7 +48,7 @@ func CheckAndSendReminders() {
 
 		// Send Email
 		if err := SendEmail(email, subject, body); err != nil {
-			log.Printf("Failed to send email to %s: %v", email, err)
+			logger.Error("Failed to send reminder email", zap.String("email", email), zap.Error(err))
 			continue
 		}
 
@@ -58,28 +58,28 @@ func CheckAndSendReminders() {
 			id,
 		)
 		if err != nil {
-			log.Printf("Failed to update booking %s: %v", id, err)
+			logger.Error("Failed to mark reminder as sent", zap.String("booking_id", id), zap.Error(err))
 		} else {
-			log.Printf("Reminder sent to %s", email)
+			logger.Info("Reminder sent", zap.String("email", email))
 		}
 	}
 }
 
 // CleanupAbandonedBookings marks pending bookings older than 30 minutes as 'failed'
 func CleanupAbandonedBookings() {
-	log.Println("Running abandoned booking cleanup...")
+	logger.Info("Running abandoned booking cleanup...")
 	
 	result, err := database.Pool.Exec(context.Background(),
 		"UPDATE bookings SET payment_status = 'failed' WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '30 minutes'",
 	)
 	
 	if err != nil {
-		log.Printf("Error during cleanup: %v", err)
+		logger.Error("Error during abandoned booking cleanup", zap.Error(err))
 		return
 	}
 	
 	rows := result.RowsAffected()
 	if rows > 0 {
-		log.Printf("Cleaned up %d abandoned bookings", rows)
+		logger.Info("Cleaned up abandoned bookings", zap.Int64("count", rows))
 	}
 }

@@ -5,7 +5,9 @@ import (
 	"time"
 
 	"github.com/Himadryy/hidden-depths-backend/internal/database"
+	"github.com/Himadryy/hidden-depths-backend/pkg/logger"
 	"github.com/Himadryy/hidden-depths-backend/pkg/response"
+	"go.uber.org/zap"
 )
 
 type AdminStats struct {
@@ -39,6 +41,7 @@ func GetAdminStats(w http.ResponseWriter, r *http.Request) {
 	var revenue float64
 	err = database.Pool.QueryRow(ctx, "SELECT COALESCE(SUM(amount), 0) FROM bookings WHERE payment_status = 'paid' AND amount > 0").Scan(&revenue)
 	if err != nil {
+		logger.Error("Failed to calculate revenue", zap.Error(err))
 		revenue = 0
 	}
 

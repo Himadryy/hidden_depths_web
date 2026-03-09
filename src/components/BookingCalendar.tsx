@@ -6,7 +6,7 @@ import { ChevronLeft, Clock, CheckCircle, Calendar as CalendarIcon, ArrowRight, 
 import { sendBookingEmail } from '@/lib/email';
 import { getBookedSlots, createBooking, verifyPayment } from '@/lib/bookingService';
 import { useAuth } from '@/context/AuthProvider';
-import { getApiUrl } from '@/lib/api';
+import { getApiUrl, fetchWithTimeout } from '@/lib/api';
 import Script from 'next/script';
 
 // Extend Window interface for Razorpay
@@ -97,7 +97,15 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             return;
         }
 
-        const res = await fetch(`${apiUrl}/coupons/validate/${couponCode}`);
+        const res = await fetchWithTimeout(`${apiUrl}/coupons/validate/${couponCode}`);
+
+        if (!res.ok) {
+            const errData = await res.json().catch(() => null);
+            setDiscount(0);
+            alert(errData?.error || "Invalid coupon code");
+            return;
+        }
+
         const data = await res.json();
 
         if (data.success) {
@@ -130,9 +138,15 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     // Normalize URL and convert http(s) to ws(s)
     const wsUrl = rawApiUrl.replace(/^http/, 'ws') + '/ws';
     let socket: WebSocket;
+    let reconnectAttempts = 0;
+    let reconnectTimer: ReturnType<typeof setTimeout>;
 
     const connect = () => {
         socket = new WebSocket(wsUrl);
+
+        socket.onopen = () => {
+            reconnectAttempts = 0;
+        };
 
         socket.onmessage = (event) => {
             try {
@@ -154,14 +168,23 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             }
         };
 
+        socket.onerror = (event) => {
+            console.error('WebSocket error:', event);
+        };
+
         socket.onclose = () => {
-            // Reconnect after 5 seconds if closed
-            setTimeout(connect, 5000);
+            // Exponential backoff: 1s, 2s, 4s, 8s... max 30s
+            const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+            reconnectAttempts++;
+            reconnectTimer = setTimeout(connect, delay);
         };
     };
 
     connect();
-    return () => socket?.close();
+    return () => {
+        clearTimeout(reconnectTimer);
+        socket?.close();
+    };
   }, [selectedDate]);
 
   // Logic: Get next available Sundays and Mondays starting from today
@@ -196,8 +219,9 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
         // Fetch Availability & Neural Recommendations in parallel
         const [slots, recRes] = await Promise.all([
             getBookedSlots(dateStr),
-            fetch(`${getApiUrl()}/bookings/recommendations/${dateStr}`)
+            fetchWithTimeout(`${getApiUrl()}/bookings/recommendations/${dateStr}`)
                 .then(res => res.ok ? res.json() : { data: {} })
+                .catch(() => ({ data: {} }))
         ]);
 
         setBookedSlots(slots);

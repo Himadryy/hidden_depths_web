@@ -3,6 +3,7 @@ package ws
 import (
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/Himadryy/hidden-depths-backend/pkg/logger"
@@ -78,9 +79,10 @@ func (h *Hub) Run() {
 		case message := <-h.broadcast:
 			h.mu.Lock()
 			for client := range h.clients {
+				client.SetWriteDeadline(time.Now().Add(5 * time.Second))
 				err := client.WriteJSON(message)
 				if err != nil {
-					logger.Error("WS Broadcast error", zap.Error(err))
+					logger.Error("WS Broadcast error, removing client", zap.Error(err))
 					client.Close()
 					delete(h.clients, client)
 				}

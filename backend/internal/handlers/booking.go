@@ -8,16 +8,19 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Himadryy/hidden-depths-backend/internal/database"
 	"github.com/Himadryy/hidden-depths-backend/internal/models"
 	"github.com/Himadryy/hidden-depths-backend/internal/services"
 	"github.com/Himadryy/hidden-depths-backend/internal/ws"
+	"github.com/Himadryy/hidden-depths-backend/pkg/logger"
 	"github.com/Himadryy/hidden-depths-backend/pkg/response"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	razorpay "github.com/razorpay/razorpay-go"
+	"go.uber.org/zap"
 )
 
 // Helper to check if payment is required
@@ -55,6 +58,7 @@ func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var timeSlot string
 		if err := rows.Scan(&timeSlot); err != nil {
+			logger.Error("Failed to scan time slot", zap.Error(err))
 			continue
 		}
 		slots = append(slots, timeSlot)
@@ -122,6 +126,7 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	booking.PaymentStatus = "paid" // Default for free sessions
 
 	var razorpayOrderID string
+	var ok bool
 	
 	// 3. Handle Payment Logic
 	if isPaid {
@@ -148,7 +153,11 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 			return
 		}
 		
-		razorpayOrderID = body["id"].(string)
+		razorpayOrderID, ok = body["id"].(string)
+		if !ok || razorpayOrderID == "" {
+			response.Error(w, http.StatusInternalServerError, "Invalid payment order response")
+			return
+		}
 		booking.RazorpayOrderID = razorpayOrderID
 	}
 
@@ -201,17 +210,25 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 
 	// 1. Verify Signature
 	keySecret := os.Getenv("RAZORPAY_KEY_SECRET")
+	if keySecret == "" {
+		logger.Error("RAZORPAY_KEY_SECRET not configured")
+		response.Error(w, http.StatusInternalServerError, "Payment service misconfigured")
+		return
+	}
+
 	data := req.RazorpayOrderID + "|" + req.RazorpayPaymentID
 	
 	h := hmac.New(sha256.New, []byte(keySecret))
 	h.Write([]byte(data))
 	expectedSignature := hex.EncodeToString(h.Sum(nil))
 
-	if expectedSignature != req.RazorpaySignature {
+	if !strings.EqualFold(expectedSignature, req.RazorpaySignature) {
 		response.Error(w, http.StatusUnauthorized, "Invalid payment signature")
 		
-		database.Pool.Exec(r.Context(), 
-			"UPDATE bookings SET payment_status = 'failed' WHERE id = $1", req.BookingID)
+		if _, err := database.Pool.Exec(r.Context(),
+			"UPDATE bookings SET payment_status = 'failed' WHERE id = $1", req.BookingID); err != nil {
+			logger.Error("Failed to mark payment as failed", zap.String("booking_id", req.BookingID), zap.Error(err))
+		}
 		return
 	}
 
@@ -296,7 +313,10 @@ func GetRecommendedSlots(w http.ResponseWriter, r *http.Request) {
 	bookedMap := make(map[string]bool)
 	for rows.Next() {
 		var t string
-		rows.Scan(&t)
+		if err := rows.Scan(&t); err != nil {
+			logger.Error("Failed to scan booked slot", zap.Error(err))
+			continue
+		}
 		bookedMap[t] = true
 	}
 
@@ -338,6 +358,7 @@ func GetUserBookings(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var b models.Booking
 		if err := rows.Scan(&b.ID, &b.Date, &b.Time, &b.Name, &b.Email, &b.MeetingLink, &b.PaymentStatus, &b.Amount, &b.CreatedAt); err != nil {
+			logger.Error("Failed to scan user booking", zap.Error(err))
 			continue
 		}
 		bookings = append(bookings, b)

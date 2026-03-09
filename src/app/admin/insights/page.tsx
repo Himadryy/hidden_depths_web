@@ -17,7 +17,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { getApiUrl } from '@/lib/api';
+import { getApiUrl, fetchWithTimeout } from '@/lib/api';
 import Image from 'next/image';
 
 interface Insight {
@@ -50,7 +50,7 @@ export default function InsightsCMS() {
 
   const fetchInsights = async () => {
     try {
-      const res = await fetch(`${apiUrl}/insights`);
+      const res = await fetchWithTimeout(`${apiUrl}/insights`);
       if (res.ok) {
         const data = await res.json();
         // Unwrap Go backend {success, data} wrapper
@@ -79,7 +79,7 @@ export default function InsightsCMS() {
       const method = editingId ? 'PUT' : 'POST';
       const url = editingId ? `${apiUrl}/admin/insights/${editingId}` : `${apiUrl}/admin/insights`;
 
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -108,7 +108,7 @@ export default function InsightsCMS() {
     const token = session?.access_token;
 
     try {
-      const res = await fetch(`${apiUrl}/admin/insights/${id}`, {
+      const res = await fetchWithTimeout(`${apiUrl}/admin/insights/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

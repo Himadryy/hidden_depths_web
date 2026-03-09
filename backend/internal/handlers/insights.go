@@ -6,8 +6,10 @@ import (
 
 	"github.com/Himadryy/hidden-depths-backend/internal/database"
 	"github.com/Himadryy/hidden-depths-backend/internal/models"
+	"github.com/Himadryy/hidden-depths-backend/pkg/logger"
 	"github.com/Himadryy/hidden-depths-backend/pkg/response"
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 )
 
 // GetAllInsights returns all insights ordered by sort_order
@@ -25,6 +27,7 @@ func GetAllInsights(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var i models.Insight
 		if err := rows.Scan(&i.ID, &i.Title, &i.Description, &i.MediaURL, &i.MediaType, &i.SortOrder); err != nil {
+			logger.Error("Failed to scan insight", zap.Error(err))
 			continue
 		}
 		insights = append(insights, i)

@@ -19,7 +19,10 @@ func SendEmail(to, subject, body string) error {
 		return fmt.Errorf("SMTP configuration missing")
 	}
 
-	smtpPort, _ := strconv.Atoi(smtpPortStr)
+	smtpPort, err := strconv.Atoi(smtpPortStr)
+	if err != nil {
+		return fmt.Errorf("invalid SMTP_PORT '%s': %v", smtpPortStr, err)
+	}
 
 	m := gomail.NewMessage()
 	m.SetHeader("From", smtpUser)

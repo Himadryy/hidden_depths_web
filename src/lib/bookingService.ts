@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { getApiUrl } from './api';
+import { getApiUrl, fetchWithTimeout } from './api';
 
 const API_URL = getApiUrl();
 
@@ -29,7 +29,7 @@ export const getBookedSlots = async (date: string): Promise<string[]> => {
       const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
       const url = `${baseUrl}/bookings/slots/${date}`;
       
-      const response = await fetch(url);
+      const response = await fetchWithTimeout(url);
       if (!response.ok) {
         console.warn(`Go API returned ${response.status} for slots. Falling back.`);
         throw new Error('Failed to fetch slots');
@@ -89,7 +89,7 @@ export const createBooking = async (
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${baseUrl}/bookings/`, {
+    const response = await fetchWithTimeout(`${baseUrl}/bookings/`, {
       method: 'POST',
       headers: headers,
       body: JSON.stringify({ date, time, name, email, user_id: userId }),
@@ -137,7 +137,7 @@ export const verifyPayment = async (
 ): Promise<{ success: boolean; error?: string }> => {
     try {
         const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
-        const response = await fetch(`${baseUrl}/bookings/verify`, {
+        const response = await fetchWithTimeout(`${baseUrl}/bookings/verify`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

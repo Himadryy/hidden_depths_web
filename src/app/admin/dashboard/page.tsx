@@ -15,7 +15,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { getApiUrl } from '@/lib/api';
+import { getApiUrl, fetchWithTimeout } from '@/lib/api';
 
 interface Stats {
   total_bookings: number;
@@ -43,7 +43,7 @@ export default function AdminDashboard() {
           throw new Error('API Configuration missing');
         }
 
-        const res = await fetch(`${apiUrl}/admin/stats`, {
+        const res = await fetchWithTimeout(`${apiUrl}/admin/stats`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

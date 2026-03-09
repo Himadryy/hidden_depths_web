@@ -24,7 +24,10 @@ var DefaultWeights = Weights{
 // RecommendSlots takes available times and scores them based on the weights
 func RecommendSlots(availableTimes []string, date string) map[string]float64 {
 	scores := make(map[string]float64)
-	t, _ := time.Parse("2006-01-02", date)
+	t, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return scores
+	}
 
 	for _, slot := range availableTimes {
 		score := 0.5 // Base neuron activation

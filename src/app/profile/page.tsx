@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthProvider';
 import { motion } from 'framer-motion';
 import { Calendar, Clock, Loader2, ArrowLeft, History, CalendarDays } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { getApiUrl } from '@/lib/api';
+import { getApiUrl, fetchWithTimeout } from '@/lib/api';
 
 interface Booking {
   id: string;
@@ -40,7 +40,7 @@ export default function ProfilePage() {
         
         // Use Go API if available
         if (apiUrl && token) {
-            const res = await fetch(`${apiUrl}/bookings/my`, {
+            const res = await fetchWithTimeout(`${apiUrl}/bookings/my`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -84,7 +84,7 @@ export default function ProfilePage() {
 
         // API Call
         if (apiUrl && token) {
-            const res = await fetch(`${apiUrl}/bookings/${bookingId}`, {
+            const res = await fetchWithTimeout(`${apiUrl}/bookings/${bookingId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`

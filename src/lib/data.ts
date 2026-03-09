@@ -49,14 +49,14 @@ export const INSIGHTS_DATA: Insight[] = [
   }
 ];
 
-import { getApiUrl } from './api';
+import { getApiUrl, fetchWithTimeout } from './api';
 
 // Simulation of an Async Database Fetch (Phase 1 Requirement)
 export const fetchInsights = async (): Promise<Insight[]> => {
   const apiUrl = getApiUrl();
   if (apiUrl) {
     try {
-      const res = await fetch(`${apiUrl}/insights`);
+      const res = await fetchWithTimeout(`${apiUrl}/insights`);
       if (res.ok) {
         const data = await res.json();
         // Unwrap Go backend {success, data} wrapper

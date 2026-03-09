@@ -28,13 +28,19 @@ func ConnectDB(dbURL string) error {
 	config.MaxConnLifetime = 30 * time.Minute
 	config.MaxConnIdleTime = 15 * time.Minute
 
-	Pool, err = pgxpool.NewWithConfig(context.Background(), config)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	Pool, err = pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		return fmt.Errorf("unable to create connection pool: %v", err)
 	}
 
-	// Test the connection
-	if err := Pool.Ping(context.Background()); err != nil {
+	// Test the connection with a timeout
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer pingCancel()
+	if err := Pool.Ping(pingCtx); err != nil {
+		Pool.Close()
 		return fmt.Errorf("unable to ping database: %v", err)
 	}
 
