@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Clock, CheckCircle, Calendar as CalendarIcon, ArrowRight, Loader2 } from 'lucide-react';
+import { ChevronLeft, Clock, CheckCircle, Calendar as CalendarIcon, ArrowRight, Loader2, AlertTriangle } from 'lucide-react';
 import { sendBookingEmail } from '@/lib/email';
 import { getBookedSlots, createBooking, verifyPayment, cancelPendingBooking } from '@/lib/bookingService';
 import { useAuth } from '@/context/AuthProvider';
@@ -28,14 +28,12 @@ const isTimePast = (timeStr: string, selectedDate: Date | null): boolean => {
     if (!selectedDate) return false;
     
     const now = new Date();
-    // Check if selected date is today (ignoring time)
     const isToday = selectedDate.getDate() === now.getDate() &&
                     selectedDate.getMonth() === now.getMonth() &&
                     selectedDate.getFullYear() === now.getFullYear();
     
     if (!isToday) return false;
 
-    // Parse time string "12:00 PM"
     const [time, modifier] = timeStr.split(' ');
     const parts = time.split(':').map(Number);
     let hours = parts[0];
@@ -60,7 +58,6 @@ const isPaidSession = (date: Date | null): boolean => {
 };
 
 // Helper to ensure consistent Date format for DB (YYYY-MM-DD)
-// Uses local time to avoid timezone offset issues
 const formatDateForDB = (date: Date): string => {
     const offset = date.getTimezoneOffset();
     const localDate = new Date(date.getTime() - (offset * 60 * 1000));
@@ -83,66 +80,37 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState(user?.email || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Coupon State
-  const [couponCode, setCouponCode] = useState('');
-  const [discount, setDiscount] = useState(0);
+  // Inline error message (replaces alert())
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const validateCoupon = async () => {
-    if (!couponCode) return;
-    
-    try {
-        const apiUrl = getApiUrl();
-        if (!apiUrl) {
-            alert("Coupons are not available right now.");
-            return;
-        }
-
-        const res = await fetchWithTimeout(`${apiUrl}/coupons/validate/${couponCode}`);
-
-        if (!res.ok) {
-            const errData = await res.json().catch(() => null);
-            setDiscount(0);
-            alert(errData?.error || "Invalid coupon code");
-            return;
-        }
-
-        const data = await res.json();
-
-        if (data.success) {
-            const coupon = data.data;
-            let val = 0;
-            if (coupon.discount_type === 'percentage') {
-                val = (99 * coupon.discount_value) / 100;
-            } else {
-                val = coupon.discount_value;
-            }
-            // Cap at 99
-            if (val > 99) val = 99;
-            setDiscount(val);
-            alert(`Coupon Applied! You saved ₹${val}`);
-        } else {
-            setDiscount(0);
-            alert(data.error || "Invalid coupon code");
-        }
-    } catch (err) {
-        console.error("Coupon error", err);
-        alert("Failed to validate coupon");
-    }
-  };
+  // Auto-clear error after 6 seconds
+  useEffect(() => {
+    if (!errorMsg) return;
+    const t = setTimeout(() => setErrorMsg(''), 6000);
+    return () => clearTimeout(t);
+  }, [errorMsg]);
 
   // Real-time updates via WebSockets
   useEffect(() => {
     const rawApiUrl = getApiUrl();
     if (!rawApiUrl) return;
 
-    // Normalize URL and convert http(s) to ws(s)
     const wsUrl = rawApiUrl.replace(/^http/, 'ws') + '/ws';
     let socket: WebSocket;
     let reconnectAttempts = 0;
+    const maxReconnectAttempts = 8;
     let reconnectTimer: ReturnType<typeof setTimeout>;
+    let disposed = false;
 
     const connect = () => {
-        socket = new WebSocket(wsUrl);
+        if (disposed) return;
+        
+        try {
+            socket = new WebSocket(wsUrl);
+        } catch {
+            // WebSocket constructor can throw on invalid URLs
+            return;
+        }
 
         socket.onopen = () => {
             reconnectAttempts = 0;
@@ -163,17 +131,19 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                         setBookedSlots(prev => prev.filter(t => t !== payload.time));
                     }
                 }
-            } catch (err) {
-                console.error('WS Message error:', err);
+            } catch {
+                // Silently ignore malformed messages
             }
         };
 
-        socket.onerror = (event) => {
-            console.error('WebSocket error:', event);
+        socket.onerror = () => {
+            // Errors are followed by close events — handle reconnection there
         };
 
         socket.onclose = () => {
-            // Exponential backoff: 1s, 2s, 4s, 8s... max 30s
+            if (disposed) return;
+            if (reconnectAttempts >= maxReconnectAttempts) return;
+            
             const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
             reconnectAttempts++;
             reconnectTimer = setTimeout(connect, delay);
@@ -181,7 +151,19 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     };
 
     connect();
+
+    // Reconnect when network comes back online
+    const handleOnline = () => {
+        if (socket?.readyState !== WebSocket.OPEN) {
+            reconnectAttempts = 0;
+            connect();
+        }
+    };
+    window.addEventListener('online', handleOnline);
+
     return () => {
+        disposed = true;
+        window.removeEventListener('online', handleOnline);
         clearTimeout(reconnectTimer);
         socket?.close();
     };
@@ -241,11 +223,11 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setErrorMsg('');
     
     if (!selectedDate || !selectedTime) return;
 
     const dateStr = formatDateForDB(selectedDate);
-    const dateReadable = selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     try {
         // 1. Initiate Booking (Create 'Pending' Slot & Razorpay Order if paid)
@@ -258,13 +240,12 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
         );
         
         if (!bookingResult.success) {
-            alert(bookingResult.error || "Booking failed.");
+            const err = bookingResult.error || "Booking failed.";
+            setErrorMsg(err);
             setIsSubmitting(false);
             
-            // On any conflict/taken error, refresh slots view
-            if (bookingResult.error?.includes('confirmed') || 
-                bookingResult.error?.includes('taken') ||
-                bookingResult.error?.includes('completing payment')) {
+            // On conflict/taken error, refresh slots view
+            if (err.includes('booked') || err.includes('taken') || err.includes('unavailable') || err.includes('payment')) {
                 setView('slots');
                 handleDateClick(selectedDate);
             }
@@ -273,9 +254,8 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
 
         // 2. Handle Payment Flow
         if (bookingResult.order_id) {
-            // Check if Razorpay is loaded
             if (!window.Razorpay) {
-                alert("Payment gateway failed to load. Please refresh.");
+                setErrorMsg("Payment gateway failed to load. Please refresh the page.");
                 cancelPendingBooking(bookingResult.booking_id!);
                 setIsSubmitting(false);
                 return;
@@ -303,12 +283,11 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                     if (verify.success) {
                         setView('success');
                     } else {
-                        alert("Payment verification failed. Please contact support.");
+                        setErrorMsg("Payment verification failed. Your payment is safe — if charged, it will be confirmed automatically.");
                     }
                     setIsSubmitting(false);
                 },
                 modal: {
-                    // User closed the Razorpay dialog without paying
                     ondismiss: function () {
                         cancelPendingBooking(pendingBookingId);
                         setIsSubmitting(false);
@@ -329,7 +308,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             
             const rzp1 = new window.Razorpay(options);
             rzp1.on('payment.failed', function (response: any){
-                alert("Payment Failed: " + response.error.description);
+                setErrorMsg("Payment failed: " + (response.error?.description || "Please try again."));
                 cancelPendingBooking(pendingBookingId);
                 setIsSubmitting(false);
             });
@@ -341,8 +320,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
         }
     } catch (error) {
         console.error("Booking Error:", error);
-        const msg = (error as any)?.message || "System error. Please try again.";
-        alert(`Booking Failed: ${msg}`);
+        setErrorMsg("Something went wrong. Please try again.");
         setIsSubmitting(false);
     }
   };
@@ -476,6 +454,19 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             <h3 className="text-2xl font-serif text-theme">Finalize Booking</h3>
         </div>
         
+        {/* Inline Error Banner */}
+        {errorMsg && (
+            <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center gap-3 p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-sm shrink-0"
+            >
+                <AlertTriangle size={18} className="shrink-0" />
+                <p>{errorMsg}</p>
+            </motion.div>
+        )}
+
         <div className="bg-[var(--accent)]/5 p-6 rounded-2xl border border-[var(--accent)]/20 flex items-start gap-5 shrink-0">
             <div className="p-3 bg-[var(--background)] rounded-full text-[var(--accent)] shadow-sm">
                 <CalendarIcon size={20} />
@@ -487,13 +478,11 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                     <span>{selectedDate?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
                     <span>{selectedTime}</span>
                 </div>
-                {/* Price Tag Display */}
                 {isPaid && (
-                     <div className="mt-2 flex flex-col gap-1">
+                     <div className="mt-2">
                         <div className="inline-flex items-center px-2 py-1 bg-[var(--accent)] text-[var(--background)] text-xs font-bold uppercase tracking-wider rounded w-fit">
-                            Price: {discount ? `₹${99 - discount} (Saved ₹${discount})` : SESSION_PRICE}
+                            Price: {SESSION_PRICE}
                         </div>
-                        {couponCode && discount > 0 && <span className="text-[10px] text-green-500 font-bold tracking-widest uppercase">Coupon Applied</span>}
                      </div>
                 )}
             </div>
@@ -525,37 +514,11 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                 />
             </div>
 
-            {/* Coupon Input */}
-            {isPaid && (
-                <div className="space-y-2">
-                    <label htmlFor="booking-coupon" className="text-xs text-muted uppercase tracking-widest font-bold">Discount Code</label>
-                    <div className="flex gap-2">
-                        <input 
-                            id="booking-coupon"
-                            name="coupon"
-                            type="text" 
-                            value={couponCode}
-                            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                            className="flex-1 bg-[var(--background)] border border-glass rounded-xl p-4 text-theme focus:outline-none focus:border-[var(--accent)] transition-all"
-                            placeholder="WELCOME50"
-                            autoComplete="off"
-                        />
-                        <button
-                            type="button"
-                            onClick={validateCoupon}
-                            className="px-4 py-2 bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/50 rounded-xl font-bold uppercase text-xs hover:bg-[var(--accent)] hover:text-[var(--background)] transition-all"
-                        >
-                            Apply
-                        </button>
-                    </div>
-                </div>
-            )}
-
             <button 
                 type="submit" disabled={isSubmitting}
                 className="w-full bg-[var(--foreground)] text-[var(--background)] font-serif tracking-widest text-sm py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all mt-auto disabled:opacity-50 shrink-0 mb-4"
             >
-                {isSubmitting ? 'PROCESSING...' : (isPaid ? `PROCEED TO PAYMENT ${discount > 0 ? `(₹${99-discount})` : ''}` : 'CONFIRM BOOKING')}
+                {isSubmitting ? 'PROCESSING...' : (isPaid ? `PROCEED TO PAYMENT` : 'CONFIRM BOOKING')}
             </button>
         </form>
     </div>

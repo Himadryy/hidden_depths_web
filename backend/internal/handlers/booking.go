@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -44,7 +45,8 @@ func isPaidSession(dateStr string) (bool, error) {
 }
 
 // Pending booking hold window — how long a pending booking blocks the slot for others.
-const pendingHoldWindow = "5 minutes"
+// 3 minutes is enough for Razorpay checkout; shorter = faster self-healing from abandoned payments.
+const pendingHoldWindow = "3 minutes"
 
 // GetBookedSlots returns all time slots booked for a specific date.
 // A slot is "booked" if it has a confirmed payment OR an active pending payment (< 5 min).
@@ -562,4 +564,166 @@ func HealthReady(w http.ResponseWriter, r *http.Request) {
 		"status":   overall,
 		"database": dbStatus,
 	}, overall)
+}
+
+// RazorpayWebhook handles asynchronous payment notifications from Razorpay.
+// This is the source of truth for payment status — even if the frontend loses connection,
+// the webhook ensures bookings are confirmed or released.
+func RazorpayWebhook(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *services.AuditService) {
+	// Read raw body for signature verification
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20)) // 1MB limit
+	if err != nil {
+		logger.Log.Error("Webhook: failed to read body", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	// Verify webhook signature
+	webhookSecret := os.Getenv("RAZORPAY_KEY_SECRET")
+	if webhookSecret == "" {
+		logger.Log.Error("Webhook: RAZORPAY_KEY_SECRET not configured")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	signature := r.Header.Get("X-Razorpay-Signature")
+	if signature == "" {
+		logger.Log.Warn("Webhook: missing signature header")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	h := hmac.New(sha256.New, []byte(webhookSecret))
+	h.Write(body)
+	expectedSig := hex.EncodeToString(h.Sum(nil))
+
+	if !hmac.Equal([]byte(expectedSig), []byte(signature)) {
+		logger.Log.Warn("Webhook: invalid signature")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// Parse event
+	var event struct {
+		Event   string `json:"event"`
+		Payload struct {
+			Payment struct {
+				Entity struct {
+					ID      string `json:"id"`
+					OrderID string `json:"order_id"`
+					Status  string `json:"status"`
+					Notes   map[string]string `json:"notes"`
+				} `json:"entity"`
+			} `json:"payment"`
+		} `json:"payload"`
+	}
+	if err := json.Unmarshal(body, &event); err != nil {
+		logger.Log.Error("Webhook: failed to parse event", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	paymentID := event.Payload.Payment.Entity.ID
+	orderID := event.Payload.Payment.Entity.OrderID
+	eventID := event.Event + ":" + paymentID
+
+	logger.Log.Info("Webhook received",
+		zap.String("event", event.Event),
+		zap.String("payment_id", paymentID),
+		zap.String("order_id", orderID),
+	)
+
+	// Idempotency check
+	ctx := r.Context()
+	var exists int
+	if err := database.Pool.QueryRow(ctx,
+		"SELECT COUNT(*) FROM processed_webhooks WHERE event_id = $1", eventID,
+	).Scan(&exists); err == nil && exists > 0 {
+		logger.Log.Info("Webhook already processed", zap.String("event_id", eventID))
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	switch event.Event {
+	case "payment.captured":
+		webhookConfirmPayment(ctx, orderID, paymentID, hub, audit)
+
+	case "payment.failed":
+		webhookReleaseSlot(ctx, orderID)
+
+	default:
+		logger.Log.Info("Webhook: unhandled event", zap.String("event", event.Event))
+	}
+
+	// Mark as processed
+	database.Pool.Exec(ctx,
+		"INSERT INTO processed_webhooks (event_id, event_type) VALUES ($1, $2) ON CONFLICT (event_id) DO NOTHING",
+		eventID, event.Event,
+	)
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// webhookConfirmPayment marks a booking as paid when Razorpay confirms capture.
+func webhookConfirmPayment(ctx context.Context, orderID, paymentID string, hub *ws.Hub, audit *services.AuditService) {
+	// Find booking by razorpay_order_id
+	var b models.Booking
+	err := database.Pool.QueryRow(ctx,
+		"SELECT id, date, time, name, email, meeting_link, user_id FROM bookings WHERE razorpay_order_id = $1",
+		orderID,
+	).Scan(&b.ID, &b.Date, &b.Time, &b.Name, &b.Email, &b.MeetingLink, &b.UserID)
+	if err != nil {
+		logger.Log.Warn("Webhook: booking not found for order", zap.String("order_id", orderID), zap.Error(err))
+		return
+	}
+
+	// Update to paid
+	_, err = database.Pool.Exec(ctx,
+		"UPDATE bookings SET payment_status = 'paid', razorpay_payment_id = $1 WHERE id = $2 AND payment_status = 'pending'",
+		paymentID, b.ID,
+	)
+	if err != nil {
+		logger.Log.Error("Webhook: failed to confirm booking", zap.String("booking_id", b.ID), zap.Error(err))
+		return
+	}
+
+	logger.Log.Info("Webhook: booking confirmed", zap.String("booking_id", b.ID))
+
+	// Broadcast + email (same as VerifyPayment flow)
+	hub.Broadcast("SLOT_BOOKED", map[string]string{"date": b.Date, "time": b.Time})
+
+	userID := ""
+	if b.UserID != nil {
+		userID = *b.UserID
+	}
+	audit.Log(ctx, "booking.webhook_confirmed", userID, b.ID, "booking", "", "", nil)
+
+	go func() {
+		subject := "Confirmed: Your Journey Begins"
+		body := fmt.Sprintf(`
+			<h2>Welcome, %s.</h2>
+			<p>Your sanctuary session is confirmed for <strong>%s at %s</strong>.</p>
+			<p><a href="%s" style="padding: 10px 20px; background-color: #E0B873; color: black; text-decoration: none; border-radius: 5px;">Join Session</a></p>
+			<p>Manage bookings: <a href="https://hidden-depths-web.pages.dev/profile">Profile</a></p>
+		`, b.Name, b.Date, b.Time, b.MeetingLink)
+		if err := services.SendEmail(b.Email, subject, body); err != nil {
+			logger.Log.Error("Webhook: confirmation email failed", zap.String("email", b.Email), zap.Error(err))
+		}
+	}()
+}
+
+// webhookReleaseSlot deletes the pending booking to free the slot when payment fails.
+func webhookReleaseSlot(ctx context.Context, orderID string) {
+	result, err := database.Pool.Exec(ctx,
+		"DELETE FROM bookings WHERE razorpay_order_id = $1 AND payment_status = 'pending'",
+		orderID,
+	)
+	if err != nil {
+		logger.Log.Error("Webhook: failed to release slot", zap.String("order_id", orderID), zap.Error(err))
+		return
+	}
+	if result.RowsAffected() > 0 {
+		logger.Log.Info("Webhook: slot released after payment failure", zap.String("order_id", orderID))
+	}
 }

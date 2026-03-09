@@ -45,7 +45,7 @@ func main() {
 	// 4. Start Background Scheduler (Email Reminders & Cleanup)
 	c := cron.New()
 	c.AddFunc("0 * * * *", services.CheckAndSendReminders)
-	c.AddFunc("*/15 * * * *", services.CleanupAbandonedBookings)
+	c.AddFunc("*/5 * * * *", services.CleanupAbandonedBookings) // Every 5 min — faster self-healing
 	c.Start()
 	logger.Info("Scheduler started")
 
@@ -119,11 +119,13 @@ func main() {
 			})
 		})
 
+		// Razorpay Webhook (public, signature-verified internally)
+		r.Post("/webhook/razorpay", func(w http.ResponseWriter, r *http.Request) {
+			handlers.RazorpayWebhook(w, r, hub, auditService)
+		})
+
 		// Insights (Public)
 		r.Get("/insights", handlers.GetAllInsights)
-
-		// Coupons & Subs (Public Validation)
-		r.Get("/coupons/validate/{code}", handlers.ValidateCoupon)
 
 		// Admin Portal (Double Protected)
 		r.Route("/admin", func(r chi.Router) {

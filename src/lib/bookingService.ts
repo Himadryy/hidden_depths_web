@@ -5,8 +5,8 @@ const API_URL = getApiUrl();
 
 export interface Booking {
   id: string;
-  date: string; // Format: "YYYY-MM-DD"
-  time: string; // Format: "12:00 PM"
+  date: string;
+  time: string;
   name: string;
   email: string;
   created_at: string;
@@ -20,6 +20,20 @@ export interface CreateBookingResponse {
   amount?: number;
   currency?: string;
   key_id?: string;
+}
+
+// Retry wrapper for cold-start resilience (Render free tier wakes in ~30s)
+async function fetchWithRetry(url: string, options?: RequestInit, retries = 1): Promise<Response> {
+  try {
+    return await fetchWithTimeout(url, options);
+  } catch (err) {
+    if (retries > 0) {
+      // Wait 2s then retry once — handles Render cold start wakeup
+      await new Promise(r => setTimeout(r, 2000));
+      return fetchWithRetry(url, options, retries - 1);
+    }
+    throw err;
+  }
 }
 
 export const getBookedSlots = async (date: string): Promise<string[]> => {
@@ -90,7 +104,7 @@ export const createBooking = async (
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetchWithTimeout(`${baseUrl}/bookings/`, {
+    const response = await fetchWithRetry(`${baseUrl}/bookings/`, {
       method: 'POST',
       headers: headers,
       body: JSON.stringify({ date, time, name, email, user_id: userId }),
@@ -107,7 +121,6 @@ export const createBooking = async (
     }
 
     if (response.ok) {
-        // Handle Go backend wrapper { success: true, data: { ... } }
         const result = data.data || data;
         return { 
             success: true,
@@ -119,11 +132,22 @@ export const createBooking = async (
         };
     }
     
-    if (response.status === 409) {
-      return { success: false, error: 'This slot was just booked by someone else. Please choose another time.' };
+    // Map backend error codes to user-friendly messages
+    const errorCode = data.error_code;
+    if (errorCode === 'SLOT_UNAVAILABLE') {
+      return { success: false, error: 'This time slot is already confirmed. Please choose another time.' };
+    }
+    if (errorCode === 'SLOT_HELD') {
+      return { success: false, error: 'Someone else is completing payment for this slot. Please wait a moment or choose another time.' };
+    }
+    if (errorCode === 'PAYMENT_GATEWAY_ERROR') {
+      return { success: false, error: 'Payment service is temporarily unavailable. Please try again in a moment.' };
+    }
+    if (data.retryable) {
+      return { success: false, error: (data.error || 'Temporary issue') + ' — please try again.' };
     }
     
-    throw new Error(data.error || 'Failed to create booking');
+    return { success: false, error: data.error || 'Failed to create booking' };
   } catch (err: any) {
     console.error('Booking Error:', err);
     return { success: false, error: err.message || 'System error. Please try again.' };
@@ -138,7 +162,7 @@ export const verifyPayment = async (
 ): Promise<{ success: boolean; error?: string }> => {
     try {
         const baseUrl = API_URL!.endsWith('/') ? API_URL!.slice(0, -1) : API_URL;
-        const response = await fetchWithTimeout(`${baseUrl}/bookings/verify`, {
+        const response = await fetchWithRetry(`${baseUrl}/bookings/verify`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
