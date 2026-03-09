@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -15,6 +16,8 @@ import (
 	"github.com/Himadryy/hidden-depths-backend/internal/models"
 	"github.com/Himadryy/hidden-depths-backend/internal/services"
 	"github.com/Himadryy/hidden-depths-backend/internal/ws"
+	"github.com/Himadryy/hidden-depths-backend/pkg/apperror"
+	"github.com/Himadryy/hidden-depths-backend/pkg/circuitbreaker"
 	"github.com/Himadryy/hidden-depths-backend/pkg/logger"
 	"github.com/Himadryy/hidden-depths-backend/pkg/response"
 	"github.com/go-chi/chi/v5"
@@ -22,6 +25,13 @@ import (
 	razorpay "github.com/razorpay/razorpay-go"
 	"go.uber.org/zap"
 )
+
+// RazorpayBreaker protects against Razorpay gateway failures.
+var RazorpayBreaker = circuitbreaker.New("razorpay", circuitbreaker.Config{
+	FailureThreshold: 3,
+	SuccessThreshold: 1,
+	OpenTimeout:      30 * time.Second,
+})
 
 // Helper to check if payment is required
 func isPaidSession(dateStr string) (bool, error) {
@@ -41,7 +51,7 @@ const pendingHoldWindow = "5 minutes"
 func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 	date := chi.URLParam(r, "date")
 	if date == "" {
-		response.Error(w, http.StatusBadRequest, "Date is required")
+		response.AppErr(w, apperror.ValidationError("date", "Date is required"))
 		return
 	}
 
@@ -52,7 +62,8 @@ func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 		      OR (payment_status = 'pending' AND created_at > NOW() - INTERVAL '`+pendingHoldWindow+`'))`,
 		date)
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "Failed to fetch slots")
+		logger.Error("Failed to fetch slots", zap.String("date", date), zap.Error(err))
+		response.AppErr(w, apperror.DatabaseError("fetch slots", err))
 		return
 	}
 	defer rows.Close()
@@ -70,24 +81,36 @@ func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, slots, "Slots fetched successfully")
 }
 
-// CreateBooking initiates a booking.
+// CreateBooking initiates a booking using atomic DB transaction.
 // Logic:
 //  1. Reject if a PAID booking exists for this slot (truly taken).
 //  2. Reject if ANOTHER user has an active pending (< 5 min) — they're paying.
 //  3. Delete ALL non-paid rows for this slot (own stale pending, others' expired, failed).
-//  4. Create Razorpay order (if paid session) and INSERT the new booking.
+//  4. Create Razorpay order (if paid session, with circuit breaker) and INSERT the new booking.
 //
 // This allows the same user to retry freely and self-heals stale rows.
 func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *services.AuditService) {
 	var booking models.Booking
 	if err := json.NewDecoder(r.Body).Decode(&booking); err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid request payload")
+		response.AppErr(w, apperror.InvalidPayload(err))
 		return
 	}
 
 	// 1. Basic Validation
-	if booking.Date == "" || booking.Time == "" || booking.Name == "" || booking.Email == "" {
-		response.Error(w, http.StatusBadRequest, "Missing required fields")
+	if booking.Date == "" {
+		response.AppErr(w, apperror.ValidationError("date", "Date is required"))
+		return
+	}
+	if booking.Time == "" {
+		response.AppErr(w, apperror.ValidationError("time", "Time is required"))
+		return
+	}
+	if booking.Name == "" {
+		response.AppErr(w, apperror.ValidationError("name", "Name is required"))
+		return
+	}
+	if booking.Email == "" {
+		response.AppErr(w, apperror.ValidationError("email", "Email is required"))
 		return
 	}
 
@@ -99,53 +122,65 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	// 1b. Day of week restriction (Sundays & Mondays only)
 	t, err := time.Parse("2006-01-02", booking.Date)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid date format")
+		response.AppErr(w, apperror.ValidationError("date", "Invalid date format. Use YYYY-MM-DD."))
 		return
 	}
 	weekday := t.Weekday()
 	if weekday != time.Sunday && weekday != time.Monday {
-		response.Error(w, http.StatusBadRequest, "Bookings are only allowed on Sundays and Mondays")
+		response.AppErr(w, apperror.ValidationError("date", "Bookings are only allowed on Sundays and Mondays"))
 		return
 	}
 
-	// 2. Reject if a PAID (confirmed) booking already holds this slot
+	// --- Atomic Slot Check & Reserve ---
+	// Uses a DB transaction to prevent race conditions between check and insert.
+	ctx := r.Context()
+	tx, err := database.Pool.Begin(ctx)
+	if err != nil {
+		logger.Error("Failed to begin transaction", zap.Error(err))
+		response.AppErr(w, apperror.DatabaseError("begin transaction", err))
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	// 2. Check for PAID (confirmed) booking — within the transaction
 	var paidCount int
-	if err := database.Pool.QueryRow(r.Context(),
+	if err := tx.QueryRow(ctx,
 		`SELECT COUNT(*) FROM bookings WHERE date = $1 AND time = $2 AND payment_status = 'paid'`,
 		booking.Date, booking.Time,
 	).Scan(&paidCount); err != nil {
-		response.Error(w, http.StatusInternalServerError, "Failed to check slot availability")
+		logger.Error("Failed to check paid slots", zap.Error(err))
+		response.AppErr(w, apperror.DatabaseError("check slot availability", err))
 		return
 	}
 	if paidCount > 0 {
-		response.Error(w, http.StatusConflict, "This slot is already confirmed. Please choose another time.")
+		response.AppErr(w, apperror.SlotUnavailable(booking.Date, booking.Time))
 		return
 	}
 
-	// 3. Reject if ANOTHER user has a fresh pending booking (actively paying)
+	// 3. Check for ANOTHER user's active pending booking
 	currentUserID := ""
 	if booking.UserID != nil {
 		currentUserID = *booking.UserID
 	}
 	var otherPendingCount int
-	if err := database.Pool.QueryRow(r.Context(),
+	if err := tx.QueryRow(ctx,
 		`SELECT COUNT(*) FROM bookings
 		 WHERE date = $1 AND time = $2 AND payment_status = 'pending'
 		 AND COALESCE(user_id::text, '') != $3
 		 AND created_at > NOW() - INTERVAL '`+pendingHoldWindow+`'`,
 		booking.Date, booking.Time, currentUserID,
 	).Scan(&otherPendingCount); err != nil {
-		response.Error(w, http.StatusInternalServerError, "Failed to check slot availability")
+		logger.Error("Failed to check pending slots", zap.Error(err))
+		response.AppErr(w, apperror.DatabaseError("check slot availability", err))
 		return
 	}
 	if otherPendingCount > 0 {
-		response.Error(w, http.StatusConflict, "Someone else is completing payment. Please try again shortly.")
+		response.AppErr(w, apperror.SlotHeldByOther(booking.Date, booking.Time))
 		return
 	}
 
-	// 4. Clear ALL non-paid bookings for this slot to free the UNIQUE(date, time) constraint.
-	// This removes: own old pending (retry case), others' stale pending, all failed.
-	if _, err := database.Pool.Exec(r.Context(),
+	// 4. Clear ALL non-paid bookings for this slot (within transaction)
+	if _, err := tx.Exec(ctx,
 		`DELETE FROM bookings WHERE date = $1 AND time = $2 AND payment_status != 'paid'`,
 		booking.Date, booking.Time,
 	); err != nil {
@@ -159,7 +194,7 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 
 	isPaid, err := isPaidSession(booking.Date)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid date format")
+		response.AppErr(w, apperror.ValidationError("date", "Invalid date format"))
 		return
 	}
 
@@ -169,7 +204,7 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	var razorpayOrderID string
 	var ok bool
 
-	// 6. Handle Payment Logic
+	// 6. Handle Payment Logic — with circuit breaker protection
 	if isPaid {
 		booking.Amount = 99.00
 		booking.PaymentStatus = "pending"
@@ -177,34 +212,48 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		keyID := os.Getenv("RAZORPAY_KEY_ID")
 		keySecret := os.Getenv("RAZORPAY_KEY_SECRET")
 		if keyID == "" || keySecret == "" {
-			response.Error(w, http.StatusInternalServerError, "Payment configuration missing")
+			response.AppErr(w, apperror.ExternalServiceError("razorpay", fmt.Errorf("payment configuration missing")))
 			return
 		}
 
-		client := razorpay.NewClient(keyID, keySecret)
-		orderData := map[string]interface{}{
-			"amount":   int(booking.Amount * 100),
-			"currency": "INR",
-			"receipt":  uuid.New().String(),
-		}
+		// Circuit breaker wraps the Razorpay API call
+		var body map[string]interface{}
+		err := RazorpayBreaker.Execute(func() error {
+			client := razorpay.NewClient(keyID, keySecret)
+			orderData := map[string]interface{}{
+				"amount":   int(booking.Amount * 100),
+				"currency": "INR",
+				"receipt":  uuid.New().String(),
+			}
 
-		body, err := client.Order.Create(orderData, nil)
+			var createErr error
+			body, createErr = client.Order.Create(orderData, nil)
+			if createErr != nil {
+				return apperror.PaymentGatewayError(createErr)
+			}
+			return nil
+		})
 		if err != nil {
-			response.Error(w, http.StatusInternalServerError, "Failed to create payment order")
+			logger.Error("Razorpay order creation failed", zap.Error(err))
+			if appErr, ok := apperror.AsAppError(err); ok {
+				response.AppErr(w, appErr)
+			} else {
+				response.AppErr(w, apperror.PaymentGatewayError(err))
+			}
 			return
 		}
 
 		razorpayOrderID, ok = body["id"].(string)
 		if !ok || razorpayOrderID == "" {
-			response.Error(w, http.StatusInternalServerError, "Invalid payment order response")
+			response.AppErr(w, apperror.PaymentGatewayError(fmt.Errorf("invalid order response: missing id")))
 			return
 		}
 		booking.RazorpayOrderID = razorpayOrderID
 	}
 
-	// 7. Insert into Database
+	// 7. Insert into Database (within transaction)
 	var newID string
-	err = database.Pool.QueryRow(r.Context(),
+	err = tx.QueryRow(ctx,
 		`INSERT INTO bookings
 		(date, time, name, email, user_id, meeting_link, payment_status, razorpay_order_id, amount)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -214,13 +263,20 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	).Scan(&newID)
 
 	if err != nil {
-		// UNIQUE constraint race condition — another request won the INSERT
-		logger.Error("INSERT conflict after cleanup", zap.String("date", booking.Date), zap.String("time", booking.Time), zap.Error(err))
-		response.Error(w, http.StatusConflict, "This slot was just taken. Please choose another time.")
+		logger.Error("INSERT conflict after cleanup",
+			zap.String("date", booking.Date), zap.String("time", booking.Time), zap.Error(err))
+		response.AppErr(w, apperror.SlotUnavailable(booking.Date, booking.Time))
 		return
 	}
 
-	// 8. Response Handling
+	// 8. Commit the transaction
+	if err := tx.Commit(ctx); err != nil {
+		logger.Error("Failed to commit booking transaction", zap.Error(err))
+		response.AppErr(w, apperror.DatabaseError("commit booking", err))
+		return
+	}
+
+	// 9. Response Handling
 	if isPaid {
 		response.JSON(w, http.StatusOK, map[string]interface{}{
 			"booking_id": newID,
@@ -245,7 +301,12 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid request")
+		response.AppErr(w, apperror.InvalidPayload(err))
+		return
+	}
+
+	if req.BookingID == "" || req.RazorpayPaymentID == "" || req.RazorpayOrderID == "" || req.RazorpaySignature == "" {
+		response.AppErr(w, apperror.ValidationError("payment", "All payment fields are required"))
 		return
 	}
 
@@ -253,7 +314,7 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	keySecret := os.Getenv("RAZORPAY_KEY_SECRET")
 	if keySecret == "" {
 		logger.Error("RAZORPAY_KEY_SECRET not configured")
-		response.Error(w, http.StatusInternalServerError, "Payment service misconfigured")
+		response.AppErr(w, apperror.ExternalServiceError("razorpay", fmt.Errorf("payment service misconfigured")))
 		return
 	}
 
@@ -264,7 +325,11 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	expectedSignature := hex.EncodeToString(h.Sum(nil))
 
 	if !strings.EqualFold(expectedSignature, req.RazorpaySignature) {
-		response.Error(w, http.StatusUnauthorized, "Invalid payment signature")
+		logger.Warn("Payment signature mismatch",
+			zap.String("booking_id", req.BookingID),
+			zap.String("order_id", req.RazorpayOrderID),
+		)
+		response.AppErr(w, apperror.PaymentSignatureInvalid())
 		
 		// DELETE the pending booking to immediately free the slot
 		if _, err := database.Pool.Exec(r.Context(),
@@ -282,7 +347,7 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	).Scan(&b.ID, &b.Date, &b.Time, &b.Name, &b.Email, &b.MeetingLink, &b.UserID)
 
 	if err != nil {
-		response.Error(w, http.StatusNotFound, "Booking not found")
+		response.AppErr(w, apperror.BookingNotFound(req.BookingID))
 		return
 	}
 
@@ -292,7 +357,8 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		req.RazorpayPaymentID, req.BookingID,
 	)
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "Failed to update booking")
+		logger.Error("Failed to update booking payment status", zap.String("booking_id", req.BookingID), zap.Error(err))
+		response.AppErr(w, apperror.DatabaseError("update booking", err))
 		return
 	}
 
@@ -317,7 +383,7 @@ func finalizeBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit 
 	}
 	audit.Log(r.Context(), "booking.confirmed", userID, bookingID, "booking", r.RemoteAddr, r.UserAgent(), nil)
 
-	// Email
+	// Email (with retry + circuit breaker via updated SendEmail)
 	go func() {
 		subject := "Confirmed: Your Journey Begins"
 		body := fmt.Sprintf(`
@@ -330,7 +396,13 @@ func finalizeBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit 
 			<p>You can also manage your bookings from your <a href="https://hidden-depths-web.pages.dev/profile">Profile</a>.</p>
 		`, b.Name, b.Date, b.Time, b.MeetingLink)
 		
-		_ = services.SendEmail(b.Email, subject, body)
+		if err := services.SendEmail(b.Email, subject, body); err != nil {
+			logger.Log.Error("Confirmation email failed after retries",
+				zap.String("email", b.Email),
+				zap.String("booking_id", bookingID),
+				zap.Error(err),
+			)
+		}
 	}()
 }
 
@@ -338,7 +410,7 @@ func finalizeBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit 
 func GetRecommendedSlots(w http.ResponseWriter, r *http.Request) {
 	date := chi.URLParam(r, "date")
 	if date == "" {
-		response.Error(w, http.StatusBadRequest, "Date is required")
+		response.AppErr(w, apperror.ValidationError("date", "Date is required"))
 		return
 	}
 
@@ -349,7 +421,8 @@ func GetRecommendedSlots(w http.ResponseWriter, r *http.Request) {
 		      OR (payment_status = 'pending' AND created_at > NOW() - INTERVAL '`+pendingHoldWindow+`'))`,
 		date)
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "Failed to check availability")
+		logger.Error("Failed to check availability", zap.String("date", date), zap.Error(err))
+		response.AppErr(w, apperror.DatabaseError("check availability", err))
 		return
 	}
 	defer rows.Close()
@@ -383,7 +456,7 @@ func GetRecommendedSlots(w http.ResponseWriter, r *http.Request) {
 func GetUserBookings(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("user_id").(string)
 	if !ok || userID == "" {
-		response.Error(w, http.StatusUnauthorized, "User ID not found in token")
+		response.AppErr(w, apperror.AuthRequired().WithContext("reason", "user_id missing from context"))
 		return
 	}
 	
@@ -393,7 +466,8 @@ func GetUserBookings(w http.ResponseWriter, r *http.Request) {
 		userID,
 	)
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "Failed to fetch your bookings")
+		logger.Error("Failed to fetch user bookings", zap.String("user_id", userID), zap.Error(err))
+		response.AppErr(w, apperror.DatabaseError("fetch user bookings", err))
 		return
 	}
 	defer rows.Close()
@@ -416,24 +490,24 @@ func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	bookingID := chi.URLParam(r, "id")
 	userID, ok := r.Context().Value("user_id").(string)
 	if !ok || userID == "" {
-		response.Error(w, http.StatusUnauthorized, "User ID not found in token")
+		response.AppErr(w, apperror.AuthRequired())
 		return
 	}
 
 	if bookingID == "" {
-		response.Error(w, http.StatusBadRequest, "Booking ID is required")
+		response.AppErr(w, apperror.ValidationError("id", "Booking ID is required"))
 		return
 	}
 
-	// We need the date and time before deleting to broadcast
-	var date, time string
+	// Fetch date and time before deleting (for WebSocket broadcast)
+	var date, timeSlot string
 	err := database.Pool.QueryRow(r.Context(),
 		"SELECT date, time FROM bookings WHERE id = $1 AND user_id = $2",
 		bookingID, userID,
-	).Scan(&date, &time)
+	).Scan(&date, &timeSlot)
 
 	if err != nil {
-		response.Error(w, http.StatusNotFound, "Booking not found or not authorized")
+		response.AppErr(w, apperror.BookingNotFound(bookingID).WithContext("reason", "not found or not authorized"))
 		return
 	}
 
@@ -443,24 +517,49 @@ func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	)
 
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "Failed to cancel booking")
+		logger.Error("Failed to cancel booking", zap.String("booking_id", bookingID), zap.Error(err))
+		response.AppErr(w, apperror.DatabaseError("cancel booking", err))
 		return
 	}
 
 	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
-		response.Error(w, http.StatusNotFound, "Booking not found or not authorized to cancel")
+		response.AppErr(w, apperror.BookingNotFound(bookingID))
 		return
 	}
 
 	// Broadcast the update
 	hub.Broadcast("SLOT_CANCELLED", map[string]string{
 		"date": date,
-		"time": time,
+		"time": timeSlot,
 	})
 
 	// Audit Log
 	audit.Log(r.Context(), "booking.cancel", userID, bookingID, "booking", r.RemoteAddr, r.UserAgent(), nil)
 
 	response.JSON(w, http.StatusOK, nil, "Booking cancelled successfully")
+}
+
+// HealthReady checks if the backend can serve requests (DB connectivity).
+func HealthReady(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+
+	dbStatus := "ok"
+	if err := database.Pool.Ping(ctx); err != nil {
+		dbStatus = "degraded"
+		logger.Log.Error("Health readiness: DB ping failed", zap.Error(err))
+	}
+
+	status := http.StatusOK
+	overall := "ready"
+	if dbStatus != "ok" {
+		status = http.StatusServiceUnavailable
+		overall = "degraded"
+	}
+
+	response.JSON(w, status, map[string]string{
+		"status":   overall,
+		"database": dbStatus,
+	}, overall)
 }

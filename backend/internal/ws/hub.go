@@ -10,9 +10,15 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	pingInterval = 30 * time.Second
+	pongWait     = 40 * time.Second
+	writeWait    = 5 * time.Second
+)
+
 // Message defines the structure of WebSocket communications
 type Message struct {
-	Type string      `json:"type"` // "SLOT_BOOKED", "SLOT_CANCELLED"
+	Type    string      `json:"type"` // "SLOT_BOOKED", "SLOT_CANCELLED"
 	Payload interface{} `json:"payload"`
 }
 
@@ -59,6 +65,10 @@ func NewHub(allowedOrigins []string) *Hub {
 }
 
 func (h *Hub) Run() {
+	// Heartbeat ticker — pings all clients periodically to detect stale connections
+	ticker := time.NewTicker(pingInterval)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case client := <-h.register:
@@ -79,10 +89,22 @@ func (h *Hub) Run() {
 		case message := <-h.broadcast:
 			h.mu.Lock()
 			for client := range h.clients {
-				client.SetWriteDeadline(time.Now().Add(5 * time.Second))
+				client.SetWriteDeadline(time.Now().Add(writeWait))
 				err := client.WriteJSON(message)
 				if err != nil {
 					logger.Error("WS Broadcast error, removing client", zap.Error(err))
+					client.Close()
+					delete(h.clients, client)
+				}
+			}
+			h.mu.Unlock()
+
+		case <-ticker.C:
+			h.mu.Lock()
+			for client := range h.clients {
+				client.SetWriteDeadline(time.Now().Add(writeWait))
+				if err := client.WriteMessage(websocket.PingMessage, nil); err != nil {
+					logger.Debug("WS Ping failed, removing stale client", zap.Error(err))
 					client.Close()
 					delete(h.clients, client)
 				}
@@ -99,9 +121,17 @@ func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request) {
 		logger.Error("WS Upgrade error", zap.Error(err))
 		return
 	}
+
+	// Configure pong handler — extends read deadline on each pong received
+	conn.SetReadDeadline(time.Now().Add(pongWait))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
 	h.register <- conn
 
-	// Keep connection alive and handle client-side closures
+	// Read loop — keeps connection alive and detects client-side closures
 	go func() {
 		defer func() {
 			h.unregister <- conn
@@ -121,4 +151,11 @@ func (h *Hub) Broadcast(msgType string, payload interface{}) {
 		Type:    msgType,
 		Payload: payload,
 	}
+}
+
+// ClientCount returns the number of connected WebSocket clients (for health checks).
+func (h *Hub) ClientCount() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return len(h.clients)
 }

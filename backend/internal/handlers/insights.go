@@ -6,6 +6,7 @@ import (
 
 	"github.com/Himadryy/hidden-depths-backend/internal/database"
 	"github.com/Himadryy/hidden-depths-backend/internal/models"
+	"github.com/Himadryy/hidden-depths-backend/pkg/apperror"
 	"github.com/Himadryy/hidden-depths-backend/pkg/logger"
 	"github.com/Himadryy/hidden-depths-backend/pkg/response"
 	"github.com/go-chi/chi/v5"
@@ -18,7 +19,8 @@ func GetAllInsights(w http.ResponseWriter, r *http.Request) {
 		"SELECT id, title, description, media_url, media_type, sort_order FROM insights ORDER BY sort_order ASC",
 	)
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "Failed to fetch insights")
+		logger.Log.Error("Failed to fetch insights", zap.Error(err))
+		response.AppErr(w, apperror.DatabaseError("fetch insights", err))
 		return
 	}
 	defer rows.Close()
@@ -27,7 +29,7 @@ func GetAllInsights(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var i models.Insight
 		if err := rows.Scan(&i.ID, &i.Title, &i.Description, &i.MediaURL, &i.MediaType, &i.SortOrder); err != nil {
-			logger.Error("Failed to scan insight", zap.Error(err))
+			logger.Log.Error("Failed to scan insight", zap.Error(err))
 			continue
 		}
 		insights = append(insights, i)
@@ -40,7 +42,12 @@ func GetAllInsights(w http.ResponseWriter, r *http.Request) {
 func CreateInsight(w http.ResponseWriter, r *http.Request) {
 	var i models.Insight
 	if err := json.NewDecoder(r.Body).Decode(&i); err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid request")
+		response.AppErr(w, apperror.InvalidPayload(err))
+		return
+	}
+
+	if i.Title == "" {
+		response.AppErr(w, apperror.ValidationError("title", "Title is required"))
 		return
 	}
 
@@ -50,7 +57,8 @@ func CreateInsight(w http.ResponseWriter, r *http.Request) {
 	).Scan(&i.ID)
 
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "Failed to create insight")
+		logger.Log.Error("Failed to create insight", zap.Error(err))
+		response.AppErr(w, apperror.DatabaseError("create insight", err))
 		return
 	}
 
@@ -60,9 +68,14 @@ func CreateInsight(w http.ResponseWriter, r *http.Request) {
 // UpdateInsight updates an existing insight (Admin Only)
 func UpdateInsight(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	if id == "" {
+		response.AppErr(w, apperror.ValidationError("id", "Insight ID is required"))
+		return
+	}
+
 	var i models.Insight
 	if err := json.NewDecoder(r.Body).Decode(&i); err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid request")
+		response.AppErr(w, apperror.InvalidPayload(err))
 		return
 	}
 
@@ -72,7 +85,8 @@ func UpdateInsight(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "Failed to update insight")
+		logger.Log.Error("Failed to update insight", zap.String("id", id), zap.Error(err))
+		response.AppErr(w, apperror.DatabaseError("update insight", err))
 		return
 	}
 
@@ -82,9 +96,15 @@ func UpdateInsight(w http.ResponseWriter, r *http.Request) {
 // DeleteInsight removes an insight (Admin Only)
 func DeleteInsight(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	if id == "" {
+		response.AppErr(w, apperror.ValidationError("id", "Insight ID is required"))
+		return
+	}
+
 	_, err := database.Pool.Exec(r.Context(), "DELETE FROM insights WHERE id=$1", id)
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "Failed to delete insight")
+		logger.Log.Error("Failed to delete insight", zap.String("id", id), zap.Error(err))
+		response.AppErr(w, apperror.DatabaseError("delete insight", err))
 		return
 	}
 	response.JSON(w, http.StatusOK, nil, "Insight deleted")

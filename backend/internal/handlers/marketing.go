@@ -6,6 +6,7 @@ import (
 
 	"github.com/Himadryy/hidden-depths-backend/internal/database"
 	"github.com/Himadryy/hidden-depths-backend/internal/models"
+	"github.com/Himadryy/hidden-depths-backend/pkg/apperror"
 	"github.com/Himadryy/hidden-depths-backend/pkg/response"
 	"github.com/go-chi/chi/v5"
 )
@@ -14,7 +15,7 @@ import (
 func ValidateCoupon(w http.ResponseWriter, r *http.Request) {
 	code := chi.URLParam(r, "code")
 	if code == "" {
-		response.Error(w, http.StatusBadRequest, "Coupon code is required")
+		response.AppErr(w, apperror.ValidationError("code", "Coupon code is required"))
 		return
 	}
 
@@ -25,23 +26,22 @@ func ValidateCoupon(w http.ResponseWriter, r *http.Request) {
 	).Scan(&c.ID, &c.Code, &c.DiscountType, &c.DiscountValue, &c.MaxUses, &c.UsesCount, &c.ValidUntil, &c.IsActive)
 
 	if err != nil {
-		response.Error(w, http.StatusNotFound, "Invalid coupon code")
+		response.AppErr(w, apperror.ValidationError("code", "Invalid coupon code"))
 		return
 	}
 
-	// Logic Checks
 	if !c.IsActive {
-		response.Error(w, http.StatusBadRequest, "This coupon is no longer active")
+		response.AppErr(w, apperror.ValidationError("code", "This coupon is no longer active"))
 		return
 	}
 
 	if c.MaxUses != nil && c.UsesCount >= *c.MaxUses {
-		response.Error(w, http.StatusBadRequest, "This coupon has reached its usage limit")
+		response.AppErr(w, apperror.ValidationError("code", "This coupon has reached its usage limit"))
 		return
 	}
 
 	if c.ValidUntil != nil && time.Now().After(*c.ValidUntil) {
-		response.Error(w, http.StatusBadRequest, "This coupon has expired")
+		response.AppErr(w, apperror.ValidationError("code", "This coupon has expired"))
 		return
 	}
 
@@ -52,7 +52,7 @@ func ValidateCoupon(w http.ResponseWriter, r *http.Request) {
 func GetActiveSubscription(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("user_id").(string)
 	if !ok || userID == "" {
-		response.Error(w, http.StatusUnauthorized, "User ID not found in token")
+		response.AppErr(w, apperror.AuthRequired())
 		return
 	}
 

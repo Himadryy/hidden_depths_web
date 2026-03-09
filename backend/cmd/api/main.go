@@ -57,31 +57,41 @@ func main() {
 	go hub.Run()
 	logger.Info("WebSocket Hub started")
 
-	// 7. Setup Router & Middleware
+	// 7. Rate Limiters — protect critical endpoints
+	globalLimiter := middleware.NewRateLimiter(200, time.Minute)     // 200 req/min general
+	bookingLimiter := middleware.NewRateLimiter(10, time.Minute)     // 10 req/min for booking creation
+	paymentLimiter := middleware.NewRateLimiter(5, time.Minute)      // 5 req/min for payment verification
+
+	// 8. Setup Router & Middleware
 	r := chi.NewRouter()
 
 	r.Use(chiMiddleware.RequestID)
+	r.Use(middleware.RequestIDResponse) // Propagate request ID to response headers
 	r.Use(chiMiddleware.RealIP)
 	r.Use(chiMiddleware.Logger)
 	r.Use(chiMiddleware.Recoverer)
 	r.Use(chiMiddleware.Timeout(60 * time.Second))
+	r.Use(globalLimiter.Handler)
 
 	// CORS Setup
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   cfg.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"*"},
-		ExposedHeaders:   []string{"Link"},
+		ExposedHeaders:   []string{"Link", "X-Request-Id"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	})
 	r.Use(corsHandler.Handler)
 
-	// 8. Define Routes
+	// 9. Define Routes
 	r.Route("/api", func(r chi.Router) {
+		// Health: liveness
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 			response.JSON(w, http.StatusOK, map[string]string{"status": "ok"}, "Healthy")
 		})
+		// Health: readiness (checks DB)
+		r.Get("/health/ready", handlers.HealthReady)
 
 		// WebSocket Endpoint
 		r.Get("/ws", hub.ServeWS)
@@ -90,7 +100,7 @@ func main() {
 		r.Route("/bookings", func(r chi.Router) {
 			r.Get("/slots/{date}", handlers.GetBookedSlots)
 			r.Get("/recommendations/{date}", handlers.GetRecommendedSlots)
-			r.Post("/verify", func(w http.ResponseWriter, r *http.Request) {
+			r.With(paymentLimiter.Handler).Post("/verify", func(w http.ResponseWriter, r *http.Request) {
 				handlers.VerifyPayment(w, r, hub, auditService)
 			})
 
@@ -100,7 +110,7 @@ func main() {
 				
 				r.Get("/my", handlers.GetUserBookings)
 				r.Get("/subscriptions/active", handlers.GetActiveSubscription)
-				r.Post("/", func(w http.ResponseWriter, r *http.Request) {
+				r.With(bookingLimiter.Handler).Post("/", func(w http.ResponseWriter, r *http.Request) {
 					handlers.CreateBooking(w, r, hub, auditService)
 				})
 				r.Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Himadryy/hidden-depths-backend/pkg/apperror"
 	"github.com/Himadryy/hidden-depths-backend/pkg/logger"
 	"github.com/Himadryy/hidden-depths-backend/pkg/response"
 	"github.com/golang-jwt/jwt/v5"
@@ -23,13 +24,13 @@ func AuthMiddleware(jwtSecret, supabaseAnonKey string) func(http.Handler) http.H
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				response.Error(w, http.StatusUnauthorized, "Authorization header required")
+				response.AppErr(w, apperror.AuthRequired())
 				return
 			}
 
 			bearerToken := strings.Split(authHeader, " ")
 			if len(bearerToken) != 2 || strings.ToLower(bearerToken[0]) != "bearer" {
-				response.Error(w, http.StatusUnauthorized, "Invalid authorization header format")
+				response.AppErr(w, apperror.AuthInvalidFormat())
 				return
 			}
 
@@ -61,7 +62,7 @@ func AuthMiddleware(jwtSecret, supabaseAnonKey string) func(http.Handler) http.H
 				req, err := http.NewRequestWithContext(ctx, "GET", SupabaseAuthURL, nil)
 				if err != nil {
 					logger.Error("Failed to create Supabase auth request", zap.Error(err))
-					response.Error(w, http.StatusUnauthorized, "Invalid or expired token")
+					response.AppErr(w, apperror.AuthTokenInvalid(err))
 					return
 				}
 				req.Header.Set("Authorization", "Bearer "+tokenString)
@@ -71,13 +72,13 @@ func AuthMiddleware(jwtSecret, supabaseAnonKey string) func(http.Handler) http.H
 				resp, err := client.Do(req)
 				if err != nil {
 					logger.Error("Supabase auth request failed", zap.Error(err))
-					response.Error(w, http.StatusUnauthorized, "Invalid or expired token")
+					response.AppErr(w, apperror.AuthTokenInvalid(err))
 					return
 				}
 				defer resp.Body.Close()
 
 				if resp.StatusCode != 200 {
-					response.Error(w, http.StatusUnauthorized, "Invalid or expired token")
+					response.AppErr(w, apperror.AuthTokenInvalid(fmt.Errorf("supabase returned %d", resp.StatusCode)))
 					return
 				}
 				
@@ -87,7 +88,7 @@ func AuthMiddleware(jwtSecret, supabaseAnonKey string) func(http.Handler) http.H
 				}
 				if err := json.NewDecoder(resp.Body).Decode(&userResp); err != nil {
 					logger.Error("Failed to decode Supabase auth response", zap.Error(err))
-					response.Error(w, http.StatusUnauthorized, "Invalid or expired token")
+					response.AppErr(w, apperror.AuthTokenInvalid(err))
 					return
 				}
 				userID = userResp.ID
@@ -95,7 +96,7 @@ func AuthMiddleware(jwtSecret, supabaseAnonKey string) func(http.Handler) http.H
 			}
 
 			if userID == "" {
-				response.Error(w, http.StatusUnauthorized, "Invalid or expired token")
+				response.AppErr(w, apperror.AuthTokenInvalid(fmt.Errorf("no user ID extracted")))
 				return
 			}
 

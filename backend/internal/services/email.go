@@ -1,13 +1,27 @@
 package services
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
+	"github.com/Himadryy/hidden-depths-backend/pkg/apperror"
+	"github.com/Himadryy/hidden-depths-backend/pkg/circuitbreaker"
+	"github.com/Himadryy/hidden-depths-backend/pkg/logger"
+	"github.com/Himadryy/hidden-depths-backend/pkg/retry"
+	"go.uber.org/zap"
 	"gopkg.in/gomail.v2"
 )
+
+// EmailBreaker protects the SMTP service from cascading failures.
+var EmailBreaker = circuitbreaker.New("email-smtp", circuitbreaker.Config{
+	FailureThreshold: 3,
+	SuccessThreshold: 1,
+	OpenTimeout:      60 * time.Second,
+})
 
 func SendEmail(to, subject, body string) error {
 	smtpHost := os.Getenv("SMTP_HOST")
@@ -16,27 +30,43 @@ func SendEmail(to, subject, body string) error {
 	smtpPass := os.Getenv("SMTP_PASS")
 
 	if smtpHost == "" || smtpPortStr == "" || smtpUser == "" || smtpPass == "" {
-		return fmt.Errorf("SMTP configuration missing")
+		return apperror.ExternalServiceError("email", fmt.Errorf("SMTP configuration missing"))
 	}
 
 	smtpPort, err := strconv.Atoi(smtpPortStr)
 	if err != nil {
-		return fmt.Errorf("invalid SMTP_PORT '%s': %v", smtpPortStr, err)
+		return apperror.ValidationError("SMTP_PORT", fmt.Sprintf("invalid port '%s'", smtpPortStr))
 	}
 
-	m := gomail.NewMessage()
-	m.SetHeader("From", smtpUser)
-	m.SetHeader("To", to)
-	m.SetHeader("Subject", subject)
-	m.SetBody("text/html", body)
+	// Retry with circuit breaker: 3 attempts, exponential backoff
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	d := gomail.NewDialer(smtpHost, smtpPort, smtpUser, smtpPass)
-	
-	// For Gmail/Standard TLS
-	d.TLSConfig = &tls.Config{InsecureSkipVerify: false}
+	return retry.Do(ctx, retry.Config{
+		MaxAttempts: 3,
+		BaseDelay:   500 * time.Millisecond,
+		MaxDelay:    3 * time.Second,
+		Jitter:      true,
+	}, "send-email", func() error {
+		return EmailBreaker.Execute(func() error {
+			m := gomail.NewMessage()
+			m.SetHeader("From", smtpUser)
+			m.SetHeader("To", to)
+			m.SetHeader("Subject", subject)
+			m.SetBody("text/html", body)
 
-	if err := d.DialAndSend(m); err != nil {
-		return err
-	}
-	return nil
+			d := gomail.NewDialer(smtpHost, smtpPort, smtpUser, smtpPass)
+			d.TLSConfig = &tls.Config{InsecureSkipVerify: false}
+
+			if err := d.DialAndSend(m); err != nil {
+				logger.Log.Warn("Email send attempt failed",
+					zap.String("to", to),
+					zap.Error(err),
+				)
+				// Wrap as retryable external service error
+				return apperror.ExternalServiceError("email", err)
+			}
+			return nil
+		})
+	})
 }
