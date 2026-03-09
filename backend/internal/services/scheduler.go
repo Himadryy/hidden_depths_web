@@ -65,12 +65,16 @@ func CheckAndSendReminders() {
 	}
 }
 
-// CleanupAbandonedBookings marks pending bookings older than 30 minutes as 'failed'
+// CleanupAbandonedBookings deletes stale bookings that block the UNIQUE(date, time) constraint:
+// - pending bookings older than 30 minutes (payment never completed)
+// - failed bookings older than 1 hour (no longer useful)
 func CleanupAbandonedBookings() {
 	logger.Info("Running abandoned booking cleanup...")
 	
 	result, err := database.Pool.Exec(context.Background(),
-		"UPDATE bookings SET payment_status = 'failed' WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '30 minutes'",
+		`DELETE FROM bookings 
+		 WHERE (payment_status = 'pending' AND created_at < NOW() - INTERVAL '30 minutes')
+		    OR (payment_status = 'failed' AND created_at < NOW() - INTERVAL '1 hour')`,
 	)
 	
 	if err != nil {
@@ -80,6 +84,6 @@ func CleanupAbandonedBookings() {
 	
 	rows := result.RowsAffected()
 	if rows > 0 {
-		logger.Info("Cleaned up abandoned bookings", zap.Int64("count", rows))
+		logger.Info("Cleaned up stale bookings", zap.Int64("count", rows))
 	}
 }

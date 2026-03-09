@@ -51,12 +51,13 @@ export const getBookedSlots = async (date: string): Promise<string[]> => {
     }
   }
 
-  // Fallback: Supabase Direct
+  // Fallback: Supabase Direct — only count confirmed (paid) bookings
+  // to avoid falsely blocking slots from stale pending/failed rows
   const { data, error } = await supabase
     .from('bookings')
     .select('time')
     .eq('date', date)
-    .neq('payment_status', 'failed'); // Don't show failed bookings
+    .eq('payment_status', 'paid');
 
   if (error) {
     console.error('Error fetching booked slots:', error);

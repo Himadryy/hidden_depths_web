@@ -112,6 +112,18 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		return
 	}
 
+	// 1d. Clean up stale bookings (failed or expired-pending) for this slot
+	// so the UNIQUE(date, time) constraint doesn't block re-booking
+	if _, err := database.Pool.Exec(r.Context(),
+		`DELETE FROM bookings 
+		 WHERE date = $1 AND time = $2 
+		 AND (payment_status = 'failed' 
+		      OR (payment_status = 'pending' AND created_at <= NOW() - INTERVAL '15 minutes'))`,
+		booking.Date, booking.Time,
+	); err != nil {
+		logger.Error("Failed to clean up stale bookings", zap.String("date", booking.Date), zap.String("time", booking.Time), zap.Error(err))
+	}
+
 	// 2. Generate Meeting Link (Pre-generate, but only email on success)
 	meetingID := uuid.New().String()
 	booking.MeetingLink = fmt.Sprintf("https://meet.jit.si/HiddenDepths-%s-%s", meetingID[:8], booking.Date)
@@ -300,9 +312,10 @@ func GetRecommendedSlots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Fetch booked slots
+	// 1. Fetch booked slots (same logic as GetBookedSlots — exclude failed & expired pending)
 	rows, err := database.Pool.Query(r.Context(), 
-		"SELECT time FROM bookings WHERE date = $1 AND payment_status != 'failed'", 
+		`SELECT time FROM bookings WHERE date = $1 
+		 AND (payment_status = 'paid' OR (payment_status = 'pending' AND created_at > NOW() - INTERVAL '15 minutes'))`, 
 		date)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "Failed to check availability")
