@@ -137,7 +137,7 @@ export const verifyPayment = async (
     razorpaySignature: string
 ): Promise<{ success: boolean; error?: string }> => {
     try {
-        const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+        const baseUrl = API_URL!.endsWith('/') ? API_URL!.slice(0, -1) : API_URL;
         const response = await fetchWithTimeout(`${baseUrl}/bookings/verify`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -160,8 +160,25 @@ export const verifyPayment = async (
         }
 
         return { success: true };
-        } catch (err: any) {
+    } catch (err: any) {
         console.error("Verification Error:", err);
         return { success: false, error: err.message || "Network error during verification" };
-        }
-        };
+    }
+};
+
+// Cancel a pending booking (used when payment fails, user dismisses Razorpay, or user retries)
+export const cancelPendingBooking = async (bookingId: string): Promise<void> => {
+    try {
+        const baseUrl = API_URL!.endsWith('/') ? API_URL!.slice(0, -1) : API_URL;
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) return;
+
+        await fetchWithTimeout(`${baseUrl}/bookings/${bookingId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+    } catch {
+        // Best-effort cleanup — scheduler will catch anything we miss
+    }
+};

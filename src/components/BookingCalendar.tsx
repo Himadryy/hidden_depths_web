@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Clock, CheckCircle, Calendar as CalendarIcon, ArrowRight, Loader2 } from 'lucide-react';
 import { sendBookingEmail } from '@/lib/email';
-import { getBookedSlots, createBooking, verifyPayment } from '@/lib/bookingService';
+import { getBookedSlots, createBooking, verifyPayment, cancelPendingBooking } from '@/lib/bookingService';
 import { useAuth } from '@/context/AuthProvider';
 import { getApiUrl, fetchWithTimeout } from '@/lib/api';
 import Script from 'next/script';
@@ -261,10 +261,12 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             alert(bookingResult.error || "Booking failed.");
             setIsSubmitting(false);
             
-            // If it was taken, refresh the slots to show the user
-            if (bookingResult.error?.includes('just booked')) {
+            // On any conflict/taken error, refresh slots view
+            if (bookingResult.error?.includes('confirmed') || 
+                bookingResult.error?.includes('taken') ||
+                bookingResult.error?.includes('completing payment')) {
                 setView('slots');
-                handleDateClick(selectedDate); // Refresh slots
+                handleDateClick(selectedDate);
             }
             return;
         }
@@ -274,22 +276,25 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             // Check if Razorpay is loaded
             if (!window.Razorpay) {
                 alert("Payment gateway failed to load. Please refresh.");
+                cancelPendingBooking(bookingResult.booking_id!);
                 setIsSubmitting(false);
                 return;
             }
 
+            const pendingBookingId = bookingResult.booking_id!;
+
             const options = {
-                key: bookingResult.key_id, // Enter the Key ID generated from the Dashboard
-                amount: bookingResult.amount, // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
+                key: bookingResult.key_id,
+                amount: bookingResult.amount,
                 currency: bookingResult.currency,
                 name: "Hidden Depths",
                 description: "Sanctuary Session",
                 image: "https://hidden-depths-web.pages.dev/logo.png",
-                order_id: bookingResult.order_id, // This is a sample Order ID. Pass the `id` obtained in the response of Step 1
+                order_id: bookingResult.order_id,
                 handler: async function (response: any) {
                     // 3. Verify Payment on Backend
                     const verify = await verifyPayment(
-                        bookingResult.booking_id!,
+                        pendingBookingId,
                         response.razorpay_payment_id,
                         response.razorpay_order_id,
                         response.razorpay_signature
@@ -302,10 +307,17 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                     }
                     setIsSubmitting(false);
                 },
+                modal: {
+                    // User closed the Razorpay dialog without paying
+                    ondismiss: function () {
+                        cancelPendingBooking(pendingBookingId);
+                        setIsSubmitting(false);
+                    }
+                },
                 prefill: {
                     name: name,
                     email: email,
-                    contact: "" // If you have phone number
+                    contact: ""
                 },
                 notes: {
                     address: "Hidden Depths Digital Sanctuary"
@@ -318,6 +330,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             const rzp1 = new window.Razorpay(options);
             rzp1.on('payment.failed', function (response: any){
                 alert("Payment Failed: " + response.error.description);
+                cancelPendingBooking(pendingBookingId);
                 setIsSubmitting(false);
             });
             rzp1.open();
@@ -328,7 +341,6 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
         }
     } catch (error) {
         console.error("Booking Error:", error);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const msg = (error as any)?.message || "System error. Please try again.";
         alert(`Booking Failed: ${msg}`);
         setIsSubmitting(false);

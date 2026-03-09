@@ -33,7 +33,11 @@ func isPaidSession(dateStr string) (bool, error) {
 	return t.After(paymentStart) || t.Equal(paymentStart), nil
 }
 
-// GetBookedSlots returns all time slots booked for a specific date (excluding failed ones)
+// Pending booking hold window — how long a pending booking blocks the slot for others.
+const pendingHoldWindow = "5 minutes"
+
+// GetBookedSlots returns all time slots booked for a specific date.
+// A slot is "booked" if it has a confirmed payment OR an active pending payment (< 5 min).
 func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 	date := chi.URLParam(r, "date")
 	if date == "" {
@@ -41,12 +45,11 @@ func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Only fetch slots that are NOT failed. 
-	// Pending slots are only considered 'booked' if they were created within the last 15 minutes.
-	rows, err := database.Pool.Query(r.Context(), 
-		`SELECT time FROM bookings 
-		 WHERE date = $1 
-		 AND (payment_status = 'paid' OR (payment_status = 'pending' AND created_at > NOW() - INTERVAL '15 minutes'))`, 
+	rows, err := database.Pool.Query(r.Context(),
+		`SELECT time FROM bookings
+		 WHERE date = $1
+		 AND (payment_status = 'paid'
+		      OR (payment_status = 'pending' AND created_at > NOW() - INTERVAL '`+pendingHoldWindow+`'))`,
 		date)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "Failed to fetch slots")
@@ -67,9 +70,14 @@ func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, slots, "Slots fetched successfully")
 }
 
-// CreateBooking initiates a booking. 
-// If paid: Creates Razorpay Order & saves as 'pending'.
-// If free: Saves as 'paid'.
+// CreateBooking initiates a booking.
+// Logic:
+//  1. Reject if a PAID booking exists for this slot (truly taken).
+//  2. Reject if ANOTHER user has an active pending (< 5 min) — they're paying.
+//  3. Delete ALL non-paid rows for this slot (own stale pending, others' expired, failed).
+//  4. Create Razorpay order (if paid session) and INSERT the new booking.
+//
+// This allows the same user to retry freely and self-heals stale rows.
 func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *services.AuditService) {
 	var booking models.Booking
 	if err := json.NewDecoder(r.Body).Decode(&booking); err != nil {
@@ -81,6 +89,11 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	if booking.Date == "" || booking.Time == "" || booking.Name == "" || booking.Email == "" {
 		response.Error(w, http.StatusBadRequest, "Missing required fields")
 		return
+	}
+
+	// Use authenticated user_id from context (secure, from JWT)
+	if ctxUserID, ok := r.Context().Value("user_id").(string); ok && ctxUserID != "" {
+		booking.UserID = &ctxUserID
 	}
 
 	// 1b. Day of week restriction (Sundays & Mondays only)
@@ -95,52 +108,68 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		return
 	}
 
-	// 1c. Check for double-booking (slot already taken by a paid or recent pending booking)
-	var existingCount int
-	err = database.Pool.QueryRow(r.Context(),
-		`SELECT COUNT(*) FROM bookings 
-		 WHERE date = $1 AND time = $2 
-		 AND (payment_status = 'paid' OR (payment_status = 'pending' AND created_at > NOW() - INTERVAL '15 minutes'))`,
+	// 2. Reject if a PAID (confirmed) booking already holds this slot
+	var paidCount int
+	if err := database.Pool.QueryRow(r.Context(),
+		`SELECT COUNT(*) FROM bookings WHERE date = $1 AND time = $2 AND payment_status = 'paid'`,
 		booking.Date, booking.Time,
-	).Scan(&existingCount)
-	if err != nil {
+	).Scan(&paidCount); err != nil {
 		response.Error(w, http.StatusInternalServerError, "Failed to check slot availability")
 		return
 	}
-	if existingCount > 0 {
-		response.Error(w, http.StatusConflict, "This slot is already booked. Please choose another time.")
+	if paidCount > 0 {
+		response.Error(w, http.StatusConflict, "This slot is already confirmed. Please choose another time.")
 		return
 	}
 
-	// 1d. Clean up stale bookings (failed or expired-pending) for this slot
-	// so the UNIQUE(date, time) constraint doesn't block re-booking
-	if _, err := database.Pool.Exec(r.Context(),
-		`DELETE FROM bookings 
-		 WHERE date = $1 AND time = $2 
-		 AND (payment_status = 'failed' 
-		      OR (payment_status = 'pending' AND created_at <= NOW() - INTERVAL '15 minutes'))`,
-		booking.Date, booking.Time,
-	); err != nil {
-		logger.Error("Failed to clean up stale bookings", zap.String("date", booking.Date), zap.String("time", booking.Time), zap.Error(err))
+	// 3. Reject if ANOTHER user has a fresh pending booking (actively paying)
+	currentUserID := ""
+	if booking.UserID != nil {
+		currentUserID = *booking.UserID
+	}
+	var otherPendingCount int
+	if err := database.Pool.QueryRow(r.Context(),
+		`SELECT COUNT(*) FROM bookings
+		 WHERE date = $1 AND time = $2 AND payment_status = 'pending'
+		 AND COALESCE(user_id::text, '') != $3
+		 AND created_at > NOW() - INTERVAL '`+pendingHoldWindow+`'`,
+		booking.Date, booking.Time, currentUserID,
+	).Scan(&otherPendingCount); err != nil {
+		response.Error(w, http.StatusInternalServerError, "Failed to check slot availability")
+		return
+	}
+	if otherPendingCount > 0 {
+		response.Error(w, http.StatusConflict, "Someone else is completing payment. Please try again shortly.")
+		return
 	}
 
-	// 2. Generate Meeting Link (Pre-generate, but only email on success)
+	// 4. Clear ALL non-paid bookings for this slot to free the UNIQUE(date, time) constraint.
+	// This removes: own old pending (retry case), others' stale pending, all failed.
+	if _, err := database.Pool.Exec(r.Context(),
+		`DELETE FROM bookings WHERE date = $1 AND time = $2 AND payment_status != 'paid'`,
+		booking.Date, booking.Time,
+	); err != nil {
+		logger.Error("Failed to clean up stale bookings",
+			zap.String("date", booking.Date), zap.String("time", booking.Time), zap.Error(err))
+	}
+
+	// 5. Generate Meeting Link
 	meetingID := uuid.New().String()
 	booking.MeetingLink = fmt.Sprintf("https://meet.jit.si/HiddenDepths-%s-%s", meetingID[:8], booking.Date)
-	
+
 	isPaid, err := isPaidSession(booking.Date)
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, "Invalid date format")
 		return
 	}
-	
+
 	booking.Amount = 0
 	booking.PaymentStatus = "paid" // Default for free sessions
 
 	var razorpayOrderID string
 	var ok bool
-	
-	// 3. Handle Payment Logic
+
+	// 6. Handle Payment Logic
 	if isPaid {
 		booking.Amount = 99.00
 		booking.PaymentStatus = "pending"
@@ -153,18 +182,18 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		}
 
 		client := razorpay.NewClient(keyID, keySecret)
-		data := map[string]interface{}{
-			"amount":   int(booking.Amount * 100), // Amount in paise (must be int)
+		orderData := map[string]interface{}{
+			"amount":   int(booking.Amount * 100),
 			"currency": "INR",
 			"receipt":  uuid.New().String(),
 		}
-		
-		body, err := client.Order.Create(data, nil)
+
+		body, err := client.Order.Create(orderData, nil)
 		if err != nil {
 			response.Error(w, http.StatusInternalServerError, "Failed to create payment order")
 			return
 		}
-		
+
 		razorpayOrderID, ok = body["id"].(string)
 		if !ok || razorpayOrderID == "" {
 			response.Error(w, http.StatusInternalServerError, "Invalid payment order response")
@@ -173,25 +202,26 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		booking.RazorpayOrderID = razorpayOrderID
 	}
 
-	// 4. Insert into Database
+	// 7. Insert into Database
 	var newID string
 	err = database.Pool.QueryRow(r.Context(),
-		`INSERT INTO bookings 
-		(date, time, name, email, user_id, meeting_link, payment_status, razorpay_order_id, amount) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+		`INSERT INTO bookings
+		(date, time, name, email, user_id, meeting_link, payment_status, razorpay_order_id, amount)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id`,
-		booking.Date, booking.Time, booking.Name, booking.Email, booking.UserID, 
+		booking.Date, booking.Time, booking.Name, booking.Email, booking.UserID,
 		booking.MeetingLink, booking.PaymentStatus, booking.RazorpayOrderID, booking.Amount,
 	).Scan(&newID)
 
 	if err != nil {
-		response.Error(w, http.StatusConflict, "Slot already taken")
+		// UNIQUE constraint race condition — another request won the INSERT
+		logger.Error("INSERT conflict after cleanup", zap.String("date", booking.Date), zap.String("time", booking.Time), zap.Error(err))
+		response.Error(w, http.StatusConflict, "This slot was just taken. Please choose another time.")
 		return
 	}
 
-	// 5. Response Handling
+	// 8. Response Handling
 	if isPaid {
-		// Return Order ID for frontend to open Checkout
 		response.JSON(w, http.StatusOK, map[string]interface{}{
 			"booking_id": newID,
 			"order_id":   razorpayOrderID,
@@ -200,7 +230,6 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 			"key_id":     os.Getenv("RAZORPAY_KEY_ID"),
 		}, "Payment initiated")
 	} else {
-		// Free session: Finalize immediately
 		finalizeBooking(w, r, hub, audit, newID, booking)
 		response.JSON(w, http.StatusCreated, map[string]string{"booking_id": newID}, "Booking successful")
 	}
@@ -237,9 +266,10 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	if !strings.EqualFold(expectedSignature, req.RazorpaySignature) {
 		response.Error(w, http.StatusUnauthorized, "Invalid payment signature")
 		
+		// DELETE the pending booking to immediately free the slot
 		if _, err := database.Pool.Exec(r.Context(),
-			"UPDATE bookings SET payment_status = 'failed' WHERE id = $1", req.BookingID); err != nil {
-			logger.Error("Failed to mark payment as failed", zap.String("booking_id", req.BookingID), zap.Error(err))
+			"DELETE FROM bookings WHERE id = $1 AND payment_status = 'pending'", req.BookingID); err != nil {
+			logger.Error("Failed to clean up failed booking", zap.String("booking_id", req.BookingID), zap.Error(err))
 		}
 		return
 	}
@@ -312,10 +342,11 @@ func GetRecommendedSlots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Fetch booked slots (same logic as GetBookedSlots — exclude failed & expired pending)
-	rows, err := database.Pool.Query(r.Context(), 
-		`SELECT time FROM bookings WHERE date = $1 
-		 AND (payment_status = 'paid' OR (payment_status = 'pending' AND created_at > NOW() - INTERVAL '15 minutes'))`, 
+	// 1. Fetch booked slots (same logic as GetBookedSlots)
+	rows, err := database.Pool.Query(r.Context(),
+		`SELECT time FROM bookings WHERE date = $1
+		 AND (payment_status = 'paid'
+		      OR (payment_status = 'pending' AND created_at > NOW() - INTERVAL '`+pendingHoldWindow+`'))`,
 		date)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "Failed to check availability")
