@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { logger } from '@/lib/logger';
 
 type Theme = 'light' | 'dark';
 
@@ -32,7 +33,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       document.documentElement.setAttribute('data-theme', newTheme);
       setIsTransitioning(false);
       
-      console.log(`[CircadianSystem] Time: ${hour}:00. Setting Theme: ${newTheme}`);
+      logger.debug('CircadianSystem theme update', { hour, theme: newTheme });
     };
 
     checkTime();

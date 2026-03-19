@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/context/ThemeProvider';
 import { PerformanceProvider } from '@/context/PerformanceProvider';
 import { AuthProvider } from '@/context/AuthProvider';
 import { ServiceSchema, OrganizationSchema } from '@/components/StructuredData';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 // TODO: Replace with your actual GA ID
 const GA_TRACKING_ID = 'G-XXXXXXXXXX';
@@ -146,7 +147,9 @@ export default function RootLayout({
         <AuthProvider>
           <ThemeProvider>
             <PerformanceProvider>
-              {children}
+              <ErrorBoundary>
+                {children}
+              </ErrorBoundary>
             </PerformanceProvider>
           </ThemeProvider>
         </AuthProvider>

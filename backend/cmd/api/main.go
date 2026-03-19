@@ -71,13 +71,14 @@ func main() {
 	r.Use(chiMiddleware.Logger)
 	r.Use(chiMiddleware.Recoverer)
 	r.Use(chiMiddleware.Timeout(60 * time.Second))
+	r.Use(middleware.SecurityHeaders) // Security headers (CSP, HSTS, X-Frame-Options, etc.)
 	r.Use(globalLimiter.Handler)
 
 	// CORS Setup
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   cfg.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"*"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization", "X-Request-Id", "X-Requested-With"},
 		ExposedHeaders:   []string{"Link", "X-Request-Id"},
 		AllowCredentials: true,
 		MaxAge:           300,

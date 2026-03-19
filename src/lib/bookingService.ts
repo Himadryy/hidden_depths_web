@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { getApiUrl, fetchWithTimeout } from './api';
+import { logger } from './logger';
 
 const API_URL = getApiUrl();
 
@@ -45,7 +46,7 @@ export const getBookedSlots = async (date: string): Promise<string[]> => {
       
       const response = await fetchWithTimeout(url);
       if (!response.ok) {
-        console.warn(`Go API returned ${response.status} for slots. Falling back.`);
+        logger.warn('Go API returned error for slots, falling back', { status: response.status });
         throw new Error('Failed to fetch slots');
       }
       
@@ -56,11 +57,11 @@ export const getBookedSlots = async (date: string): Promise<string[]> => {
       }
       return [];
     } catch (err) {
-      // Only log as error if it's not a standard fetch failure (to keep console clean during local dev without backend)
+      // Only log as error if it's not a standard fetch failure (to keep logs clean during local dev without backend)
       if (err instanceof TypeError && err.message === 'Failed to fetch') {
-        console.debug('Backend unreachable, using Supabase fallback.');
+        logger.debug('Backend unreachable, using Supabase fallback');
       } else {
-        console.error('Go API error, falling back to Supabase:', err);
+        logger.warn('Go API error, falling back to Supabase', { error: err });
       }
     }
   }
@@ -74,7 +75,7 @@ export const getBookedSlots = async (date: string): Promise<string[]> => {
     .eq('payment_status', 'paid');
 
   if (error) {
-    console.error('Error fetching booked slots:', error);
+    logger.error('Error fetching booked slots from Supabase', error);
     return [];
   }
 
@@ -148,9 +149,10 @@ export const createBooking = async (
     }
     
     return { success: false, error: data.error || 'Failed to create booking' };
-  } catch (err: any) {
-    console.error('Booking Error:', err);
-    return { success: false, error: err.message || 'System error. Please try again.' };
+  } catch (err: unknown) {
+    const error = err as Error;
+    logger.error('Booking creation failed', error);
+    return { success: false, error: error.message || 'System error. Please try again.' };
   }
 };
 
@@ -184,9 +186,10 @@ export const verifyPayment = async (
         }
 
         return { success: true };
-    } catch (err: any) {
-        console.error("Verification Error:", err);
-        return { success: false, error: err.message || "Network error during verification" };
+    } catch (err: unknown) {
+        const error = err as Error;
+        logger.error('Payment verification failed', error);
+        return { success: false, error: error.message || "Network error during verification" };
     }
 };
 

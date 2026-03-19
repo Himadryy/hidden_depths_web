@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { PerformanceTier, getDeviceCapabilities } from '@/utils/performance';
 import { PerformanceContext } from '@/hooks/usePerformance';
+import { logger } from '@/lib/logger';
 
 export const PerformanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tier, setTierState] = useState<PerformanceTier>('DETECTING');
@@ -14,14 +15,14 @@ export const PerformanceProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const caps = getDeviceCapabilities();
       setTierState(caps.tier);
       setIsLoaded(true);
-      console.log(`[PerformanceSystem] Initialized with tier: ${caps.tier}`, caps);
+      logger.debug('PerformanceSystem initialized', { detectedTier: caps.tier, capabilities: caps });
     }, 100);
     
     return () => clearTimeout(timer);
   }, []);
 
   const setTier = (newTier: PerformanceTier) => {
-    console.log('[PerformanceProvider] Changing tier from', tier, 'to', newTier);
+    logger.debug('Performance tier changed', { from: tier, to: newTier });
     setTierState(newTier);
   };
 
