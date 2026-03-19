@@ -18,6 +18,10 @@ type Config struct {
 	AdminEmails    []string
 	AllowedOrigins []string
 	
+	// Redis Cache Config
+	RedisURL     string
+	CacheEnabled bool
+	
 	// SMTP Config
 	SMTPHost string
 	SMTPPort int
@@ -37,6 +41,9 @@ func Load() (*Config, error) {
 		SupabaseAnonKey: getEnv("SUPABASE_ANON_KEY", ""),
 		AdminEmails:    getSliceEnv("ADMIN_EMAILS", ","),
 		AllowedOrigins: getSliceEnv("ALLOWED_ORIGINS", ","),
+		
+		RedisURL:     getEnv("REDIS_URL", ""),
+		CacheEnabled: getBoolEnv("CACHE_ENABLED", true),
 		
 		SMTPHost: getEnv("SMTP_HOST", ""),
 		SMTPPort: getIntEnv("SMTP_PORT", 587),
@@ -85,4 +92,16 @@ func getDurationEnv(key string, defaultValue time.Duration) time.Duration {
 		return duration
 	}
 	return defaultValue
+}
+
+func getBoolEnv(key string, defaultValue bool) bool {
+	valueStr := getEnv(key, "")
+	if valueStr == "" {
+		return defaultValue
+	}
+	value, err := strconv.ParseBool(valueStr)
+	if err != nil {
+		return defaultValue
+	}
+	return value
 }

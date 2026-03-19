@@ -14,6 +14,7 @@ import (
 	"github.com/Himadryy/hidden-depths-backend/internal/middleware"
 	"github.com/Himadryy/hidden-depths-backend/internal/services"
 	"github.com/Himadryy/hidden-depths-backend/internal/ws"
+	"github.com/Himadryy/hidden-depths-backend/pkg/cache"
 	"github.com/Himadryy/hidden-depths-backend/pkg/logger"
 	"github.com/Himadryy/hidden-depths-backend/pkg/response"
 	"github.com/go-chi/chi/v5"
@@ -42,27 +43,36 @@ func main() {
 	}
 	defer database.CloseDB()
 
-	// 4. Start Background Scheduler (Email Reminders & Cleanup)
+	// 4. Initialize Redis Cache (graceful degradation if unavailable)
+	if err := cache.Init(cache.Config{
+		URL:     cfg.RedisURL,
+		Enabled: cfg.CacheEnabled,
+	}, logger.Log); err != nil {
+		logger.Warn("Redis cache initialization failed, continuing without cache", zap.Error(err))
+	}
+	defer cache.Close()
+
+	// 5. Start Background Scheduler (Email Reminders & Cleanup)
 	c := cron.New()
 	c.AddFunc("0 * * * *", services.CheckAndSendReminders)
 	c.AddFunc("*/5 * * * *", services.CleanupAbandonedBookings) // Every 5 min — faster self-healing
 	c.Start()
 	logger.Info("Scheduler started")
 
-	// 5. Initialize Services
+	// 6. Initialize Services
 	auditService := services.NewAuditService()
 
-	// 6. Initialize WebSocket Hub (with origin validation)
+	// 7. Initialize WebSocket Hub (with origin validation)
 	hub := ws.NewHub(cfg.AllowedOrigins)
 	go hub.Run()
 	logger.Info("WebSocket Hub started")
 
-	// 7. Rate Limiters — protect critical endpoints
-	globalLimiter := middleware.NewRateLimiter(200, time.Minute)     // 200 req/min general
-	bookingLimiter := middleware.NewRateLimiter(10, time.Minute)     // 10 req/min for booking creation
-	paymentLimiter := middleware.NewRateLimiter(5, time.Minute)      // 5 req/min for payment verification
+	// 8. Rate Limiters — protect critical endpoints (uses Redis when available)
+	globalLimiter := middleware.NewNamedRateLimiter("global", 200, time.Minute)   // 200 req/min general
+	bookingLimiter := middleware.NewNamedRateLimiter("booking", 10, time.Minute)  // 10 req/min for booking creation
+	paymentLimiter := middleware.NewNamedRateLimiter("payment", 5, time.Minute)   // 5 req/min for payment verification
 
-	// 8. Setup Router & Middleware
+	// 9. Setup Router & Middleware
 	r := chi.NewRouter()
 
 	r.Use(chiMiddleware.RequestID)
@@ -85,13 +95,13 @@ func main() {
 	})
 	r.Use(corsHandler.Handler)
 
-	// 9. Define Routes
+	// 10. Define Routes
 	r.Route("/api", func(r chi.Router) {
 		// Health: liveness
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 			response.JSON(w, http.StatusOK, map[string]string{"status": "ok"}, "Healthy")
 		})
-		// Health: readiness (checks DB)
+		// Health: readiness (checks DB + Redis)
 		r.Get("/health/ready", handlers.HealthReady)
 
 		// WebSocket Endpoint

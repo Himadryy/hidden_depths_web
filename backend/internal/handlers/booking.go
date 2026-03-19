@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 	"github.com/Himadryy/hidden-depths-backend/internal/services"
 	"github.com/Himadryy/hidden-depths-backend/internal/ws"
 	"github.com/Himadryy/hidden-depths-backend/pkg/apperror"
+	"github.com/Himadryy/hidden-depths-backend/pkg/cache"
 	"github.com/Himadryy/hidden-depths-backend/pkg/circuitbreaker"
 	"github.com/Himadryy/hidden-depths-backend/pkg/logger"
 	"github.com/Himadryy/hidden-depths-backend/pkg/response"
@@ -51,6 +53,7 @@ const pendingHoldWindow = "3 minutes"
 
 // GetBookedSlots returns all time slots booked for a specific date.
 // A slot is "booked" if it has a confirmed payment OR an active pending payment (< 5 min).
+// Uses cache-aside pattern: check cache first, fallback to DB, populate cache on miss.
 func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 	date := chi.URLParam(r, "date")
 	if date == "" {
@@ -58,7 +61,18 @@ func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := database.Pool.Query(r.Context(),
+	ctx := r.Context()
+	cacheKey := cache.SlotsKey(date)
+
+	// Try cache first
+	if slots, err := cache.Get[[]string](ctx, cacheKey); err == nil {
+		logger.Debug("Cache hit for slots", zap.String("date", date))
+		response.JSON(w, http.StatusOK, slots, "Slots fetched successfully")
+		return
+	}
+
+	// Cache miss or disabled — query DB
+	rows, err := database.Pool.Query(ctx,
 		`SELECT time FROM bookings
 		 WHERE date = $1
 		 AND (payment_status = 'paid'
@@ -81,7 +95,21 @@ func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 		slots = append(slots, timeSlot)
 	}
 
+	// Populate cache (ignore errors — cache is optional)
+	if slots == nil {
+		slots = []string{} // Ensure we cache empty array, not nil
+	}
+	_ = cache.Set(ctx, cacheKey, slots, cache.SlotsTTL)
+
 	response.JSON(w, http.StatusOK, slots, "Slots fetched successfully")
+}
+
+// InvalidateSlotsCache removes cached slots for a given date.
+// Call this after any booking state change (create, cancel, verify payment).
+func InvalidateSlotsCache(ctx context.Context, date string) {
+	if err := cache.Delete(ctx, cache.SlotsKey(date)); err != nil && !errors.Is(err, cache.ErrCacheDisabled) {
+		logger.Warn("Failed to invalidate slots cache", zap.String("date", date), zap.Error(err))
+	}
 }
 
 // CreateBooking initiates a booking using atomic DB transaction.
@@ -275,6 +303,9 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		return
 	}
 
+	// Invalidate slots cache for this date (write-through pattern)
+	InvalidateSlotsCache(ctx, booking.Date)
+
 	// 9. Response Handling
 	if isPaid {
 		response.JSON(w, http.StatusOK, map[string]interface{}{
@@ -360,6 +391,9 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		response.AppErr(w, apperror.DatabaseError("update booking", err))
 		return
 	}
+
+	// Invalidate slots cache (payment confirmed = slot truly taken)
+	InvalidateSlotsCache(r.Context(), b.Date)
 
 	// 4. Finalize (Email + WebSocket)
 	finalizeBooking(w, r, hub, audit, b.ID, b)
@@ -527,6 +561,9 @@ func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		return
 	}
 
+	// Invalidate slots cache (slot freed up)
+	InvalidateSlotsCache(r.Context(), date)
+
 	// Broadcast the update
 	hub.Broadcast("SLOT_CANCELLED", map[string]string{
 		"date": date,
@@ -539,7 +576,7 @@ func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	response.JSON(w, http.StatusOK, nil, "Booking cancelled successfully")
 }
 
-// HealthReady checks if the backend can serve requests (DB connectivity).
+// HealthReady checks if the backend can serve requests (DB + Redis connectivity).
 func HealthReady(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
@@ -548,6 +585,16 @@ func HealthReady(w http.ResponseWriter, r *http.Request) {
 	if err := database.Pool.Ping(ctx); err != nil {
 		dbStatus = "degraded"
 		logger.Log.Error("Health readiness: DB ping failed", zap.Error(err))
+	}
+
+	cacheStatus := "ok"
+	if err := cache.HealthCheck(ctx); err != nil {
+		if errors.Is(err, cache.ErrCacheDisabled) {
+			cacheStatus = "disabled"
+		} else {
+			cacheStatus = "degraded"
+			logger.Log.Warn("Health readiness: Cache ping failed", zap.Error(err))
+		}
 	}
 
 	status := http.StatusOK
@@ -560,6 +607,7 @@ func HealthReady(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, status, map[string]string{
 		"status":   overall,
 		"database": dbStatus,
+		"cache":    cacheStatus,
 	}, overall)
 }
 
@@ -685,6 +733,9 @@ func webhookConfirmPayment(ctx context.Context, orderID, paymentID string, hub *
 		return
 	}
 
+	// Invalidate slots cache
+	InvalidateSlotsCache(ctx, b.Date)
+
 	logger.Log.Info("Webhook: booking confirmed", zap.String("booking_id", b.ID))
 
 	// Broadcast + email (same as VerifyPayment flow)
@@ -712,6 +763,13 @@ func webhookConfirmPayment(ctx context.Context, orderID, paymentID string, hub *
 
 // webhookReleaseSlot deletes the pending booking to free the slot when payment fails.
 func webhookReleaseSlot(ctx context.Context, orderID string) {
+	// Get the date first for cache invalidation
+	var date string
+	_ = database.Pool.QueryRow(ctx,
+		"SELECT date FROM bookings WHERE razorpay_order_id = $1 AND payment_status = 'pending'",
+		orderID,
+	).Scan(&date)
+
 	result, err := database.Pool.Exec(ctx,
 		"DELETE FROM bookings WHERE razorpay_order_id = $1 AND payment_status = 'pending'",
 		orderID,
@@ -721,6 +779,10 @@ func webhookReleaseSlot(ctx context.Context, orderID string) {
 		return
 	}
 	if result.RowsAffected() > 0 {
+		// Invalidate cache if we deleted something
+		if date != "" {
+			InvalidateSlotsCache(ctx, date)
+		}
 		logger.Log.Info("Webhook: slot released after payment failure", zap.String("order_id", orderID))
 	}
 }
