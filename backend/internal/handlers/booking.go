@@ -209,9 +209,8 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	}
 	defer tx.Rollback(ctx)
 
-	// 2. Acquire row-level lock and check slot availability in ONE query
-	// FOR UPDATE prevents race conditions: if another transaction is checking the same slot,
-	// this will wait until that transaction commits/rollbacks.
+	// 2. Check slot availability (FOR UPDATE is not needed on aggregates,
+	// the UNIQUE constraint + transaction isolation handles concurrency)
 	currentUserID := ""
 	if booking.UserID != nil {
 		currentUserID = *booking.UserID
@@ -225,8 +224,7 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 				AND COALESCE(user_id::text, '') != $3
 				AND created_at > NOW() - INTERVAL '`+pendingHoldWindow+`')
 		 FROM bookings 
-		 WHERE date = $1 AND time = $2
-		 FOR UPDATE`,
+		 WHERE date = $1 AND time = $2`,
 		booking.Date, booking.Time, currentUserID,
 	).Scan(&paidCount, &otherPendingCount); err != nil {
 		logger.Error("Failed to check slot availability", zap.Error(err))
