@@ -48,26 +48,40 @@ export default function InsightsCMS() {
 
   const apiUrl = getApiUrl();
 
-  const fetchInsights = async () => {
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchInsights = async () => {
+      try {
+        const res = await fetchWithTimeout(`${apiUrl}/insights`);
+        if (res.ok) {
+          const data = await res.json();
+          // Unwrap Go backend {success, data} wrapper
+          const insightsArray = Array.isArray(data) ? data : (data.data || []);
+          setInsights(insightsArray);
+        }
+      } catch (err) {
+        console.error('Error fetching insights:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInsights();
+  }, [user, apiUrl]);
+
+  const refetchInsights = async () => {
     try {
       const res = await fetchWithTimeout(`${apiUrl}/insights`);
       if (res.ok) {
         const data = await res.json();
-        // Unwrap Go backend {success, data} wrapper
         const insightsArray = Array.isArray(data) ? data : (data.data || []);
         setInsights(insightsArray);
       }
     } catch (err) {
       console.error('Error fetching insights:', err);
-    } finally {
-      setLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (!user) return;
-    fetchInsights();
-  }, [user]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +106,7 @@ export default function InsightsCMS() {
         setIsAdding(false);
         setEditingId(null);
         setFormData({ title: '', description: '', mediaUrl: '', mediaType: 'image', order: insights.length });
-        await fetchInsights();
+        await refetchInsights();
       }
     } catch (err) {
       console.error('Error saving insight:', err);
@@ -115,7 +129,7 @@ export default function InsightsCMS() {
         }
       });
       if (res.ok) {
-        await fetchInsights();
+        await refetchInsights();
       }
     } catch (err) {
       console.error('Error deleting insight:', err);

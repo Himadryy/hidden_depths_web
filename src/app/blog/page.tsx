@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { BreadcrumbSchema } from '@/components/StructuredData';
-import { ArrowRight, Calendar, Clock, User } from 'lucide-react';
+import { ArrowRight, Calendar } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Mental Health Blog - Hidden Depths',

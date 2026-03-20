@@ -45,7 +45,7 @@ export default function BlogPost() {
 
           <div className="prose prose-invert prose-lg max-w-none text-gray-300">
             <p className="lead text-xl text-white font-light italic mb-8">
-              "Give a man a mask, and he will tell you the truth." — Oscar Wilde
+              &quot;Give a man a mask, and he will tell you the truth.&quot; — Oscar Wilde
             </p>
 
             <p>
@@ -58,25 +58,25 @@ export default function BlogPost() {
 
             <hr className="border-white/10 my-10" />
 
-            <h2 className="text-2xl font-serif text-white mt-10 mb-4">1. The "Stranger on a Train" Effect</h2>
+            <h2 className="text-2xl font-serif text-white mt-10 mb-4">1. The &quot;Stranger on a Train&quot; Effect</h2>
             <p>
-              Psychologists have long observed that people often reveal their deepest secrets to complete strangers they'll never see again. Why? Because there are no consequences.
+              Psychologists have long observed that people often reveal their deepest secrets to complete strangers they&apos;ll never see again. Why? Because there are no consequences.
             </p>
             <p>
-              When you talk to someone who doesn't know your name, your job, or your family, you don't have to maintain your "persona." You can stop being the "reliable employee" or the "strong parent" and just be the person who is hurting. This radical honesty accelerates healing because you get straight to the root of the problem.
+              When you talk to someone who doesn&apos;t know your name, your job, or your family, you don&apos;t have to maintain your &quot;persona.&quot; You can stop being the &quot;reliable employee&quot; or the &quot;strong parent&quot; and just be the person who is hurting. This radical honesty accelerates healing because you get straight to the root of the problem.
             </p>
 
             <h2 className="text-2xl font-serif text-white mt-10 mb-4">2. Breaking the Stigma Barrier</h2>
             <p>
-              In many cultures, especially in India, mental health struggles are still stigmatized. The fear of being labeled "mentally ill" prevents millions from seeking help.
+              In many cultures, especially in India, mental health struggles are still stigmatized. The fear of being labeled &quot;mentally ill&quot; prevents millions from seeking help.
             </p>
             <p>
-              Anonymity sidesteps this entirely. You aren't a patient with a file; you're just a voice in a sanctuary. Platforms like Hidden Depths allow you to seek support without ever creating a paper trail that you fear might follow you.
+              Anonymity sidesteps this entirely. You aren&apos;t a patient with a file; you&apos;re just a voice in a sanctuary. Platforms like Hidden Depths allow you to seek support without ever creating a paper trail that you fear might follow you.
             </p>
 
             <h2 className="text-2xl font-serif text-white mt-10 mb-4">3. Focus on the Issue, Not the Context</h2>
             <p>
-              In traditional therapy, you might spend the first three sessions just explaining your background. In anonymous mentorship, you can dive straight into the specific feeling or conflict you're facing <em>right now</em>.
+              In traditional therapy, you might spend the first three sessions just explaining your background. In anonymous mentorship, you can dive straight into the specific feeling or conflict you&apos;re facing <em>right now</em>.
             </p>
             <p>
                It makes the sessions tactical and focused. You clarify the chaos in your head without needing to provide a full biography first.

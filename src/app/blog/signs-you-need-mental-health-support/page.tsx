@@ -45,53 +45,53 @@ export default function BlogPost() {
 
           <div className="prose prose-invert prose-lg max-w-none text-gray-300">
             <p className="lead text-xl text-white font-light italic mb-8">
-              We often tell ourselves "I'm fine" or "It's just a bad week." But sometimes, that bad week turns into a bad month, and the weight becomes too heavy to carry alone.
+              We often tell ourselves &quot;I&apos;m fine&quot; or &quot;It&apos;s just a bad week.&quot; But sometimes, that bad week turns into a bad month, and the weight becomes too heavy to carry alone.
             </p>
 
             <p>
-              Recognizing when you need support isn't a sign of weakness; it's a profound act of self-awareness. At Hidden Depths, we believe that clarity comes from conversation. Here are five signs that it might be time to seek an anonymous mentor or counselor.
+              Recognizing when you need support isn&apos;t a sign of weakness; it&apos;s a profound act of self-awareness. At Hidden Depths, we believe that clarity comes from conversation. Here are five signs that it might be time to seek an anonymous mentor or counselor.
             </p>
 
             <hr className="border-white/10 my-10" />
 
             <h2 className="text-2xl font-serif text-white mt-10 mb-4">1. Your Sleep Patterns Have Changed Drastically</h2>
             <p>
-              Sleep is often the first casualty of mental stress. Are you lying awake for hours, your mind racing with worries you can't shut off? Or perhaps you're sleeping 10+ hours a day and still waking up exhausted? Significant disruptions in your sleep cycle are your brain's way of waving a red flag.
+              Sleep is often the first casualty of mental stress. Are you lying awake for hours, your mind racing with worries you can&apos;t shut off? Or perhaps you&apos;re sleeping 10+ hours a day and still waking up exhausted? Significant disruptions in your sleep cycle are your brain&apos;s way of waving a red flag.
             </p>
 
             <h2 className="text-2xl font-serif text-white mt-10 mb-4">2. You Feel Numb or Disconnected</h2>
             <p>
-              Sadness is a natural emotion. But feeling <em>nothing</em>—a persistent sense of numbness or emptiness—is different. If you find yourself disconnected from the things that used to bring you joy, or if you feel like you're watching your life from the outside (dissociation), talking to someone can help you reconnect with yourself.
+              Sadness is a natural emotion. But feeling <em>nothing</em>—a persistent sense of numbness or emptiness—is different. If you find yourself disconnected from the things that used to bring you joy, or if you feel like you&apos;re watching your life from the outside (dissociation), talking to someone can help you reconnect with yourself.
             </p>
 
             <h2 className="text-2xl font-serif text-white mt-10 mb-4">3. Small Things Trigger Big Reactions</h2>
             <p>
-              Did dropping a coffee mug make you burst into tears? Did a minor email from a coworker send you into a rage spiral? When our emotional "bucket" is full, even a single drop can cause it to overflow. Disproportionate emotional reactions suggest that you're carrying a heavy load of unprocessed stress.
+              Did dropping a coffee mug make you burst into tears? Did a minor email from a coworker send you into a rage spiral? When our emotional &quot;bucket&quot; is full, even a single drop can cause it to overflow. Disproportionate emotional reactions suggest that you&apos;re carrying a heavy load of unprocessed stress.
             </p>
 
-            <h2 className="text-2xl font-serif text-white mt-10 mb-4">4. You're Isolating Yourself</h2>
+            <h2 className="text-2xl font-serif text-white mt-10 mb-4">4. You&apos;re Isolating Yourself</h2>
             <p>
-              Solitude can be healing, but isolation is different. If you're actively avoiding friends, ignoring calls, or cancelling plans because the effort of social interaction feels overwhelming, you might be withdrawing to protect yourself. Ironically, connection is often the antidote you need.
+              Solitude can be healing, but isolation is different. If you&apos;re actively avoiding friends, ignoring calls, or cancelling plans because the effort of social interaction feels overwhelming, you might be withdrawing to protect yourself. Ironically, connection is often the antidote you need.
             </p>
             <div className="bg-[var(--accent)]/10 p-6 border-l-4 border-[var(--accent)] my-8">
                 <p className="italic text-white">
-                    "This is where anonymous platforms like Hidden Depths shine. You can break the isolation without the pressure of 'performing' for friends or family."
+                    &quot;This is where anonymous platforms like Hidden Depths shine. You can break the isolation without the pressure of &apos;performing&apos; for friends or family.&quot;
                 </p>
             </div>
 
-            <h2 className="text-2xl font-serif text-white mt-10 mb-4">5. You Can't "Switch Off"</h2>
+            <h2 className="text-2xl font-serif text-white mt-10 mb-4">5. You Can&apos;t &quot;Switch Off&quot;</h2>
             <p>
-              Do you feel like your brain has 50 tabs open and they're all frozen? Persistent anxiety, the inability to relax, or physical symptoms like clenched jaws and tight shoulders are signs that your nervous system is stuck in "fight or flight" mode. You need a space to exhale.
+              Do you feel like your brain has 50 tabs open and they&apos;re all frozen? Persistent anxiety, the inability to relax, or physical symptoms like clenched jaws and tight shoulders are signs that your nervous system is stuck in &quot;fight or flight&quot; mode. You need a space to exhale.
             </p>
 
             <hr className="border-white/10 my-10" />
 
             <h2 className="text-2xl font-serif text-white mb-4">Taking the First Step</h2>
             <p>
-              If any of these resonate with you, know that you don't have to navigate it alone. You don't need a diagnosis to deserve support. You just need to be a human being having a hard time.
+              If any of these resonate with you, know that you don&apos;t have to navigate it alone. You don&apos;t need a diagnosis to deserve support. You just need to be a human being having a hard time.
             </p>
             <p>
-              Booking a session doesn't mean something is "wrong" with you. It means you're prioritizing your clarity and peace. And with anonymous options available, you can do it on your own terms.
+              Booking a session doesn&apos;t mean something is &quot;wrong&quot; with you. It means you&apos;re prioritizing your clarity and peace. And with anonymous options available, you can do it on your own terms.
             </p>
 
           </div>

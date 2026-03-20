@@ -1,18 +1,64 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Clock, CheckCircle, Calendar as CalendarIcon, ArrowRight, Loader2, AlertTriangle } from 'lucide-react';
-import { sendBookingEmail } from '@/lib/email';
 import { getBookedSlots, createBooking, verifyPayment, cancelPendingBooking } from '@/lib/bookingService';
 import { useAuth } from '@/context/AuthProvider';
 import { getApiUrl, fetchWithTimeout } from '@/lib/api';
 import Script from 'next/script';
 
+// Razorpay types
+interface RazorpayResponse {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayError {
+  error?: {
+    description?: string;
+  };
+}
+
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  image: string;
+  order_id: string;
+  handler: (response: RazorpayResponse) => void;
+  modal: {
+    ondismiss: () => void;
+  };
+  prefill: {
+    name: string;
+    email: string;
+    contact: string;
+  };
+  notes: {
+    address: string;
+  };
+  theme: {
+    color: string;
+  };
+}
+
+interface RazorpayInstance {
+  on: (event: string, handler: (response: RazorpayError) => void) => void;
+  open: () => void;
+}
+
+interface RazorpayConstructor {
+  new (options: RazorpayOptions): RazorpayInstance;
+}
+
 // Extend Window interface for Razorpay
 declare global {
   interface Window {
-    Razorpay: any;
+    Razorpay: RazorpayConstructor;
   }
 }
 
@@ -263,15 +309,15 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
 
             const pendingBookingId = bookingResult.booking_id!;
 
-            const options = {
-                key: bookingResult.key_id,
-                amount: bookingResult.amount,
-                currency: bookingResult.currency,
+            const options: RazorpayOptions = {
+                key: bookingResult.key_id!,
+                amount: bookingResult.amount!,
+                currency: bookingResult.currency!,
                 name: "Hidden Depths",
                 description: "Sanctuary Session",
                 image: "https://hidden-depths-web.pages.dev/logo.png",
                 order_id: bookingResult.order_id,
-                handler: async function (response: any) {
+                handler: async function (response: RazorpayResponse) {
                     // 3. Verify Payment on Backend
                     const verify = await verifyPayment(
                         pendingBookingId,
@@ -307,7 +353,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             };
             
             const rzp1 = new window.Razorpay(options);
-            rzp1.on('payment.failed', function (response: any){
+            rzp1.on('payment.failed', function (response: RazorpayError){
                 setErrorMsg("Payment failed: " + (response.error?.description || "Please try again."));
                 cancelPendingBooking(pendingBookingId);
                 setIsSubmitting(false);

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { FAQSchema, BreadcrumbSchema } from '@/components/StructuredData';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+
 
 export const metadata: Metadata = {
   title: 'Frequently Asked Questions - Hidden Depths',

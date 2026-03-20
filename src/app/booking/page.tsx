@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthProvider';
 import BookingCalendar from '@/components/BookingCalendar';
@@ -9,23 +9,16 @@ import AuthModal from '@/components/AuthModal';
 export default function BookingPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [showAuth, setShowAuth] = useState(false);
-  const [showBooking, setShowBooking] = useState(false);
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      setShowAuth(true);
-    } else {
-      setShowAuth(false);
-      setShowBooking(true);
-    }
-  }, [user, authLoading]);
+  // Derive state from auth instead of using setState in useEffect
+  const showAuth = useMemo(() => !authLoading && !user, [authLoading, user]);
+  const showBooking = useMemo(() => !authLoading && !!user, [authLoading, user]);
 
   const handleAuthClose = () => {
-    setShowAuth(false);
-    if (user) {
-      setShowBooking(true);
+    // Auth state change will automatically update showAuth/showBooking via useMemo
+    // If user closes auth modal without logging in, redirect home
+    if (!user) {
+      router.push('/');
     }
   };
 

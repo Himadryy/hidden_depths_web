@@ -53,30 +53,30 @@ export default function BlogPost() {
             </p>
 
             <p>
-              By combining WebGL graphics, spatial audio, and psychology, developers are building "digital sanctuaries"—spaces designed not to capture your attention, but to restore it.
+              By combining WebGL graphics, spatial audio, and psychology, developers are building &quot;digital sanctuaries&quot;—spaces designed not to capture your attention, but to restore it.
             </p>
 
             <hr className="border-white/10 my-10" />
 
             <h2 className="text-2xl font-serif text-white mt-10 mb-4">The Science of Visual Calm</h2>
             <p>
-              Why does staring at the ocean feel relaxing? It's a phenomenon called "Soft Fascination." Natural environments engage our attention without demanding effort, allowing our cognitive resources to replenish.
+              Why does staring at the ocean feel relaxing? It&apos;s a phenomenon called &quot;Soft Fascination.&quot; Natural environments engage our attention without demanding effort, allowing our cognitive resources to replenish.
             </p>
             <p>
-              At Hidden Depths, we use <strong>Voronoi fluid simulations</strong> (a type of mathematical noise) to mimic the movement of water. This isn't just aesthetic; it's functional. The slow, non-repeating patterns trigger a parasympathetic nervous system response—the "rest and digest" mode—similar to watching real waves or clouds.
+              At Hidden Depths, we use <strong>Voronoi fluid simulations</strong> (a type of mathematical noise) to mimic the movement of water. This isn&apos;t just aesthetic; it&apos;s functional. The slow, non-repeating patterns trigger a parasympathetic nervous system response—the &quot;rest and digest&quot; mode—similar to watching real waves or clouds.
             </p>
 
             <h2 className="text-2xl font-serif text-white mt-10 mb-4">Audio Anchors</h2>
             <p>
-              Sound is the fastest way to alter a mood. Our platform uses ambient soundscapes that sit in the 432Hz frequency range, often associated with relaxation. By blocking out the chaotic noise of your physical environment (traffic, construction, office chatter), the audio creates a "sonic bubble" where you can think clearly.
+              Sound is the fastest way to alter a mood. Our platform uses ambient soundscapes that sit in the 432Hz frequency range, often associated with relaxation. By blocking out the chaotic noise of your physical environment (traffic, construction, office chatter), the audio creates a &quot;sonic bubble&quot; where you can think clearly.
             </p>
 
-            <h2 className="text-2xl font-serif text-white mt-10 mb-4">The "Third Space"</h2>
+            <h2 className="text-2xl font-serif text-white mt-10 mb-4">The &quot;Third Space&quot;</h2>
             <p>
-              Sociologist Ray Oldenburg coined the term "Third Place" for spaces that aren't home (First Place) or work (Second Place)—like cafes or parks. In a remote-first world, we are losing these physical third places.
+              Sociologist Ray Oldenburg coined the term &quot;Third Place&quot; for spaces that aren&apos;t home (First Place) or work (Second Place)—like cafes or parks. In a remote-first world, we are losing these physical third places.
             </p>
             <p>
-              Digital sanctuaries act as a virtual Third Place. They are neutral grounds. When you log into Hidden Depths, you aren't in your bedroom (where you sleep) or your home office (where you stress). You are in the Sanctuary. This psychological separation is crucial for effective mentorship and reflection.
+              Digital sanctuaries act as a virtual Third Place. They are neutral grounds. When you log into Hidden Depths, you aren&apos;t in your bedroom (where you sleep) or your home office (where you stress). You are in the Sanctuary. This psychological separation is crucial for effective mentorship and reflection.
             </p>
 
             <hr className="border-white/10 my-10" />
@@ -86,7 +86,7 @@ export default function BlogPost() {
                We believe that good UI/UX is a form of care. Dark modes reduce eye strain. Minimalist interfaces reduce cognitive load. Every pixel at Hidden Depths is designed to lower your cortisol, not spike your dopamine.
             </p>
             <p>
-               Technology caused the noise. Now, let's use it to build the silence.
+               Technology caused the noise. Now, let&apos;s use it to build the silence.
             </p>
 
           </div>

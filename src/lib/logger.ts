@@ -6,8 +6,6 @@
  * Debug and info logs are suppressed in production builds.
  */
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-
 interface LogContext {
   [key: string]: unknown;
 }
