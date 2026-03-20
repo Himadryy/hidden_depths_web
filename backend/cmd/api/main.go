@@ -97,59 +97,69 @@ func main() {
 
 	// 10. Define Routes
 	r.Route("/api", func(r chi.Router) {
-		// Health: liveness
+		// Health endpoints at /api level (not versioned - for infrastructure)
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 			response.JSON(w, http.StatusOK, map[string]string{"status": "ok"}, "Healthy")
 		})
-		// Health: readiness (checks DB + Redis)
 		r.Get("/health/ready", handlers.HealthReady)
 
-		// WebSocket Endpoint
+		// WebSocket at /api level (not versioned - stateful connection)
 		r.Get("/ws", hub.ServeWS)
 
-		// Bookings
-		r.Route("/bookings", func(r chi.Router) {
-			r.Get("/slots/{date}", handlers.GetBookedSlots)
-			r.Get("/recommendations/{date}", handlers.GetRecommendedSlots)
-			r.With(paymentLimiter.Handler).Post("/verify", func(w http.ResponseWriter, r *http.Request) {
-				handlers.VerifyPayment(w, r, hub, auditService)
+		// Versioned API routes
+		r.Route("/v1", func(r chi.Router) {
+			// Bookings
+			r.Route("/bookings", func(r chi.Router) {
+				r.Get("/slots/{date}", handlers.GetBookedSlots)
+				r.Get("/recommendations/{date}", handlers.GetRecommendedSlots)
+				r.With(paymentLimiter.Handler).Post("/verify", func(w http.ResponseWriter, r *http.Request) {
+					handlers.VerifyPayment(w, r, hub, auditService)
+				})
+
+				// Protected User Routes
+				r.Group(func(r chi.Router) {
+					r.Use(middleware.AuthMiddleware(cfg.JWTSecret, cfg.SupabaseAnonKey))
+
+					r.Get("/my", handlers.GetUserBookings)
+					r.Get("/subscriptions/active", handlers.GetActiveSubscription)
+					r.With(bookingLimiter.Handler).Post("/", func(w http.ResponseWriter, r *http.Request) {
+						handlers.CreateBooking(w, r, hub, auditService)
+					})
+					r.Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {
+						handlers.CancelBooking(w, r, hub, auditService)
+					})
+				})
 			})
 
-			// Protected User Routes
-			r.Group(func(r chi.Router) {
+			// Razorpay Webhook (public, signature-verified internally)
+			r.Post("/webhook/razorpay", func(w http.ResponseWriter, r *http.Request) {
+				handlers.RazorpayWebhook(w, r, hub, auditService)
+			})
+
+			// Insights (Public)
+			r.Get("/insights", handlers.GetAllInsights)
+
+			// Admin Portal (Double Protected)
+			r.Route("/admin", func(r chi.Router) {
 				r.Use(middleware.AuthMiddleware(cfg.JWTSecret, cfg.SupabaseAnonKey))
-				
-				r.Get("/my", handlers.GetUserBookings)
-				r.Get("/subscriptions/active", handlers.GetActiveSubscription)
-				r.With(bookingLimiter.Handler).Post("/", func(w http.ResponseWriter, r *http.Request) {
-					handlers.CreateBooking(w, r, hub, auditService)
-				})
-				r.Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {
-					handlers.CancelBooking(w, r, hub, auditService)
+				r.Use(middleware.AdminMiddleware(cfg.AdminEmails))
+
+				r.Get("/stats", handlers.GetAdminStats)
+
+				r.Route("/insights", func(r chi.Router) {
+					r.Post("/", handlers.CreateInsight)
+					r.Put("/{id}", handlers.UpdateInsight)
+					r.Delete("/{id}", handlers.DeleteInsight)
 				})
 			})
 		})
 
-		// Razorpay Webhook (public, signature-verified internally)
-		r.Post("/webhook/razorpay", func(w http.ResponseWriter, r *http.Request) {
-			handlers.RazorpayWebhook(w, r, hub, auditService)
+		// Legacy routes redirect to v1 (backward compatibility)
+		r.Get("/bookings/*", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/api/v1"+r.URL.Path[4:], http.StatusMovedPermanently)
 		})
-
-		// Insights (Public)
-		r.Get("/insights", handlers.GetAllInsights)
-
-		// Admin Portal (Double Protected)
-		r.Route("/admin", func(r chi.Router) {
-			r.Use(middleware.AuthMiddleware(cfg.JWTSecret, cfg.SupabaseAnonKey))
-			r.Use(middleware.AdminMiddleware(cfg.AdminEmails))
-			
-			r.Get("/stats", handlers.GetAdminStats)
-			
-			r.Route("/insights", func(r chi.Router) {
-				r.Post("/", handlers.CreateInsight)
-				r.Put("/{id}", handlers.UpdateInsight)
-				r.Delete("/{id}", handlers.DeleteInsight)
-			})
+		r.Get("/insights", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/api/v1/insights", http.StatusMovedPermanently)
 		})
 	})
 
