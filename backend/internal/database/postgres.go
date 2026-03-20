@@ -27,6 +27,7 @@ func ConnectDB(dbURL string) error {
 	config.MinConns = 2
 	config.MaxConnLifetime = 30 * time.Minute
 	config.MaxConnIdleTime = 15 * time.Minute
+	config.HealthCheckPeriod = 30 * time.Second // Detect stale connections early
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

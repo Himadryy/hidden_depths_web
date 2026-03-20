@@ -10,14 +10,21 @@ import (
 	"go.uber.org/zap"
 )
 
+// Scheduler job timeouts - prevents hung connections from blocking the pool
+const schedulerTimeout = 30 * time.Second
+
 // CheckAndSendReminders runs every hour to find bookings happening tomorrow
 func CheckAndSendReminders() {
 	logger.Info("Running reminder check...")
 
+	// Use timeout context to prevent hung queries
+	ctx, cancel := context.WithTimeout(context.Background(), schedulerTimeout)
+	defer cancel()
+
 	// Calculate "Tomorrow" date string (YYYY-MM-DD)
 	tomorrow := time.Now().Add(24 * time.Hour).Format("2006-01-02")
 
-	rows, err := database.Pool.Query(context.Background(),
+	rows, err := database.Pool.Query(ctx,
 		"SELECT id, name, email, time, meeting_link FROM bookings WHERE date = $1 AND reminder_sent = FALSE",
 		tomorrow,
 	)
@@ -52,11 +59,13 @@ func CheckAndSendReminders() {
 			continue
 		}
 
-		// Mark as Sent
-		_, err := database.Pool.Exec(context.Background(),
+		// Mark as Sent (use fresh context for update, not the same one)
+		updateCtx, updateCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		_, err := database.Pool.Exec(updateCtx,
 			"UPDATE bookings SET reminder_sent = TRUE WHERE id = $1",
 			id,
 		)
+		updateCancel()
 		if err != nil {
 			logger.Error("Failed to mark reminder as sent", zap.String("booking_id", id), zap.Error(err))
 		} else {
@@ -71,7 +80,11 @@ func CheckAndSendReminders() {
 func CleanupAbandonedBookings() {
 	logger.Info("Running abandoned booking cleanup...")
 	
-	result, err := database.Pool.Exec(context.Background(),
+	// Use timeout context to prevent hung queries
+	ctx, cancel := context.WithTimeout(context.Background(), schedulerTimeout)
+	defer cancel()
+	
+	result, err := database.Pool.Exec(ctx,
 		`DELETE FROM bookings 
 		 WHERE (payment_status = 'pending' AND created_at < NOW() - INTERVAL '10 minutes')
 		    OR payment_status = 'failed'`,

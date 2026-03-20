@@ -48,8 +48,15 @@ func isPaidSession(dateStr string) (bool, error) {
 }
 
 // Pending booking hold window — how long a pending booking blocks the slot for others.
-// 3 minutes is enough for Razorpay checkout; shorter = faster self-healing from abandoned payments.
-const pendingHoldWindow = "3 minutes"
+// 5 minutes provides margin for Razorpay checkout (2-4 min) + network delays.
+// Abandoned booking cleanup runs at this interval too.
+const pendingHoldWindow = "5 minutes"
+
+// Database operation timeouts
+const (
+	dbQueryTimeout       = 15 * time.Second // Default for read queries
+	dbTransactionTimeout = 30 * time.Second // For multi-step transactions
+)
 
 // GetBookedSlots returns all time slots booked for a specific date.
 // A slot is "booked" if it has a confirmed payment OR an active pending payment (< 5 min).
@@ -71,8 +78,11 @@ func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Cache miss or disabled — query DB
-	rows, err := database.Pool.Query(ctx,
+	// Cache miss or disabled — query DB with timeout
+	queryCtx, cancel := context.WithTimeout(ctx, dbQueryTimeout)
+	defer cancel()
+
+	rows, err := database.Pool.Query(queryCtx,
 		`SELECT time FROM bookings
 		 WHERE date = $1
 		 AND (payment_status = 'paid'
@@ -228,14 +238,17 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	// --- Atomic Slot Check & Reserve ---
 	// Uses a DB transaction to prevent race conditions between check and insert.
 	// Razorpay order is already created above, so transaction is fast (no external calls).
-	ctx := r.Context()
-	tx, err := database.Pool.Begin(ctx)
+	// Use transaction timeout to prevent hung connections.
+	txCtx, txCancel := context.WithTimeout(r.Context(), dbTransactionTimeout)
+	defer txCancel()
+
+	tx, err := database.Pool.Begin(txCtx)
 	if err != nil {
 		logger.Error("Failed to begin transaction", zap.Error(err))
 		response.AppErr(w, apperror.DatabaseError("begin transaction", err))
 		return
 	}
-	defer tx.Rollback(ctx)
+	defer tx.Rollback(txCtx)
 
 	// 2. Check slot availability (FOR UPDATE is not needed on aggregates,
 	// the UNIQUE constraint + transaction isolation handles concurrency)
@@ -245,7 +258,7 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	}
 
 	var paidCount, otherPendingCount int
-	if err := tx.QueryRow(ctx,
+	if err := tx.QueryRow(txCtx,
 		`SELECT 
 			COUNT(*) FILTER (WHERE payment_status = 'paid'),
 			COUNT(*) FILTER (WHERE payment_status = 'pending' 
@@ -270,7 +283,7 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	}
 
 	// 5. Clear ALL non-paid bookings for this slot (within transaction)
-	if _, err := tx.Exec(ctx,
+	if _, err := tx.Exec(txCtx,
 		`DELETE FROM bookings WHERE date = $1 AND time = $2 AND payment_status != 'paid'`,
 		booking.Date, booking.Time,
 	); err != nil {
@@ -280,7 +293,7 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 
 	// 6. Insert into Database (within transaction)
 	var newID string
-	err = tx.QueryRow(ctx,
+	err = tx.QueryRow(txCtx,
 		`INSERT INTO bookings
 		(date, time, name, email, user_id, meeting_link, payment_status, razorpay_order_id, amount)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -297,14 +310,14 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	}
 
 	// 8. Commit the transaction
-	if err := tx.Commit(ctx); err != nil {
+	if err := tx.Commit(txCtx); err != nil {
 		logger.Error("Failed to commit booking transaction", zap.Error(err))
 		response.AppErr(w, apperror.DatabaseError("commit booking", err))
 		return
 	}
 
 	// Invalidate slots cache for this date (write-through pattern)
-	InvalidateSlotsCache(ctx, booking.Date)
+	InvalidateSlotsCache(r.Context(), booking.Date)
 
 	// 9. Response Handling
 	if isPaid {
@@ -361,34 +374,63 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		)
 		response.AppErr(w, apperror.PaymentSignatureInvalid())
 		
-		// DELETE the pending booking to immediately free the slot
-		if _, err := database.Pool.Exec(r.Context(),
+		// DELETE the pending booking to immediately free the slot (with timeout)
+		ctx, cancel := context.WithTimeout(r.Context(), dbQueryTimeout)
+		defer cancel()
+		if _, err := database.Pool.Exec(ctx,
 			"DELETE FROM bookings WHERE id = $1 AND payment_status = 'pending'", req.BookingID); err != nil {
 			logger.Error("Failed to clean up failed booking", zap.String("booking_id", req.BookingID), zap.Error(err))
 		}
 		return
 	}
 
-	// 2. Fetch Booking Details
+	// Use transaction with timeout for atomic verification (prevents race conditions)
+	txCtx, txCancel := context.WithTimeout(r.Context(), dbTransactionTimeout)
+	defer txCancel()
+
+	tx, err := database.Pool.Begin(txCtx)
+	if err != nil {
+		logger.Error("Failed to begin verification transaction", zap.Error(err))
+		response.AppErr(w, apperror.DatabaseError("begin transaction", err))
+		return
+	}
+	defer tx.Rollback(txCtx)
+
+	// 2. Fetch and lock the booking row to prevent concurrent verification
 	var b models.Booking
-	err := database.Pool.QueryRow(r.Context(),
-		"SELECT id, date, time, name, email, meeting_link, user_id FROM bookings WHERE id = $1",
+	err = tx.QueryRow(txCtx,
+		`SELECT id, date, time, name, email, meeting_link, user_id, payment_status 
+		 FROM bookings WHERE id = $1 FOR UPDATE`,
 		req.BookingID,
-	).Scan(&b.ID, &b.Date, &b.Time, &b.Name, &b.Email, &b.MeetingLink, &b.UserID)
+	).Scan(&b.ID, &b.Date, &b.Time, &b.Name, &b.Email, &b.MeetingLink, &b.UserID, &b.PaymentStatus)
 
 	if err != nil {
 		response.AppErr(w, apperror.BookingNotFound(req.BookingID))
 		return
 	}
 
-	// 3. Update DB
-	_, err = database.Pool.Exec(r.Context(),
+	// Check if already paid (idempotent - return success without error)
+	if b.PaymentStatus == "paid" {
+		logger.Info("Payment already verified (idempotent)", zap.String("booking_id", req.BookingID))
+		response.JSON(w, http.StatusOK, nil, "Payment already verified")
+		return
+	}
+
+	// 3. Update to paid (within transaction)
+	_, err = tx.Exec(txCtx,
 		"UPDATE bookings SET payment_status = 'paid', razorpay_payment_id = $1 WHERE id = $2",
 		req.RazorpayPaymentID, req.BookingID,
 	)
 	if err != nil {
 		logger.Error("Failed to update booking payment status", zap.String("booking_id", req.BookingID), zap.Error(err))
 		response.AppErr(w, apperror.DatabaseError("update booking", err))
+		return
+	}
+
+	// Commit the transaction
+	if err := tx.Commit(txCtx); err != nil {
+		logger.Error("Failed to commit verification transaction", zap.Error(err))
+		response.AppErr(w, apperror.DatabaseError("commit verification", err))
 		return
 	}
 
@@ -447,8 +489,11 @@ func GetRecommendedSlots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Fetch booked slots (same logic as GetBookedSlots)
-	rows, err := database.Pool.Query(r.Context(),
+	// 1. Fetch booked slots with timeout
+	ctx, cancel := context.WithTimeout(r.Context(), dbQueryTimeout)
+	defer cancel()
+
+	rows, err := database.Pool.Query(ctx,
 		`SELECT time FROM bookings WHERE date = $1
 		 AND (payment_status = 'paid'
 		      OR (payment_status = 'pending' AND created_at > NOW() - INTERVAL '`+pendingHoldWindow+`'))`,
@@ -493,7 +538,10 @@ func GetUserBookings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	rows, err := database.Pool.Query(r.Context(), 
+	ctx, cancel := context.WithTimeout(r.Context(), dbQueryTimeout)
+	defer cancel()
+
+	rows, err := database.Pool.Query(ctx, 
 		`SELECT id, date, time, name, email, meeting_link, payment_status, amount, created_at 
 		FROM bookings WHERE user_id = $1 ORDER BY date DESC`, 
 		userID,
@@ -532,9 +580,13 @@ func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		return
 	}
 
+	// Use timeout context for all DB operations
+	ctx, cancel := context.WithTimeout(r.Context(), dbTransactionTimeout)
+	defer cancel()
+
 	// Fetch date and time before deleting (for WebSocket broadcast)
 	var date, timeSlot string
-	err := database.Pool.QueryRow(r.Context(),
+	err := database.Pool.QueryRow(ctx,
 		"SELECT date, time FROM bookings WHERE id = $1 AND user_id = $2",
 		bookingID, userID,
 	).Scan(&date, &timeSlot)
@@ -544,7 +596,7 @@ func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		return
 	}
 
-	result, err := database.Pool.Exec(r.Context(),
+	result, err := database.Pool.Exec(ctx,
 		"DELETE FROM bookings WHERE id = $1 AND user_id = $2",
 		bookingID, userID,
 	)
@@ -679,8 +731,10 @@ func RazorpayWebhook(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit 
 		zap.String("order_id", orderID),
 	)
 
-	// Idempotency check
-	ctx := r.Context()
+	// Idempotency check (with timeout)
+	ctx, cancel := context.WithTimeout(r.Context(), dbTransactionTimeout)
+	defer cancel()
+	
 	var exists int
 	if err := database.Pool.QueryRow(ctx,
 		"SELECT COUNT(*) FROM processed_webhooks WHERE event_id = $1", eventID,
