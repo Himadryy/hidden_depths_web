@@ -1,24 +1,31 @@
 @import "tailwindcss";
 
 :root {
-  /* Default (Light) - Morning Sanctuary */
-  --background: #FAFAFA;
-  --foreground: #1A1A1A;
-  --accent: #C49A45; /* Soft, elegant gold */
-  --glass-panel: rgba(255, 255, 255, 0.7);
-  --glass-border: rgba(0, 0, 0, 0.05);
-  --text-muted: rgba(26, 26, 26, 0.6);
+  /* Bloom Theme (Light) - The Morning Sanctuary */
+  --background: #F9F6FA;
+  --foreground: #2D2636;
+  --accent: #703A84; /* Muted Violet */
+  --accent-deep: #4C1F39; /* Deep Plum */
+  --glass-panel: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(112, 58, 132, 0.1);
+  --text-muted: rgba(45, 38, 54, 0.6);
   
   --font-serif: var(--font-serif);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-sans);
+
+  /* Radius System */
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 48px;
 }
 
 [data-theme='dark'] {
-  /* Dark Mode - Abyssal Sanctuary */
-  --background: #0A0A0A;
+  /* Abyssal Sanctuary (Updated for Sophistication) */
+  --background: #050508;
   --foreground: #F5F5F5;
-  --accent: #E5C07B; /* Bright, luxurious gold */
-  --glass-panel: rgba(10, 10, 10, 0.7);
+  --accent: #A78BFA; /* Softer Violet */
+  --accent-deep: #7C3AED;
+  --glass-panel: rgba(5, 5, 8, 0.7);
   --glass-border: rgba(255, 255, 255, 0.1);
   --text-muted: rgba(245, 245, 245, 0.6);
 }
@@ -27,7 +34,15 @@ body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  line-height: 1.7; /* Breathing space for text */
   transition: background-color 1.5s ease-in-out, color 1.5s ease-in-out;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, .font-serif {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 html {
@@ -36,8 +51,37 @@ html {
 
 @theme {
   --font-serif: var(--font-serif), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-  --color-gold: var(--accent);
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --color-bloom-violet: var(--accent);
+  --color-bloom-plum: var(--accent-deep);
+  --radius-bloom: var(--radius-xl);
+  --radius-bloom-full: var(--radius-2xl);
+}
+
+/* UI Components - The "Bloom" Style */
+.btn-bloom {
+  @apply px-8 py-4 rounded-full font-medium transition-all duration-500 ease-out;
+  background-color: var(--accent);
+  color: white;
+  box-shadow: 0 10px 30px -10px rgba(112, 58, 132, 0.3);
+}
+
+.btn-bloom:hover {
+  @apply transform -translate-y-1;
+  background-color: var(--accent-deep);
+  box-shadow: 0 20px 40px -12px rgba(112, 58, 132, 0.4);
+}
+
+.card-bloom {
+  /* Avoid `@apply bg-glass border-glass` since those are custom CSS classes,
+     not Tailwind utilities. */
+  @apply p-8 border backdrop-blur-xl;
+  border-radius: var(--radius-xl);
+  background-color: var(--glass-panel);
+  border-color: var(--glass-border);
+  /* Keep the same blur as the `.bg-glass` utility definition. */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 /* Utilities utilizing vars */

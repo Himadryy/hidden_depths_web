@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Playfair_Display, Plus_Jakarta_Sans } from 'next/font/google';
 import Script from 'next/script';
 import './globals.css';
 import { ThemeProvider } from '@/context/ThemeProvider';
@@ -6,6 +7,18 @@ import { PerformanceProvider } from '@/context/PerformanceProvider';
 import { AuthProvider } from '@/context/AuthProvider';
 import { ServiceSchema, OrganizationSchema } from '@/components/StructuredData';
 import ErrorBoundary from '@/components/ErrorBoundary';
+
+const playfair = Playfair_Display({
+  subsets: ['latin'],
+  variable: '--font-serif',
+  display: 'swap',
+});
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+});
 
 // TODO: Replace with your actual GA ID
 const GA_TRACKING_ID = 'G-XXXXXXXXXX';
@@ -113,7 +126,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${playfair.variable} ${plusJakarta.variable}`}>
       <head>
          {/* AI Crawler Permissions */}
          <meta name="GPTBot" content="index, follow" />
