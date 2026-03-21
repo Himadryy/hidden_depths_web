@@ -1,0 +1,505 @@
+basePath: /api/v1
+definitions:
+  github_com_Himadryy_hidden-depths-backend_internal_models.Booking:
+    properties:
+      amount:
+        type: number
+      created_at:
+        type: string
+      date:
+        description: 'Format: "YYYY-MM-DD"'
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      meeting_link:
+        description: Meeting
+        type: string
+      mentor_notes:
+        type: string
+      name:
+        type: string
+      payment_status:
+        description: Payment
+        type: string
+      razorpay_order_id:
+        type: string
+      razorpay_payment_id:
+        type: string
+      time:
+        description: 'Format: "12:00 PM"'
+        type: string
+      user_id:
+        type: string
+      user_notes:
+        description: Notes
+        type: string
+    type: object
+  github_com_Himadryy_hidden-depths-backend_internal_models.Insight:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      mediaType:
+        description: '''image'' or ''video'''
+        type: string
+      mediaUrl:
+        type: string
+      order:
+        type: integer
+      title:
+        type: string
+    type: object
+host: hidden-depths-web.onrender.com
+info:
+  contact:
+    email: support@hiddendepths.com
+    name: Hidden Depths Support
+  description: Mental health mentorship platform API for booking sessions and managing
+    content.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://hidden-depths-web.pages.dev/terms
+  title: Hidden Depths API
+  version: "1.0"
+paths:
+  /admin/insights:
+    post:
+      consumes:
+      - application/json
+      description: Adds a new insight to the carousel. Admin only.
+      parameters:
+      - description: Insight details
+        in: body
+        name: insight
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Himadryy_hidden-depths-backend_internal_models.Insight'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create insight card (Admin)
+      tags:
+      - Admin
+  /admin/insights/{id}:
+    delete:
+      description: Removes an insight from the carousel. Admin only.
+      parameters:
+      - description: Insight ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete insight card (Admin)
+      tags:
+      - Admin
+    put:
+      consumes:
+      - application/json
+      description: Updates an existing insight. Admin only.
+      parameters:
+      - description: Insight ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated insight
+        in: body
+        name: insight
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Himadryy_hidden-depths-backend_internal_models.Insight'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update insight card (Admin)
+      tags:
+      - Admin
+  /bookings:
+    post:
+      consumes:
+      - application/json
+      description: Initiates a booking with atomic DB transaction. Creates Razorpay
+        order for paid sessions.
+      parameters:
+      - description: Booking details
+        in: body
+        name: booking
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Himadryy_hidden-depths-backend_internal_models.Booking'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payment initiated (paid sessions)
+          schema:
+            additionalProperties: true
+            type: object
+        "201":
+          description: Booking confirmed (free sessions)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Slot unavailable
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a new booking
+      tags:
+      - Bookings
+  /bookings/{id}:
+    delete:
+      description: Allows users to cancel their own booking. Frees the slot and broadcasts
+        via WebSocket.
+      parameters:
+      - description: Booking ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Cancel a booking
+      tags:
+      - Bookings
+  /bookings/me:
+    get:
+      description: Returns all bookings for the authenticated user, ordered by date
+        descending.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user's bookings
+      tags:
+      - Bookings
+  /bookings/recommend/{date}:
+    get:
+      description: Returns available slots with neural-inspired scoring to help users
+        pick optimal times.
+      parameters:
+      - description: Date (YYYY-MM-DD)
+        in: path
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get recommended time slots
+      tags:
+      - Bookings
+  /bookings/slots/{date}:
+    get:
+      description: Returns all time slots booked for a specific date (confirmed or
+        active pending within 5-min hold).
+      parameters:
+      - description: Date (YYYY-MM-DD)
+        in: path
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get booked time slots for a date
+      tags:
+      - Bookings
+  /bookings/verify-payment:
+    post:
+      consumes:
+      - application/json
+      description: Confirms Razorpay payment signature and marks booking as paid.
+        Sends confirmation email.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payment verified
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Invalid signature
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Verify Razorpay payment
+      tags:
+      - Bookings
+  /health/ready:
+    get:
+      description: Returns health status of database and cache connectivity. Used
+        by load balancers.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: System ready
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: System degraded
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Readiness health check
+      tags:
+      - Health
+  /insights:
+    get:
+      description: Returns all insights ordered by sort_order for homepage carousel.
+        Uses cache-aside pattern.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get all insight cards
+      tags:
+      - Insights
+  /webhook/razorpay:
+    post:
+      consumes:
+      - application/json
+      description: Handles asynchronous payment notifications from Razorpay. Source
+        of truth for payment status.
+      parameters:
+      - description: HMAC-SHA256 signature
+        in: header
+        name: X-Razorpay-Signature
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Webhook processed
+        "400":
+          description: Invalid payload
+        "401":
+          description: Invalid signature
+        "500":
+          description: Processing error
+      summary: Razorpay payment webhook
+      tags:
+      - Webhooks
+securityDefinitions:
+  BearerAuth:
+    description: 'JWT token from Supabase authentication. Format: "Bearer {token}"'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
+tags:
+- description: Booking management endpoints
+  name: Bookings
+- description: Insight cards for the homepage carousel
+  name: Insights
+- description: Admin-only endpoints for managing content
+  name: Admin
+- description: Health check endpoints
+  name: Health
+- description: External service webhook endpoints
+  name: Webhooks

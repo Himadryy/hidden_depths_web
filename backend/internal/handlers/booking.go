@@ -58,9 +58,16 @@ const (
 	dbTransactionTimeout = 30 * time.Second // For multi-step transactions
 )
 
-// GetBookedSlots returns all time slots booked for a specific date.
-// A slot is "booked" if it has a confirmed payment OR an active pending payment (< 5 min).
-// Uses cache-aside pattern: check cache first, fallback to DB, populate cache on miss.
+// GetBookedSlots godoc
+// @Summary Get booked time slots for a date
+// @Description Returns all time slots booked for a specific date (confirmed or active pending within 5-min hold).
+// @Tags Bookings
+// @Produce json
+// @Param date path string true "Date (YYYY-MM-DD)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /bookings/slots/{date} [get]
 func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 	date := chi.URLParam(r, "date")
 	if date == "" {
@@ -122,14 +129,20 @@ func InvalidateSlotsCache(ctx context.Context, date string) {
 	}
 }
 
-// CreateBooking initiates a booking using atomic DB transaction.
-// Logic:
-//  1. Reject if a PAID booking exists for this slot (truly taken).
-//  2. Reject if ANOTHER user has an active pending (< 5 min) — they're paying.
-//  3. Delete ALL non-paid rows for this slot (own stale pending, others' expired, failed).
-//  4. Create Razorpay order (if paid session, with circuit breaker) and INSERT the new booking.
-//
-// This allows the same user to retry freely and self-heals stale rows.
+// CreateBooking godoc
+// @Summary Create a new booking
+// @Description Initiates a booking with atomic DB transaction. Creates Razorpay order for paid sessions.
+// @Tags Bookings
+// @Accept json
+// @Produce json
+// @Param booking body models.Booking true "Booking details"
+// @Success 200 {object} map[string]interface{} "Payment initiated (paid sessions)"
+// @Success 201 {object} map[string]interface{} "Booking confirmed (free sessions)"
+// @Failure 400 {object} map[string]interface{}
+// @Failure 409 {object} map[string]interface{} "Slot unavailable"
+// @Failure 500 {object} map[string]interface{}
+// @Router /bookings [post]
+// @Security BearerAuth
 func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *services.AuditService) {
 	var booking models.Booking
 	if err := json.NewDecoder(r.Body).Decode(&booking); err != nil {
@@ -334,7 +347,19 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	}
 }
 
-// VerifyPayment confirms a Razorpay payment and finalizes the booking
+// VerifyPayment godoc
+// @Summary Verify Razorpay payment
+// @Description Confirms Razorpay payment signature and marks booking as paid. Sends confirmation email.
+// @Tags Bookings
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{} "Payment verified"
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{} "Invalid signature"
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /bookings/verify-payment [post]
+// @Security BearerAuth
 func VerifyPayment(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *services.AuditService) {
 	var req struct {
 		BookingID         string `json:"booking_id"`
@@ -481,7 +506,16 @@ func finalizeBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit 
 	}()
 }
 
-// GetRecommendedSlots provides a score for each available slot on a date
+// GetRecommendedSlots godoc
+// @Summary Get recommended time slots
+// @Description Returns available slots with neural-inspired scoring to help users pick optimal times.
+// @Tags Bookings
+// @Produce json
+// @Param date path string true "Date (YYYY-MM-DD)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /bookings/recommend/{date} [get]
 func GetRecommendedSlots(w http.ResponseWriter, r *http.Request) {
 	date := chi.URLParam(r, "date")
 	if date == "" {
@@ -530,7 +564,16 @@ func GetRecommendedSlots(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, scores, "Recommendations calculated")
 }
 
-// GetUserBookings returns all bookings for the authenticated user
+// GetUserBookings godoc
+// @Summary Get user's bookings
+// @Description Returns all bookings for the authenticated user, ordered by date descending.
+// @Tags Bookings
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /bookings/me [get]
+// @Security BearerAuth
 func GetUserBookings(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("user_id").(string)
 	if !ok || userID == "" {
@@ -566,7 +609,19 @@ func GetUserBookings(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, bookings, "User bookings fetched")
 }
 
-// CancelBooking allows a user to cancel their own booking
+// CancelBooking godoc
+// @Summary Cancel a booking
+// @Description Allows users to cancel their own booking. Frees the slot and broadcasts via WebSocket.
+// @Tags Bookings
+// @Produce json
+// @Param id path string true "Booking ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /bookings/{id} [delete]
+// @Security BearerAuth
 func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *services.AuditService) {
 	bookingID := chi.URLParam(r, "id")
 	userID, ok := r.Context().Value("user_id").(string)
@@ -628,7 +683,14 @@ func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	response.JSON(w, http.StatusOK, nil, "Booking cancelled successfully")
 }
 
-// HealthReady checks if the backend can serve requests (DB + Redis connectivity).
+// HealthReady godoc
+// @Summary Readiness health check
+// @Description Returns health status of database and cache connectivity. Used by load balancers.
+// @Tags Health
+// @Produce json
+// @Success 200 {object} map[string]interface{} "System ready"
+// @Failure 503 {object} map[string]interface{} "System degraded"
+// @Router /health/ready [get]
 func HealthReady(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
@@ -663,9 +725,17 @@ func HealthReady(w http.ResponseWriter, r *http.Request) {
 	}, overall)
 }
 
-// RazorpayWebhook handles asynchronous payment notifications from Razorpay.
-// This is the source of truth for payment status — even if the frontend loses connection,
-// the webhook ensures bookings are confirmed or released.
+// RazorpayWebhook godoc
+// @Summary Razorpay payment webhook
+// @Description Handles asynchronous payment notifications from Razorpay. Source of truth for payment status.
+// @Tags Webhooks
+// @Accept json
+// @Param X-Razorpay-Signature header string true "HMAC-SHA256 signature"
+// @Success 200 "Webhook processed"
+// @Failure 400 "Invalid payload"
+// @Failure 401 "Invalid signature"
+// @Failure 500 "Processing error"
+// @Router /webhook/razorpay [post]
 func RazorpayWebhook(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *services.AuditService) {
 	// Read raw body for signature verification
 	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20)) // 1MB limit

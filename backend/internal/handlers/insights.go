@@ -16,8 +16,14 @@ import (
 	"go.uber.org/zap"
 )
 
-// GetAllInsights returns all insights ordered by sort_order.
-// Uses cache-aside pattern: check cache first, fallback to DB on miss.
+// GetAllInsights godoc
+// @Summary Get all insight cards
+// @Description Returns all insights ordered by sort_order for homepage carousel. Uses cache-aside pattern.
+// @Tags Insights
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /insights [get]
 func GetAllInsights(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	cacheKey := cache.InsightsKey()
@@ -67,7 +73,20 @@ func InvalidateInsightsCache(ctx context.Context) {
 	}
 }
 
-// CreateInsight adds a new insight (Admin Only)
+// CreateInsight godoc
+// @Summary Create insight card (Admin)
+// @Description Adds a new insight to the carousel. Admin only.
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Param insight body models.Insight true "Insight details"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 403 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /admin/insights [post]
+// @Security BearerAuth
 func CreateInsight(w http.ResponseWriter, r *http.Request) {
 	var i models.Insight
 	if err := json.NewDecoder(r.Body).Decode(&i); err != nil {
@@ -97,7 +116,21 @@ func CreateInsight(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusCreated, i, "Insight created")
 }
 
-// UpdateInsight updates an existing insight (Admin Only)
+// UpdateInsight godoc
+// @Summary Update insight card (Admin)
+// @Description Updates an existing insight. Admin only.
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Param id path string true "Insight ID"
+// @Param insight body models.Insight true "Updated insight"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 403 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /admin/insights/{id} [put]
+// @Security BearerAuth
 func UpdateInsight(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if id == "" {
@@ -128,7 +161,19 @@ func UpdateInsight(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, nil, "Insight updated")
 }
 
-// DeleteInsight removes an insight (Admin Only)
+// DeleteInsight godoc
+// @Summary Delete insight card (Admin)
+// @Description Removes an insight from the carousel. Admin only.
+// @Tags Admin
+// @Produce json
+// @Param id path string true "Insight ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 403 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /admin/insights/{id} [delete]
+// @Security BearerAuth
 func DeleteInsight(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if id == "" {

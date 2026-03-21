@@ -1,3 +1,33 @@
+// Hidden Depths API
+// @title Hidden Depths API
+// @version 1.0
+// @description Mental health mentorship platform API for booking sessions and managing content.
+// @termsOfService https://hidden-depths-web.pages.dev/terms
+
+// @contact.name Hidden Depths Support
+// @contact.email support@hiddendepths.com
+
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+
+// @host hidden-depths-web.onrender.com
+// @BasePath /api/v1
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description JWT token from Supabase authentication. Format: "Bearer {token}"
+
+// @tag.name Bookings
+// @tag.description Booking management endpoints
+// @tag.name Insights
+// @tag.description Insight cards for the homepage carousel
+// @tag.name Admin
+// @tag.description Admin-only endpoints for managing content
+// @tag.name Health
+// @tag.description Health check endpoints
+// @tag.name Webhooks
+// @tag.description External service webhook endpoints
 package main
 
 import (
@@ -19,6 +49,7 @@ import (
 	"github.com/Himadryy/hidden-depths-backend/pkg/response"
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/robfig/cron/v3"
 	"github.com/rs/cors"
 	"go.uber.org/zap"
@@ -37,7 +68,13 @@ func main() {
 	}
 	defer logger.Sync()
 
-	// 3. Connect to Database (Supabase)
+	// 3. Initialize Sentry Error Tracking (optional - graceful if no DSN)
+	if err := middleware.InitSentry(logger.Log); err != nil {
+		logger.Warn("Sentry initialization failed, continuing without error tracking", zap.Error(err))
+	}
+	defer middleware.FlushSentry(2 * time.Second)
+
+	// 4. Connect to Database (Supabase)
 	if err := database.ConnectDB(cfg.DatabaseURL); err != nil {
 		logger.Fatal("Could not connect to database", zap.Error(err))
 	}
@@ -76,12 +113,14 @@ func main() {
 	r := chi.NewRouter()
 
 	r.Use(chiMiddleware.RequestID)
-	r.Use(middleware.RequestIDResponse) // Propagate request ID to response headers
+	r.Use(middleware.RequestIDResponse)            // Propagate request ID to response headers
 	r.Use(chiMiddleware.RealIP)
 	r.Use(chiMiddleware.Logger)
+	r.Use(middleware.SentryRecovery(logger.Log))   // Sentry panic capture (before chi Recoverer)
 	r.Use(chiMiddleware.Recoverer)
 	r.Use(chiMiddleware.Timeout(60 * time.Second))
-	r.Use(middleware.SecurityHeaders) // Security headers (CSP, HSTS, X-Frame-Options, etc.)
+	r.Use(middleware.SecurityHeaders)              // Security headers (CSP, HSTS, X-Frame-Options, etc.)
+	r.Use(middleware.PrometheusMetrics)            // Prometheus metrics collection
 	r.Use(globalLimiter.Handler)
 
 	// CORS Setup
@@ -102,6 +141,9 @@ func main() {
 			response.JSON(w, http.StatusOK, map[string]string{"status": "ok"}, "Healthy")
 		})
 		r.Get("/health/ready", handlers.HealthReady)
+
+		// Prometheus metrics endpoint (for Grafana/monitoring)
+		r.Handle("/metrics", promhttp.Handler())
 
 		// WebSocket at /api level (not versioned - stateful connection)
 		r.Get("/ws", hub.ServeWS)
