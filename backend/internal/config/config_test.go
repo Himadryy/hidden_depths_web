@@ -10,7 +10,7 @@ import (
 
 func TestConfig_Validate_RequiredFields(t *testing.T) {
 	cfg := &Config{
-		Port:        "8081",
+		Port:        "8080",
 		Environment: "development",
 		// Missing: DatabaseURL, JWTSecret, SupabaseAnonKey
 	}
@@ -28,7 +28,7 @@ func TestConfig_Validate_RequiredFields(t *testing.T) {
 
 func TestConfig_Validate_ValidConfig(t *testing.T) {
 	cfg := &Config{
-		Port:            "8081",
+		Port:        "8080",
 		Environment:     "development",
 		DatabaseURL:     "postgres://localhost:5432/test",
 		JWTSecret:       "this-is-a-very-long-secret-key-for-testing-purposes",
@@ -41,7 +41,7 @@ func TestConfig_Validate_ValidConfig(t *testing.T) {
 
 func TestConfig_Validate_JWTSecretLength(t *testing.T) {
 	cfg := &Config{
-		Port:            "8081",
+		Port:        "8080",
 		Environment:     "development",
 		DatabaseURL:     "postgres://localhost:5432/test",
 		JWTSecret:       "short", // Too short
@@ -58,7 +58,7 @@ func TestConfig_Validate_JWTSecretLength(t *testing.T) {
 
 func TestConfig_Validate_InvalidEnvironment(t *testing.T) {
 	cfg := &Config{
-		Port:            "8081",
+		Port:        "8080",
 		Environment:     "invalid-env",
 		DatabaseURL:     "postgres://localhost:5432/test",
 		JWTSecret:       "this-is-a-very-long-secret-key-for-testing-purposes",
@@ -106,7 +106,7 @@ func TestConfig_Validate_InvalidPort(t *testing.T) {
 
 func TestConfig_Validate_ProductionRequirements(t *testing.T) {
 	cfg := &Config{
-		Port:            "8081",
+		Port:        "8080",
 		Environment:     "production",
 		DatabaseURL:     "postgres://localhost:5432/test",
 		JWTSecret:       "this-is-a-very-long-secret-key-for-testing-purposes",
@@ -138,7 +138,7 @@ func TestConfig_Validate_ProductionRequirements(t *testing.T) {
 
 func TestConfig_Validate_ProductionWithAllRequired(t *testing.T) {
 	cfg := &Config{
-		Port:            "8081",
+		Port:        "8080",
 		Environment:     "production",
 		DatabaseURL:     "postgres://localhost:5432/test",
 		JWTSecret:       "this-is-a-very-long-secret-key-for-testing-purposes",

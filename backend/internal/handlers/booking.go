@@ -572,7 +572,7 @@ func GetRecommendedSlots(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
-// @Router /bookings/me [get]
+// @Router /bookings/my [get]
 // @Security BearerAuth
 func GetUserBookings(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("user_id").(string)

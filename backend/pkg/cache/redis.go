@@ -42,7 +42,7 @@ func Init(cfg Config, log *zap.Logger) error {
 		}
 
 		if cfg.URL == "" {
-			logger.Warn("REDIS_URL not set, cache disabled")
+			logger.Info("REDIS_URL not set, cache disabled")
 			enabled = false
 			return
 		}
