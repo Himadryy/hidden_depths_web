@@ -15,7 +15,12 @@ migrate-force:
 	$(MIGRATE) force $(version)
 
 run:
-	cd backend && go run cmd/api/main.go
+	@PORT=8080; \
+	if lsof -ti :8080 >/dev/null 2>&1; then \
+		echo "Port 8080 in use, switching to 8081..."; \
+		PORT=8081; \
+	fi; \
+	cd backend && PORT=$$PORT go run cmd/api/main.go
 
 docker-build:
 	docker compose build
