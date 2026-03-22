@@ -53,21 +53,21 @@ const socialLinks = [
 
 export default function Footer() {
   return (
-    <footer className="bg-[var(--foreground)] text-white py-16">
+    <footer className="bg-[var(--foreground)] text-white py-12 md:py-16">
       <Container>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 md:gap-12">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+            <div className="flex items-center gap-2 mb-3 md:mb-4">
+              <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center flex-shrink-0">
                 <span className="text-[var(--accent)] font-serif text-xl font-bold">H</span>
               </div>
-              <span className="font-serif text-xl font-semibold">Hidden Depths</span>
+              <span className="font-serif text-lg md:text-xl font-semibold">Hidden Depths</span>
             </div>
-            <p className="text-white/60 mb-6 max-w-sm">
+            <p className="text-white/60 mb-4 md:mb-6 max-w-sm text-sm md:text-base">
               Professional mental health services to help you find peace, clarity, and emotional well-being.
             </p>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 md:gap-4">
               {socialLinks.map((social) => (
                 <a
                   key={social.label}
@@ -83,11 +83,11 @@ export default function Footer() {
 
           {/* Services */}
           <div>
-            <h4 className="font-semibold mb-4">Services</h4>
-            <ul className="space-y-3">
+            <h4 className="font-semibold text-sm md:text-base mb-3 md:mb-4">Services</h4>
+            <ul className="space-y-2 md:space-y-3">
               {footerLinks.services.map((link) => (
                 <li key={link.label}>
-                  <Link href={link.href} className="text-white/60 hover:text-white transition-colors text-sm">
+                  <Link href={link.href} className="text-white/60 hover:text-white transition-colors text-xs md:text-sm">
                     {link.label}
                   </Link>
                 </li>
@@ -97,11 +97,11 @@ export default function Footer() {
 
           {/* Company */}
           <div>
-            <h4 className="font-semibold mb-4">Company</h4>
-            <ul className="space-y-3">
+            <h4 className="font-semibold text-sm md:text-base mb-3 md:mb-4">Company</h4>
+            <ul className="space-y-2 md:space-y-3">
               {footerLinks.company.map((link) => (
                 <li key={link.label}>
-                  <Link href={link.href} className="text-white/60 hover:text-white transition-colors text-sm">
+                  <Link href={link.href} className="text-white/60 hover:text-white transition-colors text-xs md:text-sm">
                     {link.label}
                   </Link>
                 </li>
@@ -111,11 +111,11 @@ export default function Footer() {
 
           {/* Legal */}
           <div>
-            <h4 className="font-semibold mb-4">Legal</h4>
-            <ul className="space-y-3">
+            <h4 className="font-semibold text-sm md:text-base mb-3 md:mb-4">Legal</h4>
+            <ul className="space-y-2 md:space-y-3">
               {footerLinks.legal.map((link) => (
                 <li key={link.label}>
-                  <Link href={link.href} className="text-white/60 hover:text-white transition-colors text-sm">
+                  <Link href={link.href} className="text-white/60 hover:text-white transition-colors text-xs md:text-sm">
                     {link.label}
                   </Link>
                 </li>
@@ -125,15 +125,15 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-white/40 text-sm">
+        <div className="mt-8 md:mt-12 pt-6 md:pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <p className="text-white/40 text-xs md:text-sm">
             © {new Date().getFullYear()} Hidden Depths. All rights reserved.
           </p>
-          <div className="flex items-center gap-6">
-            <a href="mailto:contact@hiddendepths.com" className="text-white/60 hover:text-white text-sm transition-colors">
+          <div className="flex flex-col sm:flex-row items-center gap-3 md:gap-6 text-xs md:text-sm">
+            <a href="mailto:contact@hiddendepths.com" className="text-white/60 hover:text-white transition-colors">
               contact@hiddendepths.com
             </a>
-            <a href="tel:+1234567890" className="text-white/60 hover:text-white text-sm transition-colors">
+            <a href="tel:+1234567890" className="text-white/60 hover:text-white transition-colors">
               +1 (234) 567-890
             </a>
           </div>

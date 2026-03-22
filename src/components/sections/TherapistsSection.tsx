@@ -54,26 +54,26 @@ export default function TherapistsSection() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12"
+          className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 mb-8 md:mb-12"
         >
           <div className="max-w-xl">
-            <span className="inline-block px-4 py-2 mb-4 text-sm font-medium rounded-full bg-[var(--accent)]/10 text-[var(--accent)]">
+            <span className="inline-block px-3 md:px-4 py-2 mb-3 md:mb-4 text-xs md:text-sm font-medium rounded-full bg-[var(--accent)]/10 text-[var(--accent)]">
               Our Team
             </span>
-            <h2 className="heading-section font-serif text-[var(--foreground)] mb-4">
+            <h2 className="heading-section font-serif text-[var(--foreground)] mb-2 md:mb-4">
               Meet Our Expert Therapists
             </h2>
-            <p className="text-body">
+            <p className="text-sm md:text-body">
               Our licensed professionals are here to guide you on your journey to better mental health.
             </p>
           </div>
-          <Button variant="secondary">
+          <Button variant="secondary" className="md:whitespace-nowrap">
             <Link href="/about#therapists">View All Therapists</Link>
           </Button>
         </motion.div>
 
         {/* Therapists Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {therapists.map((therapist, index) => (
             <motion.div
               key={therapist.name}
@@ -86,7 +86,7 @@ export default function TherapistsSection() {
               <div className="card-therapist">
                 {/* Avatar */}
                 <div className={`aspect-[4/3] bg-gradient-to-br ${therapist.color} flex items-center justify-center relative overflow-hidden`}>
-                  <span className="text-white text-4xl font-serif font-bold opacity-80">
+                  <span className="text-white text-3xl md:text-4xl font-serif font-bold opacity-80">
                     {therapist.initials}
                   </span>
                   {/* Decorative pattern */}
@@ -94,16 +94,16 @@ export default function TherapistsSection() {
                 </div>
 
                 {/* Content */}
-                <div className="p-5">
+                <div className="p-4 md:p-5">
                   <div className="flex items-center gap-2 mb-2">
-                    <h3 className="font-semibold text-[var(--foreground)]">
+                    <h3 className="font-semibold text-sm md:text-base text-[var(--foreground)]">
                       {therapist.name}
                     </h3>
                     {therapist.available && (
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" title="Available" />
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" title="Available" />
                     )}
                   </div>
-                  <p className="text-sm text-[var(--text-muted)] mb-3">
+                  <p className="text-xs md:text-sm text-[var(--text-muted)] mb-3">
                     {therapist.title} • {therapist.experience}
                   </p>
                   
@@ -119,7 +119,7 @@ export default function TherapistsSection() {
                   {/* Book Button */}
                   <Link
                     href="/booking"
-                    className="block w-full text-center py-2 rounded-full text-sm font-medium text-[var(--accent)] bg-[var(--accent)]/10 hover:bg-[var(--accent)] hover:text-white transition-all duration-300"
+                    className="block w-full text-center py-2 rounded-full text-xs md:text-sm font-medium text-[var(--accent)] bg-[var(--accent)]/10 hover:bg-[var(--accent)] hover:text-white transition-all duration-300"
                   >
                     Book Session
                   </Link>

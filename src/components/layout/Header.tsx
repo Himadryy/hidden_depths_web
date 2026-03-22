@@ -46,13 +46,13 @@ export default function Header() {
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+        <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
             <div className="w-10 h-10 rounded-full bg-[var(--accent)] flex items-center justify-center">
-              <span className="text-white font-serif text-xl font-bold">H</span>
+              <span className="text-white font-serif text-lg md:text-xl font-bold">H</span>
             </div>
-            <span className="font-serif text-xl font-semibold text-[var(--foreground)]">
+            <span className="font-serif text-lg md:text-xl font-semibold text-[var(--foreground)] hidden sm:inline">
               Hidden Depths
             </span>
           </Link>
@@ -71,7 +71,7 @@ export default function Header() {
           </nav>
 
           {/* Right Actions */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
@@ -89,7 +89,7 @@ export default function Header() {
               )}
             </button>
 
-            {/* CTA Button */}
+            {/* CTA Button - Desktop */}
             <div className="hidden md:block">
               <Button variant="primary" size="sm">
                 <Link href="/booking">Get Started</Link>
@@ -129,13 +129,13 @@ export default function Header() {
                   key={link.href}
                   href={link.href}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="block px-4 py-3 rounded-lg text-[var(--foreground)] hover:bg-[var(--accent)]/10 transition-colors"
+                  className="block px-3 py-2 rounded-lg text-sm text-[var(--foreground)] hover:bg-[var(--accent)]/10 transition-colors"
                 >
                   {link.label}
                 </Link>
               ))}
               <div className="pt-2">
-                <Button variant="primary" size="md" className="w-full">
+                <Button variant="primary" size="md" className="w-full text-sm">
                   <Link href="/booking">Get Started</Link>
                 </Button>
               </div>

@@ -76,22 +76,22 @@ export default function ServicesSection() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center max-w-2xl mx-auto mb-16"
+          className="text-center max-w-2xl mx-auto mb-12 md:mb-16"
         >
-          <span className="inline-block px-4 py-2 mb-4 text-sm font-medium rounded-full bg-[var(--accent)]/10 text-[var(--accent)]">
+          <span className="inline-block px-3 md:px-4 py-2 mb-3 md:mb-4 text-xs md:text-sm font-medium rounded-full bg-[var(--accent)]/10 text-[var(--accent)]">
             Our Services
           </span>
-          <h2 className="heading-section font-serif text-[var(--foreground)] mb-4">
+          <h2 className="heading-section font-serif text-[var(--foreground)] mb-3 md:mb-4">
             Comprehensive Mental Health Support
           </h2>
-          <p className="text-body">
+          <p className="text-sm md:text-body px-2">
             We offer a range of therapeutic services designed to support your mental health journey, 
             no matter where you are in life.
           </p>
         </motion.div>
 
         {/* Services Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {services.map((service, index) => (
             <motion.div
               key={service.title}
@@ -101,20 +101,20 @@ export default function ServicesSection() {
               transition={{ delay: index * 0.1 }}
             >
               <Card variant="service" className="h-full">
-                <div className="w-14 h-14 rounded-[var(--radius-lg)] bg-[var(--accent)]/10 flex items-center justify-center text-[var(--accent)] mb-6">
+                <div className="w-12 md:w-14 h-12 md:h-14 rounded-[var(--radius-lg)] bg-[var(--accent)]/10 flex items-center justify-center text-[var(--accent)] mb-4 md:mb-6">
                   {service.icon}
                 </div>
-                <h3 className="heading-card font-serif text-[var(--foreground)] mb-3">
+                <h3 className="heading-card font-serif text-[var(--foreground)] mb-2 md:mb-3">
                   {service.title}
                 </h3>
-                <p className="text-body mb-4">
+                <p className="text-sm md:text-body mb-3 md:mb-4">
                   {service.description}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {service.features.map((feature) => (
                     <span
                       key={feature}
-                      className="text-xs px-3 py-1 rounded-full bg-[var(--glass-panel)] text-[var(--text-muted)]"
+                      className="text-xs px-2 md:px-3 py-1 rounded-full bg-[var(--glass-panel)] text-[var(--text-muted)]"
                     >
                       {feature}
                     </span>
