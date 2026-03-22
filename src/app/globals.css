@@ -6,28 +6,59 @@
   --foreground: #2D2636;
   --accent: #703A84; /* Muted Violet */
   --accent-deep: #4C1F39; /* Deep Plum */
-  --glass-panel: rgba(255, 255, 255, 0.6);
+  --accent-warm: #934A3F; /* Warm Terracotta */
+  --muted: #757089; /* Muted gray-violet */
+  --muted-dark: #5F566F; /* Dark violet gray */
+  --glass-panel: rgba(255, 255, 255, 0.85);
   --glass-border: rgba(112, 58, 132, 0.1);
   --text-muted: rgba(45, 38, 54, 0.6);
+  --card-bg: #FFFFFF;
+  --card-border: rgba(112, 58, 132, 0.08);
   
   --font-serif: var(--font-serif);
   --font-sans: var(--font-sans);
 
   /* Radius System */
+  --radius-sm: 8px;
+  --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 24px;
   --radius-2xl: 48px;
+
+  /* Typography Scale */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --text-5xl: 3rem;
+  --text-6xl: 3.75rem;
+  --text-7xl: 4.5rem;
+
+  /* Spacing Scale */
+  --space-section: 6rem;
+  --space-component: 3rem;
+  --container-max: 1280px;
+  --container-padding: 1.5rem;
 }
 
 [data-theme='dark'] {
   /* Abyssal Sanctuary (Updated for Sophistication) */
-  --background: #050508;
+  --background: #0A0A0F;
   --foreground: #F5F5F5;
   --accent: #A78BFA; /* Softer Violet */
   --accent-deep: #7C3AED;
-  --glass-panel: rgba(5, 5, 8, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.1);
+  --accent-warm: #C87B6E;
+  --muted: #9A94A8;
+  --muted-dark: #7A748A;
+  --glass-panel: rgba(20, 20, 30, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.08);
   --text-muted: rgba(245, 245, 245, 0.6);
+  --card-bg: rgba(20, 20, 30, 0.6);
+  --card-border: rgba(255, 255, 255, 0.06);
 }
 
 body {
@@ -120,4 +151,193 @@ html {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent);
+}
+
+/* ========================================
+   BLOOM DESIGN SYSTEM - Layout & Grid
+   ======================================== */
+
+.container-bloom {
+  width: 100%;
+  max-width: var(--container-max);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--container-padding);
+  padding-right: var(--container-padding);
+}
+
+.section-bloom {
+  padding-top: var(--space-section);
+  padding-bottom: var(--space-section);
+}
+
+@media (max-width: 768px) {
+  :root {
+    --space-section: 4rem;
+    --container-padding: 1rem;
+  }
+}
+
+/* 12-Column Grid */
+.grid-bloom {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .grid-bloom {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .grid-bloom {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+  }
+}
+
+/* Typography Classes */
+.heading-hero {
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+}
+
+.heading-section {
+  font-size: clamp(1.875rem, 4vw, 2.5rem);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+.heading-card {
+  font-size: clamp(1.25rem, 2vw, 1.5rem);
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.text-body {
+  font-size: var(--text-base);
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.text-body-lg {
+  font-size: var(--text-lg);
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+/* Button Variants */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem 2rem;
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: white;
+  background-color: var(--accent);
+  border-radius: var(--radius-2xl);
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background-color: var(--accent-deep);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -8px rgba(112, 58, 132, 0.4);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem 2rem;
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--foreground);
+  background-color: transparent;
+  border: 1.5px solid var(--glass-border);
+  border-radius: var(--radius-2xl);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Card Styles */
+.card-service {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  transition: all 0.3s ease;
+}
+
+.card-service:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px -12px rgba(112, 58, 132, 0.15);
+}
+
+.card-therapist {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.card-therapist:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px -12px rgba(112, 58, 132, 0.15);
+}
+
+.card-testimonial {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+}
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.375rem 0.875rem;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  border-radius: var(--radius-2xl);
+  background-color: rgba(112, 58, 132, 0.1);
+  color: var(--accent);
+}
+
+[data-theme='dark'] .badge {
+  background-color: rgba(167, 139, 250, 0.15);
+  color: var(--accent);
+}
+
+/* Image placeholder for therapists */
+.image-placeholder {
+  background: linear-gradient(135deg, var(--muted) 0%, var(--muted-dark) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: var(--text-2xl);
+}
+
+/* Decorative elements */
+.dot-pattern {
+  background-image: radial-gradient(var(--glass-border) 1px, transparent 1px);
+  background-size: 20px 20px;
 }
