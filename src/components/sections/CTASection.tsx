@@ -21,11 +21,11 @@ export default function CTASection() {
           className="text-center max-w-3xl mx-auto px-4"
         >
           <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-serif font-semibold text-white mb-4 md:mb-6">
-            Ready to Start Your Journey to Better Mental Health?
+            Ready to Talk to Someone Who Understands?
           </h2>
           <p className="text-sm md:text-lg text-white/80 mb-6 md:mb-8 max-w-2xl mx-auto">
-            Take the first step today. Our compassionate therapists are ready to support you 
-            on your path to healing and personal growth.
+            Take the first step today. I&apos;m here to listen without judgment, 
+            help you find clarity, and support you through whatever you&apos;re facing.
           </p>
           <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-3 md:gap-4 mb-8 md:mb-12">
             <Button
@@ -33,25 +33,24 @@ export default function CTASection() {
               size="lg"
               className="bg-white text-[var(--accent)] hover:bg-white/90 hover:text-[var(--accent-deep)]"
             >
-              <Link href="/booking">Book Your First Session</Link>
+              <Link href="/booking">Book Your First Session — ₹99</Link>
             </Button>
             <Button
               variant="secondary"
               size="lg"
               className="border-white/30 text-white hover:bg-white/10 hover:border-white/50"
             >
-              <Link href="/faq">Learn More</Link>
+              <Link href="#about">Learn About Me</Link>
             </Button>
           </div>
 
           {/* Contact info */}
           <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-4 md:gap-6 lg:gap-8 text-white/60 text-xs md:text-sm">
-            <a href="mailto:contact@hiddendepths.com" className="hover:text-white transition-colors">
-              contact@hiddendepths.com
+            <a href="mailto:hiddendepthsss@gmail.com" className="hover:text-white transition-colors">
+              hiddendepthsss@gmail.com
             </a>
-            <a href="tel:+1234567890" className="hover:text-white transition-colors">
-              +1 (234) 567-890
-            </a>
+            <span className="hidden sm:inline">•</span>
+            <span className="text-white/40">Based in India 🇮🇳</span>
           </div>
         </motion.div>
       </Container>

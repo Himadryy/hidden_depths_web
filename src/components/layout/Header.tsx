@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import Button from '@/components/ui/Button';
+import { useAuth } from '@/context/AuthProvider';
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -17,6 +18,20 @@ export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const { user, loading, signOut } = useAuth();
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -96,6 +111,67 @@ export default function Header() {
               </Button>
             </div>
 
+            {/* Auth UI - Desktop */}
+            <div className="hidden md:block relative" ref={userMenuRef}>
+              {loading ? (
+                <div className="w-9 h-9 rounded-full bg-[var(--glass-panel)] animate-pulse" />
+              ) : user ? (
+                <>
+                  <button
+                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    className="flex items-center justify-center w-9 h-9 rounded-full bg-[var(--accent)] text-white font-medium text-sm hover:bg-[var(--accent-deep)] transition-colors"
+                    aria-label="User menu"
+                  >
+                    {user.email?.charAt(0).toUpperCase() || 'U'}
+                  </button>
+                  <AnimatePresence>
+                    {isUserMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute right-0 mt-2 w-48 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-lg overflow-hidden z-50"
+                      >
+                        <div className="px-4 py-3 border-b border-[var(--card-border)]">
+                          <p className="text-xs text-[var(--text-muted)]">Signed in as</p>
+                          <p className="text-sm font-medium text-[var(--foreground)] truncate">{user.email}</p>
+                        </div>
+                        <Link
+                          href="/profile"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="block px-4 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--glass-panel)] transition-colors"
+                        >
+                          My Profile
+                        </Link>
+                        <Link
+                          href="/profile"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="block px-4 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--glass-panel)] transition-colors"
+                        >
+                          My Bookings
+                        </Link>
+                        <button
+                          onClick={() => {
+                            signOut();
+                            setIsUserMenuOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-[var(--glass-panel)] transition-colors"
+                        >
+                          Sign Out
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </>
+              ) : (
+                <Link href="/login">
+                  <Button variant="ghost" size="sm">
+                    Sign In
+                  </Button>
+                </Link>
+              )}
+            </div>
+
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -134,6 +210,53 @@ export default function Header() {
                   {link.label}
                 </Link>
               ))}
+              
+              {/* Auth UI - Mobile */}
+              {!loading && (
+                user ? (
+                  <>
+                    <div className="border-t border-[var(--glass-border)] my-2 pt-2">
+                      <p className="px-3 py-1 text-xs text-[var(--text-muted)]">
+                        Signed in as {user.email}
+                      </p>
+                    </div>
+                    <Link
+                      href="/profile"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block px-3 py-2 rounded-lg text-sm text-[var(--foreground)] hover:bg-[var(--accent)]/10 transition-colors"
+                    >
+                      My Profile
+                    </Link>
+                    <Link
+                      href="/profile"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block px-3 py-2 rounded-lg text-sm text-[var(--foreground)] hover:bg-[var(--accent)]/10 transition-colors"
+                    >
+                      My Bookings
+                    </Link>
+                    <button
+                      onClick={() => {
+                        signOut();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-[var(--accent)]/10 transition-colors"
+                    >
+                      Sign Out
+                    </button>
+                  </>
+                ) : (
+                  <div className="border-t border-[var(--glass-border)] my-2 pt-2">
+                    <Link
+                      href="/login"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block px-3 py-2 rounded-lg text-sm text-[var(--foreground)] hover:bg-[var(--accent)]/10 transition-colors"
+                    >
+                      Sign In
+                    </Link>
+                  </div>
+                )
+              )}
+              
               <div className="pt-2">
                 <Button variant="primary" size="md" className="w-full text-sm">
                   <Link href="/booking">Get Started</Link>

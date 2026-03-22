@@ -1,4 +1,4 @@
-import { HeroSection, ServicesSection, TherapistsSection, TestimonialsSection, CTASection } from '@/components/sections';
+import { HeroSection, ServicesSection, AboutSection, TestimonialsSection, CTASection } from '@/components/sections';
 import { Header, Footer } from '@/components/layout';
 
 export default function Home() {
@@ -8,7 +8,7 @@ export default function Home() {
       <main>
         <HeroSection />
         <ServicesSection />
-        <TherapistsSection />
+        <AboutSection />
         <TestimonialsSection />
         <CTASection />
       </main>

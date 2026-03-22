@@ -376,7 +376,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   const passiveButtonStyle = "bg-[var(--background)] border border-glass text-muted hover:bg-[var(--accent)]/10 hover:border-[var(--accent)] hover:text-[var(--foreground)] shadow-sm";
 
   const renderCalendar = () => (
-    <div className="space-y-6 h-full flex flex-col">
+    <div className="space-y-6 h-full w-full max-w-full min-w-0 flex flex-col overflow-x-hidden">
         {/* Promotional Banner */}
         <div className="mt-10 md:mt-0 bg-[var(--accent)]/10 border border-[var(--accent)]/20 p-3 rounded-lg text-center">
             <p className="text-xs md:text-sm font-bold text-[var(--accent)] tracking-wide uppercase">
@@ -391,7 +391,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
         </div>
         
         {/* Rolling List of Dates - Single column on mobile, 2 cols on tablet+ */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 overflow-y-auto pr-2 custom-scrollbar flex-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 overflow-y-auto overflow-x-hidden pr-2 custom-scrollbar flex-1 min-w-0 w-full max-w-full">
             {availableDates.map((date, i) => {
                 const isPaid = isPaidSession(date);
                 return (
@@ -424,8 +424,8 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     const recommendedSlot = Object.keys(recommendations).find(k => recommendations[k] === maxScore && recommendations[k] > 0.7);
 
     return (
-    <div className="space-y-8 h-full flex flex-col">
-        <div className="flex items-center gap-4">
+    <div className="space-y-8 h-full w-full max-w-full min-w-0 flex flex-col overflow-x-hidden">
+        <div className="flex items-center gap-4 min-w-0">
             <button onClick={() => setView('calendar')} className="p-2 -ml-2 rounded-full hover:bg-[var(--foreground)]/5 text-muted hover:text-theme transition-colors">
                 <ChevronLeft size={24} />
             </button>
@@ -443,7 +443,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                 <p className="text-xs uppercase tracking-widest">Checking Availability...</p>
             </div>
         ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 overflow-y-auto pr-2 custom-scrollbar pb-10">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto overflow-x-hidden pr-2 custom-scrollbar pb-10 min-w-0 w-full max-w-full">
                 {visibleSlots.length > 0 ? (
                     visibleSlots.map((time) => {
                         const isBooked = bookedSlots.includes(time);
@@ -455,7 +455,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                                 onClick={() => !isBooked && handleTimeSelect(time)}
                                 disabled={isBooked}
                                 className={`
-                                    py-4 px-4 rounded-xl border flex flex-col items-center justify-center gap-1 group font-sans text-sm tracking-wide shadow-sm transition-all relative
+                                    py-3 px-3 sm:py-4 sm:px-4 rounded-xl border flex flex-col items-center justify-center gap-1 group font-sans text-xs sm:text-sm tracking-wide shadow-sm transition-all relative min-w-0
                                     ${isBooked 
                                         ? 'bg-black/5 dark:bg-white/5 border-transparent text-muted/30 cursor-not-allowed decoration-slice line-through decoration-muted/30' 
                                         : isRecommended
@@ -492,7 +492,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     const isPaid = isPaidSession(selectedDate);
     
     return (
-    <div className="space-y-6 h-full flex flex-col overflow-y-auto pb-safe">
+    <div className="space-y-6 h-full w-full max-w-full min-w-0 flex flex-col overflow-y-auto overflow-x-hidden pb-safe">
         <div className="flex items-center gap-4 shrink-0">
             <button onClick={() => setView('slots')} className="p-2 -ml-2 rounded-full hover:bg-[var(--foreground)]/5 text-muted hover:text-theme transition-colors">
                 <ChevronLeft size={24} />
@@ -571,7 +571,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   )};
 
   const renderSuccess = () => (
-    <div className="flex flex-col items-center justify-center h-full text-center space-y-8 py-10">
+    <div className="flex flex-col items-center justify-center h-full w-full max-w-full min-w-0 text-center space-y-8 py-10 px-4 overflow-x-hidden">
         <motion.div 
             initial={{ scale: 0 }} animate={{ scale: 1 }} 
             className="w-24 h-24 bg-[var(--accent)] rounded-full flex items-center justify-center text-[var(--background)] mb-4 shadow-xl shadow-[var(--accent)]/20"
@@ -601,7 +601,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
         src="https://checkout.razorpay.com/v1/checkout.js"
     />
     <div 
-        className="h-full flex flex-col overflow-hidden overscroll-contain"
+        className="h-full w-full max-w-full min-w-0 flex flex-col overflow-hidden overscroll-contain"
         onWheel={(e) => e.stopPropagation()}
         onTouchMove={(e) => e.stopPropagation()}
     >
@@ -612,7 +612,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.4 }}
-                className="flex-1 h-full"
+                className="flex-1 h-full w-full max-w-full min-w-0 overflow-x-hidden"
             >
                 {view === 'calendar' && renderCalendar()}
                 {view === 'slots' && renderSlots()}

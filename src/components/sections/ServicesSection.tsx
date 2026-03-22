@@ -11,9 +11,9 @@ const services = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
       </svg>
     ),
-    title: 'Individual Therapy',
-    description: 'One-on-one sessions tailored to your unique needs, helping you work through personal challenges.',
-    features: ['Anxiety & Depression', 'Stress Management', 'Self-Esteem'],
+    title: '1-on-1 Mentorship',
+    description: 'Private sessions where you can share anything on your mind. I listen without judgment and help you find clarity.',
+    features: ['Completely Anonymous', 'Non-judgmental', 'Confidential'],
   },
   {
     icon: (
@@ -21,19 +21,9 @@ const services = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
       </svg>
     ),
-    title: 'Couples Therapy',
-    description: 'Strengthen your relationship through improved communication and deeper understanding.',
-    features: ['Communication Skills', 'Conflict Resolution', 'Intimacy Issues'],
-  },
-  {
-    icon: (
-      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-      </svg>
-    ),
-    title: 'Family Therapy',
-    description: 'Build stronger family bonds and create a more harmonious home environment.',
-    features: ['Family Dynamics', 'Parenting Support', 'Youth Counseling'],
+    title: 'Emotional Support',
+    description: 'Sometimes you just need someone to listen. I provide a compassionate ear and heartfelt emotional support.',
+    features: ['Active Listening', 'Empathetic Response', 'Safe Space'],
   },
   {
     icon: (
@@ -41,9 +31,19 @@ const services = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
       </svg>
     ),
-    title: 'Mindfulness & Wellness',
-    description: 'Learn techniques to manage stress, increase awareness, and improve overall well-being.',
-    features: ['Meditation', 'Stress Relief', 'Work-Life Balance'],
+    title: 'Stress Relief',
+    description: 'Learn practical techniques to manage daily stress and find balance in your hectic life.',
+    features: ['Breathing Techniques', 'Mindfulness Tips', 'Practical Advice'],
+  },
+  {
+    icon: (
+      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+      </svg>
+    ),
+    title: 'Life Guidance',
+    description: 'Facing a difficult decision? I help you explore your options and find the path that feels right for you.',
+    features: ['Career Confusion', 'Relationship Issues', 'Life Transitions'],
   },
   {
     icon: (
@@ -52,18 +52,18 @@ const services = [
       </svg>
     ),
     title: 'Online Sessions',
-    description: 'Convenient therapy from the comfort of your home via secure video conferencing.',
-    features: ['Flexible Scheduling', 'Secure Platform', 'No Commute'],
+    description: 'Connect from anywhere in India. All sessions are conducted online for your convenience and privacy.',
+    features: ['Flexible Timing', 'No Travel Needed', 'Private & Secure'],
   },
   {
     icon: (
       <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
-    title: 'Workshops & Groups',
-    description: 'Join supportive group sessions and educational workshops on mental health topics.',
-    features: ['Support Groups', 'Skill Building', 'Community'],
+    title: 'Affordable at ₹99',
+    description: 'Quality emotional support shouldn\'t break the bank. Each session is just ₹99 - accessible to everyone.',
+    features: ['No Hidden Fees', 'Secure Payment', 'Money-back Guarantee'],
   },
 ];
 
@@ -79,14 +79,14 @@ export default function ServicesSection() {
           className="text-center max-w-2xl mx-auto mb-12 md:mb-16"
         >
           <span className="inline-block px-3 md:px-4 py-2 mb-3 md:mb-4 text-xs md:text-sm font-medium rounded-full bg-[var(--accent)]/10 text-[var(--accent)]">
-            Our Services
+            How I Can Help
           </span>
           <h2 className="heading-section font-serif text-[var(--foreground)] mb-3 md:mb-4">
-            Comprehensive Mental Health Support
+            A Listening Ear When You Need It Most
           </h2>
           <p className="text-sm md:text-body px-2">
-            We offer a range of therapeutic services designed to support your mental health journey, 
-            no matter where you are in life.
+            I&apos;m not a licensed therapist, but I&apos;m a trained listener who cares. 
+            Sometimes that&apos;s exactly what you need.
           </p>
         </motion.div>
 
@@ -124,6 +124,20 @@ export default function ServicesSection() {
             </motion.div>
           ))}
         </div>
+
+        {/* Disclaimer */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-8 md:mt-12 p-4 md:p-6 rounded-[var(--radius-xl)] bg-amber-500/10 border border-amber-500/20"
+        >
+          <p className="text-xs md:text-sm text-center text-[var(--foreground)]">
+            <strong>Important:</strong> Hidden Depths provides peer emotional support and wellness mentorship. 
+            I am not a licensed therapist or medical professional. If you&apos;re experiencing a mental health crisis, 
+            please contact emergency services or a qualified mental health professional.
+          </p>
+        </motion.div>
       </Container>
     </section>
   );

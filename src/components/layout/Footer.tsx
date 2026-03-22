@@ -10,7 +10,6 @@ const footerLinks = {
   ],
   company: [
     { label: 'About Us', href: '/about' },
-    { label: 'Our Therapists', href: '/about#therapists' },
     { label: 'Blog', href: '/blog' },
     { label: 'FAQ', href: '/faq' },
   ],
@@ -53,7 +52,7 @@ const socialLinks = [
 
 export default function Footer() {
   return (
-    <footer className="bg-[var(--foreground)] text-white py-12 md:py-16">
+    <footer className="bg-slate-900 text-white py-12 md:py-16">
       <Container>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 md:gap-12">
           {/* Brand */}
@@ -130,11 +129,11 @@ export default function Footer() {
             © {new Date().getFullYear()} Hidden Depths. All rights reserved.
           </p>
           <div className="flex flex-col sm:flex-row items-center gap-3 md:gap-6 text-xs md:text-sm">
-            <a href="mailto:contact@hiddendepths.com" className="text-white/60 hover:text-white transition-colors">
-              contact@hiddendepths.com
+            <a href="mailto:hiddendepthsss@gmail.com" className="text-white/60 hover:text-white transition-colors">
+              hiddendepthsss@gmail.com
             </a>
-            <a href="tel:+1234567890" className="text-white/60 hover:text-white transition-colors">
-              +1 (234) 567-890
+            <a href="tel:+919330705743" className="text-white/60 hover:text-white transition-colors">
+              +91 9330705743 (Emergency Only)
             </a>
           </div>
         </div>

@@ -22,7 +22,7 @@ export default function HeroSection() {
             transition={{ duration: 0.8, ease: 'easeOut' }}
           >
             <span className="inline-block px-3 md:px-4 py-2 mb-4 md:mb-6 text-xs md:text-sm font-medium rounded-full bg-[var(--accent)]/10 text-[var(--accent)]">
-              Professional Mental Health Care
+              Your Space to Breathe
             </span>
 
             <h1 className="heading-hero font-serif text-[var(--foreground)] mb-4 md:mb-6">
@@ -31,8 +31,9 @@ export default function HeroSection() {
             </h1>
 
             <p className="text-sm md:text-body-lg mb-6 md:mb-8 max-w-lg">
-              Find peace with our experienced therapists. We offer personalized care 
-              to help you navigate life&apos;s challenges and discover your inner strength.
+              Hi, I&apos;m here to listen. As a wellness mentor, I provide a safe, 
+              anonymous space where you can share your thoughts and find clarity 
+              without judgment.
             </p>
 
             <div className="flex flex-wrap gap-3 md:gap-4">
@@ -40,7 +41,7 @@ export default function HeroSection() {
                 <Link href="/booking">Book a Session</Link>
               </Button>
               <Button variant="secondary" size="lg">
-                <Link href="/about">Learn More</Link>
+                <Link href="/about">Learn About Me</Link>
               </Button>
             </div>
 
@@ -48,15 +49,15 @@ export default function HeroSection() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6 md:gap-8 mt-8 md:mt-12 pt-6 md:pt-8 border-t border-[var(--glass-border)]">
               <div>
                 <p className="text-xl md:text-3xl font-bold text-[var(--accent)]">500+</p>
-                <p className="text-xs md:text-sm text-[var(--text-muted)]">Clients Helped</p>
+                <p className="text-xs md:text-sm text-[var(--text-muted)]">Sessions Held</p>
               </div>
               <div>
-                <p className="text-xl md:text-3xl font-bold text-[var(--accent)]">15+</p>
-                <p className="text-xs md:text-sm text-[var(--text-muted)]">Expert Therapists</p>
+                <p className="text-xl md:text-3xl font-bold text-[var(--accent)]">₹99</p>
+                <p className="text-xs md:text-sm text-[var(--text-muted)]">Per Session</p>
               </div>
               <div className="col-span-2 md:col-span-1">
-                <p className="text-xl md:text-3xl font-bold text-[var(--accent)]">98%</p>
-                <p className="text-xs md:text-sm text-[var(--text-muted)]">Satisfaction Rate</p>
+                <p className="text-xl md:text-3xl font-bold text-[var(--accent)]">100%</p>
+                <p className="text-xs md:text-sm text-[var(--text-muted)]">Confidential</p>
               </div>
             </div>
           </motion.div>
@@ -78,7 +79,7 @@ export default function HeroSection() {
                     </svg>
                   </div>
                   <p className="text-[var(--text-muted)] text-xs md:text-sm">
-                    Hero image placeholder
+                    Your safe space awaits
                   </p>
                 </div>
               </div>
@@ -103,7 +104,7 @@ export default function HeroSection() {
                 </div>
                 <div>
                   <p className="font-semibold text-xs md:text-sm text-[var(--foreground)]">Available Now</p>
-                  <p className="text-xs md:text-sm text-[var(--text-muted)]">Book your first session</p>
+                  <p className="text-xs md:text-sm text-[var(--text-muted)]">Book your session</p>
                 </div>
               </div>
             </motion.div>

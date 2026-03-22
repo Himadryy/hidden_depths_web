@@ -35,8 +35,12 @@ export default function BookingPage() {
 
       {/* Booking calendar shown after authentication */}
       {showBooking && (
-        <div className="fixed inset-0 h-[100dvh] z-[60] bg-[var(--background)] overscroll-none">
-          <BookingCalendar onClose={handleBookingClose} />
+        <div className="fixed inset-0 h-[100dvh] w-full z-[60] bg-[var(--background)] overscroll-none overflow-hidden">
+          <div className="h-full w-full max-w-full overflow-x-hidden overflow-y-auto px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-2xl h-full py-6">
+              <BookingCalendar onClose={handleBookingClose} />
+            </div>
+          </div>
         </div>
       )}
 
