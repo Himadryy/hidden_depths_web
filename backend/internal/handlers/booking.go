@@ -194,8 +194,9 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	}
 
 	// 2. Generate Meeting Link (before transaction)
-	meetingID := uuid.New().String()
-	booking.MeetingLink = fmt.Sprintf("https://meet.jit.si/HiddenDepths-%s-%s", meetingID[:8], booking.Date)
+	// Use internal session page for branded experience
+	meetingID := uuid.New().String()[:8]
+	booking.MeetingLink = fmt.Sprintf("https://hidden-depths-web.pages.dev/session?room=%s-%s", meetingID, booking.Date)
 
 	booking.Amount = 0
 	booking.PaymentStatus = "paid" // Default for free sessions
