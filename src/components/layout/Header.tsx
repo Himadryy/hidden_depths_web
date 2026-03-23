@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthProvider';
@@ -64,9 +65,14 @@ export default function Header() {
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-10 h-10 rounded-full bg-[var(--accent)] flex items-center justify-center">
-              <span className="text-white font-serif text-lg md:text-xl font-bold">H</span>
-            </div>
+            <Image
+              src="/logo.png"
+              alt="Hidden Depths"
+              width={40}
+              height={40}
+              className="rounded-full"
+              priority
+            />
             <span className="font-serif text-lg md:text-xl font-semibold text-[var(--foreground)] hidden sm:inline">
               Hidden Depths
             </span>

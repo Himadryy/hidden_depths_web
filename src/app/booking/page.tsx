@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthProvider';
 import BookingCalendar from '@/components/BookingCalendar';
 import AuthModal from '@/components/AuthModal';
@@ -38,6 +39,16 @@ export default function BookingPage() {
         <div className="fixed inset-0 h-[100dvh] w-full z-[60] bg-[var(--background)] overscroll-none overflow-hidden">
           <div className="h-full w-full max-w-full overflow-x-hidden overflow-y-auto px-4 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-2xl h-full py-6">
+              {/* Back to Home Link */}
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 mb-4 text-sm text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back to Home
+              </Link>
               <BookingCalendar onClose={handleBookingClose} />
             </div>
           </div>

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import Container from '@/components/ui/Container';
 
 const footerLinks = {
@@ -58,9 +59,13 @@ export default function Footer() {
           {/* Brand */}
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2 mb-3 md:mb-4">
-              <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-                <span className="text-[var(--accent)] font-serif text-xl font-bold">H</span>
-              </div>
+              <Image
+                src="/logo.png"
+                alt="Hidden Depths"
+                width={40}
+                height={40}
+                className="rounded-full flex-shrink-0"
+              />
               <span className="font-serif text-lg md:text-xl font-semibold">Hidden Depths</span>
             </div>
             <p className="text-white/60 mb-4 md:mb-6 max-w-sm text-sm md:text-base">
