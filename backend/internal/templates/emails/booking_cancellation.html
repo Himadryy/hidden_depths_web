@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Booking Cancelled - Hidden Depths</title>
+    <!--[if mso]>
+    <noscript>
+        <xml>
+            <o:OfficeDocumentSettings>
+                <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+        </xml>
+    </noscript>
+    <![endif]-->
+</head>
+<body style="margin: 0; padding: 0; background-color: #0a0a0a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;">
+    <!-- Preheader text (hidden but shown in email preview) -->
+    <div style="display: none; max-height: 0; overflow: hidden;">
+        Your session for {{.Date}} at {{.Time}} has been cancelled.
+    </div>
+    
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a0a;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; max-width: 600px;">
+                    
+                    <!-- Logo Header -->
+                    <tr>
+                        <td style="text-align: center; padding-bottom: 30px;">
+                            <img src="{{.LogoURL}}" alt="Hidden Depths" width="180" style="display: block; margin: 0 auto; max-width: 180px; height: auto;">
+                        </td>
+                    </tr>
+                    
+                    <!-- Main Card -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; border: 1px solid rgba(107, 114, 128, 0.3); overflow: hidden;">
+                            
+                            <!-- Accent Bar (Gray for cancellation) -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="background: linear-gradient(90deg, #6B7280 0%, #4B5563 100%); height: 4px;"></td>
+                                </tr>
+                            </table>
+                            
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="padding: 40px;">
+                                        
+                                        <!-- Cancellation Icon -->
+                                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                            <tr>
+                                                <td style="text-align: center; padding-bottom: 24px;">
+                                                    <div style="display: inline-block; background: rgba(107, 114, 128, 0.15); border-radius: 50%; padding: 16px;">
+                                                        <span style="font-size: 32px;">📋</span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                        
+                                        <!-- Heading -->
+                                        <h1 style="color: #ffffff; font-size: 28px; font-weight: 600; text-align: center; margin: 0 0 8px 0;">
+                                            Booking Cancelled
+                                        </h1>
+                                        <p style="color: #9CA3AF; font-size: 16px; text-align: center; margin: 0 0 32px 0;">
+                                            We hope to see you again soon
+                                        </p>
+                                        
+                                        <!-- Greeting -->
+                                        <p style="color: #e0e0e0; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
+                                            Hello <strong style="color: #ffffff;">{{.Name}}</strong>,
+                                        </p>
+                                        <p style="color: #a0a0a0; font-size: 15px; line-height: 1.6; margin: 0 0 32px 0;">
+                                            This email confirms that your session has been cancelled. If you didn't request this cancellation, please contact our support team immediately.
+                                        </p>
+                                        
+                                        <!-- Cancelled Session Details -->
+                                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: rgba(107, 114, 128, 0.08); border-radius: 12px; border: 1px solid rgba(107, 114, 128, 0.2); margin-bottom: 32px;">
+                                            <tr>
+                                                <td style="padding: 24px;">
+                                                    <h2 style="color: #9CA3AF; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 16px 0;">
+                                                        Cancelled Session
+                                                    </h2>
+                                                    
+                                                    <!-- Date -->
+                                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 12px;">
+                                                        <tr>
+                                                            <td width="24" style="vertical-align: top;">
+                                                                <span style="color: #9CA3AF; font-size: 16px;">📅</span>
+                                                            </td>
+                                                            <td style="padding-left: 12px;">
+                                                                <span style="color: #a0a0a0; font-size: 14px;">Date</span><br>
+                                                                <span style="color: #9CA3AF; font-size: 16px; font-weight: 500; text-decoration: line-through;">{{.Date}}</span>
+                                                            </td>
+                                                        </tr>
+                                                    </table>
+                                                    
+                                                    <!-- Time -->
+                                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                                        <tr>
+                                                            <td width="24" style="vertical-align: top;">
+                                                                <span style="color: #9CA3AF; font-size: 16px;">⏰</span>
+                                                            </td>
+                                                            <td style="padding-left: 12px;">
+                                                                <span style="color: #a0a0a0; font-size: 14px;">Time</span><br>
+                                                                <span style="color: #9CA3AF; font-size: 16px; font-weight: 500; text-decoration: line-through;">{{.Time}}</span>
+                                                            </td>
+                                                        </tr>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                        
+                                        <!-- Rebook Message -->
+                                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 32px;">
+                                            <tr>
+                                                <td style="background: rgba(20, 184, 166, 0.08); border-radius: 12px; padding: 20px; border-left: 3px solid #14B8A6;">
+                                                    <h3 style="color: #14B8A6; font-size: 14px; font-weight: 600; margin: 0 0 8px 0;">
+                                                        Ready to rebook?
+                                                    </h3>
+                                                    <p style="color: #a0a0a0; font-size: 14px; line-height: 1.6; margin: 0;">
+                                                        Life happens, and we understand. When you're ready to continue your journey, we'll be here. Book a new session anytime that works for you.
+                                                    </p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                        
+                                        <!-- Rebook Button -->
+                                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 32px;">
+                                            <tr>
+                                                <td style="text-align: center;">
+                                                    <a href="{{.ProfileURL}}" style="display: inline-block; background: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%); color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 16px 40px; border-radius: 8px; box-shadow: 0 4px 14px rgba(20, 184, 166, 0.4);">
+                                                        Book New Session
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                        
+                                        <p style="color: #6b7280; font-size: 13px; text-align: center; margin: 0;">
+                                            If you have any questions, don't hesitate to reach out.
+                                        </p>
+                                        
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    
+                    <!-- Secondary Actions -->
+                    <tr>
+                        <td style="padding: 32px 0;">
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="text-align: center;">
+                                        <a href="{{.ProfileURL}}" style="color: #14B8A6; font-size: 14px; text-decoration: none; margin: 0 16px;">
+                                            My Profile
+                                        </a>
+                                        <span style="color: #374151;">•</span>
+                                        <a href="{{.SupportURL}}" style="color: #14B8A6; font-size: 14px; text-decoration: none; margin: 0 16px;">
+                                            Contact Support
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="border-top: 1px solid #1f2937; padding-top: 24px; text-align: center;">
+                            <p style="color: #6b7280; font-size: 12px; line-height: 1.6; margin: 0 0 8px 0;">
+                                © {{.Year}} Hidden Depths. All rights reserved.
+                            </p>
+                            <p style="color: #4b5563; font-size: 11px; margin: 0;">
+                                You're receiving this because a booking associated with your email was cancelled.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

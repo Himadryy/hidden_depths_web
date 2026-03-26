@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { BreadcrumbSchema } from '@/components/StructuredData';
 import { ArrowRight, Calendar } from 'lucide-react';
+import { getAllPosts } from '@/lib/blog';
 
 export const metadata: Metadata = {
   title: 'Mental Health Blog - Hidden Depths',
@@ -13,34 +14,18 @@ export const metadata: Metadata = {
   },
 };
 
-const posts = [
-  {
-    title: '5 Signs You Need to Talk to Someone About Your Mental Health',
-    slug: 'signs-you-need-mental-health-support',
-    excerpt: 'Recognizing when you need help is the first step toward healing. Learn the subtle signs that indicate it’s time to reach out.',
-    date: 'February 1, 2026',
-    category: 'Mental Wellness',
-    readTime: '5 min read'
-  },
-  {
-    title: 'The Power of Anonymous Therapy: Why Removing Identity Matters',
-    slug: 'anonymous-therapy-benefits',
-    excerpt: 'Anonymity can be the key to unlocking your deepest thoughts. Discover how hiding your identity can help you reveal your true self.',
-    date: 'January 28, 2026',
-    category: 'Therapy & Support',
-    readTime: '7 min read'
-  },
-  {
-    title: 'Finding Mental Clarity Through Digital Spaces',
-    slug: 'digital-mental-health-spaces',
-    excerpt: 'How immersive digital environments and 3D visuals are revolutionizing the way we approach stress relief and mindfulness.',
-    date: 'January 25, 2026',
-    category: 'Technology & Mind',
-    readTime: '6 min read'
-  },
-];
+function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
 
 export default function BlogListingPage() {
+  const posts = getAllPosts();
+  
   const breadcrumbs = [
     { name: 'Home', url: 'https://hidden-depths-web.pages.dev' },
     { name: 'Blog', url: 'https://hidden-depths-web.pages.dev/blog' },
@@ -72,7 +57,7 @@ export default function BlogListingPage() {
               <div className="p-6 h-full flex flex-col">
                 <div className="flex items-center justify-between text-xs text-[var(--accent)] mb-4 uppercase tracking-wider font-bold">
                     <span>{post.category}</span>
-                    <span className="text-gray-500 font-normal normal-case">{post.readTime}</span>
+                    <span className="text-gray-500 font-normal normal-case">{post.readingTime}</span>
                 </div>
                 
                 <h2 className="text-xl font-serif font-bold mb-3 group-hover:text-[var(--accent)] transition-colors leading-tight">
@@ -86,7 +71,7 @@ export default function BlogListingPage() {
                 <div className="flex items-center justify-between pt-4 border-t border-white/5 text-xs text-gray-500">
                     <div className="flex items-center gap-2">
                         <Calendar size={12} />
-                        {post.date}
+                        {formatDate(post.date)}
                     </div>
                     <div className="flex items-center gap-1 group-hover:translate-x-1 transition-transform text-[var(--accent)]">
                         Read Article <ArrowRight size={12} />

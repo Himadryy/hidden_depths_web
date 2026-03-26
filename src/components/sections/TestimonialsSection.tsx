@@ -1,33 +1,90 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Container from '@/components/ui/Container';
+import { supabase } from '@/lib/supabase';
 
-const testimonials = [
+interface Testimonial {
+  id: string;
+  name: string;
+  content: string;
+  rating: number;
+  is_anonymous: boolean;
+  created_at: string;
+}
+
+// Fallback testimonials for when DB is empty or loading
+const fallbackTestimonials = [
   {
-    quote: "Hidden Depths has been a life-changing experience. My therapist truly understood my struggles and helped me find clarity I never thought possible.",
-    author: 'Jennifer M.',
-    role: 'Individual Therapy Client',
-    initials: 'JM',
+    id: 'fallback-1',
+    name: 'Anonymous User',
+    content: "Hidden Depths has been a life-changing experience. My mentor truly understood my struggles and helped me find clarity I never thought possible.",
     rating: 5,
+    is_anonymous: true,
+    created_at: new Date().toISOString(),
   },
   {
-    quote: "After years of struggling in our marriage, couples therapy here helped us rediscover our connection. We're stronger than ever.",
-    author: 'David & Lisa K.',
-    role: 'Couples Therapy Clients',
-    initials: 'DL',
+    id: 'fallback-2',
+    name: 'Priya S.',
+    content: "The online sessions fit perfectly into my busy schedule. Professional, convenient, and incredibly effective. Highly recommend!",
     rating: 5,
+    is_anonymous: false,
+    created_at: new Date().toISOString(),
   },
   {
-    quote: "The online sessions fit perfectly into my busy schedule. Professional, convenient, and incredibly effective. Highly recommend!",
-    author: 'Marcus T.',
-    role: 'Online Therapy Client',
-    initials: 'MT',
+    id: 'fallback-3',
+    name: 'Anonymous User',
+    content: "Finally found a safe space to talk about my feelings without judgment. The anonymous aspect made me feel comfortable opening up.",
     rating: 5,
+    is_anonymous: true,
+    created_at: new Date().toISOString(),
   },
 ];
 
+function getInitials(name: string, isAnonymous: boolean): string {
+  if (isAnonymous) return '?';
+  const parts = name.trim().split(' ');
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+}
+
 export default function TestimonialsSection() {
+  const [testimonials, setTestimonials] = useState<Testimonial[]>(fallbackTestimonials);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchTestimonials() {
+      try {
+        const { data, error } = await supabase
+          .from('testimonials')
+          .select('id, name, content, rating, is_anonymous, created_at')
+          .eq('approved', true)
+          .order('featured', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(6);
+
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          setTestimonials(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch testimonials:', err);
+        // Keep fallback testimonials
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchTestimonials();
+  }, []);
+
+  // Show only first 3 for the grid
+  const displayTestimonials = testimonials.slice(0, 3);
+
   return (
     <section className="section-bloom bg-[var(--background)]">
       <Container>
@@ -51,9 +108,9 @@ export default function TestimonialsSection() {
 
         {/* Testimonials Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          {testimonials.map((testimonial, index) => (
+          {displayTestimonials.map((testimonial, index) => (
             <motion.div
-              key={testimonial.author}
+              key={testimonial.id}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -72,18 +129,22 @@ export default function TestimonialsSection() {
                 {/* Quote */}
                 <blockquote className="flex-1 mb-4 md:mb-6">
                   <p className="text-sm md:text-base text-[var(--foreground)] leading-relaxed italic">
-                    &ldquo;{testimonial.quote}&rdquo;
+                    &ldquo;{testimonial.content}&rdquo;
                   </p>
                 </blockquote>
 
                 {/* Author */}
                 <div className="flex items-center gap-3 pt-4 border-t border-[var(--glass-border)]">
                   <div className="w-10 md:w-12 h-10 md:h-12 rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--accent-deep)] flex items-center justify-center flex-shrink-0">
-                    <span className="text-white font-semibold text-xs md:text-sm">{testimonial.initials}</span>
+                    <span className="text-white font-semibold text-xs md:text-sm">
+                      {getInitials(testimonial.name, testimonial.is_anonymous)}
+                    </span>
                   </div>
                   <div>
-                    <p className="font-semibold text-sm md:text-base text-[var(--foreground)]">{testimonial.author}</p>
-                    <p className="text-xs md:text-sm text-[var(--text-muted)]">{testimonial.role}</p>
+                    <p className="font-semibold text-sm md:text-base text-[var(--foreground)]">
+                      {testimonial.is_anonymous ? 'Anonymous' : testimonial.name}
+                    </p>
+                    <p className="text-xs md:text-sm text-[var(--text-muted)]">Verified Client</p>
                   </div>
                 </div>
               </div>

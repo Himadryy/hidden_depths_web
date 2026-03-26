@@ -12,7 +12,8 @@ import {
   Loader2, 
   TrendingUp, 
   Clock,
-  ArrowLeft
+  ArrowLeft,
+  BarChart3
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getApiUrl, fetchWithTimeout } from '@/lib/api';
@@ -166,29 +167,45 @@ export default function AdminDashboard() {
             </h3>
             <div className="space-y-4">
               <button 
-                onClick={() => router.push('/admin/insights')}
+                onClick={() => router.push('/admin/bookings')}
+                className="w-full flex items-center justify-between p-4 bg-[var(--background)] rounded-2xl border border-glass hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <Calendar size={18} className="text-[var(--accent)]" />
+                  <span className="text-sm">View All Bookings</span>
+                </div>
+                <ArrowLeft size={16} className="rotate-180" />
+              </button>
+              <button 
+                onClick={() => router.push('/admin/users')}
+                className="w-full flex items-center justify-between p-4 bg-[var(--background)] rounded-2xl border border-glass hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <Users size={18} className="text-[var(--accent)]" />
+                  <span className="text-sm">Manage Users</span>
+                </div>
+                <ArrowLeft size={16} className="rotate-180" />
+              </button>
+              <button 
+                onClick={() => router.push('/admin/testimonials')}
                 className="w-full flex items-center justify-between p-4 bg-[var(--background)] rounded-2xl border border-glass hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 transition-all"
               >
                 <div className="flex items-center gap-3">
                   <LayoutDashboard size={18} className="text-[var(--accent)]" />
-                  <span className="text-sm">Manage Insights CMS</span>
+                  <span className="text-sm">Manage Testimonials</span>
                 </div>
                 <ArrowLeft size={16} className="rotate-180" />
               </button>
-              <div className="flex items-center justify-between p-4 bg-[var(--background)] rounded-2xl border border-glass">
+              <button 
+                onClick={() => router.push('/admin/analytics')}
+                className="w-full flex items-center justify-between p-4 bg-[var(--background)] rounded-2xl border border-glass hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 transition-all"
+              >
                 <div className="flex items-center gap-3">
-                  <Clock size={18} className="text-muted" />
-                  <span className="text-sm">Peak Booking Time</span>
+                  <BarChart3 size={18} className="text-[var(--accent)]" />
+                  <span className="text-sm">View Analytics</span>
                 </div>
-                <span className="text-sm font-bold">08:00 PM</span>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-[var(--background)] rounded-2xl border border-glass">
-                <div className="flex items-center gap-3">
-                  <Users size={18} className="text-muted" />
-                  <span className="text-sm">New Users (Last 7 Days)</span>
-                </div>
-                <span className="text-sm font-bold">...</span>
-              </div>
+                <ArrowLeft size={16} className="rotate-180" />
+              </button>
             </div>
           </div>
 

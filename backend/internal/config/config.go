@@ -23,11 +23,15 @@ type Config struct {
 	RedisURL     string
 	CacheEnabled bool
 
-	// SMTP Config
+	// SMTP Config (legacy)
 	SMTPHost string
 	SMTPPort int
 	SMTPUser string
 	SMTPPass string
+
+	// Resend Config (preferred email provider)
+	ResendAPIKey   string
+	ResendFromEmail string
 }
 
 // ValidationError contains details about missing or invalid configuration
@@ -71,6 +75,9 @@ func Load() (*Config, error) {
 		SMTPPort: getIntEnv("SMTP_PORT", 587),
 		SMTPUser: getEnv("SMTP_USER", ""),
 		SMTPPass: getEnv("SMTP_PASS", ""),
+
+		ResendAPIKey:    getEnv("RESEND_API_KEY", ""),
+		ResendFromEmail: getEnv("RESEND_FROM_EMAIL", "Hidden Depths <onboarding@resend.dev>"),
 	}
 
 	if cfg.AllowedOrigins == nil {
@@ -128,9 +135,11 @@ func (c *Config) Validate() error {
 		if len(c.AdminEmails) == 0 {
 			valErr.Missing = append(valErr.Missing, "ADMIN_EMAILS (required in production)")
 		}
-		// SMTP is required for production email reminders
-		if c.SMTPHost == "" || c.SMTPUser == "" || c.SMTPPass == "" {
-			valErr.Missing = append(valErr.Missing, "SMTP_HOST, SMTP_USER, SMTP_PASS (required in production)")
+		// Either Resend OR SMTP is required for production email
+		hasResend := c.ResendAPIKey != ""
+		hasSMTP := c.SMTPHost != "" && c.SMTPUser != "" && c.SMTPPass != ""
+		if !hasResend && !hasSMTP {
+			valErr.Missing = append(valErr.Missing, "RESEND_API_KEY or (SMTP_HOST, SMTP_USER, SMTP_PASS) (email provider required in production)")
 		}
 	}
 

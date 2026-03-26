@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/context/AuthProvider';
+import FeedbackModal from '@/components/FeedbackModal';
 
 // Dynamic import to avoid SSR issues with Jitsi
 const JitsiMeeting = dynamic(() => import('@/components/JitsiMeeting'), {
@@ -31,6 +32,7 @@ function SessionContent() {
   const [hasJoined, setHasJoined] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   // Check if this is the mentor (you) - customize this logic
   const isMentor = user?.email === 'hiddendepthsss@gmail.com';
@@ -54,6 +56,10 @@ function SessionContent() {
   const handleSessionEnd = () => {
     setSessionEnded(true);
     setHasJoined(false);
+    // Show feedback modal for non-mentors after session ends
+    if (!isMentor) {
+      setShowFeedback(true);
+    }
   };
 
   // No room ID provided
@@ -93,40 +99,58 @@ function SessionContent() {
   // Session ended state
   if (sessionEnded) {
     return (
-      <main className="min-h-screen bg-[var(--background)] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-8 text-center">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-green-500/10 flex items-center justify-center">
-            <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-serif text-[var(--foreground)] mb-2">Session Complete</h1>
-          <p className="text-[var(--text-muted)] mb-6">
-            Thank you for your session with Hidden Depths. We hope you found it helpful.
-          </p>
-          
-          {isRecording && (
-            <p className="text-sm text-[var(--accent)] mb-4">
-              📹 Your session was recorded and will be available for review.
+      <>
+        <FeedbackModal 
+          isOpen={showFeedback} 
+          onClose={() => setShowFeedback(false)}
+        />
+        <main className="min-h-screen bg-[var(--background)] flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-green-500/10 flex items-center justify-center">
+              <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-serif text-[var(--foreground)] mb-2">Session Complete</h1>
+            <p className="text-[var(--text-muted)] mb-6">
+              Thank you for your session with Hidden Depths. We hope you found it helpful.
             </p>
-          )}
-          
-          <div className="space-y-3">
-            <Link
-              href="/"
-              className="block w-full py-3 px-6 bg-[var(--accent)] text-white rounded-full hover:bg-[var(--accent-deep)] transition-colors"
-            >
-              Return Home
-            </Link>
-            <Link
-              href="/booking"
-              className="block w-full py-3 px-6 border border-[var(--glass-border)] text-[var(--foreground)] rounded-full hover:border-[var(--accent)] transition-colors"
-            >
-              Book Another Session
-            </Link>
+            
+            {isRecording && (
+              <p className="text-sm text-[var(--accent)] mb-4">
+                📹 Your session was recorded and will be available for review.
+              </p>
+            )}
+            
+            <div className="space-y-3">
+              {!isMentor && (
+                <button
+                  onClick={() => setShowFeedback(true)}
+                  className="block w-full py-3 px-6 bg-[var(--accent)] text-white rounded-full hover:bg-[var(--accent-deep)] transition-colors"
+                >
+                  Share Your Feedback
+                </button>
+              )}
+              <Link
+                href="/"
+                className={`block w-full py-3 px-6 rounded-full transition-colors ${
+                  isMentor 
+                    ? 'bg-[var(--accent)] text-white hover:bg-[var(--accent-deep)]' 
+                    : 'border border-[var(--glass-border)] text-[var(--foreground)] hover:border-[var(--accent)]'
+                }`}
+              >
+                Return Home
+              </Link>
+              <Link
+                href="/booking"
+                className="block w-full py-3 px-6 border border-[var(--glass-border)] text-[var(--foreground)] rounded-full hover:border-[var(--accent)] transition-colors"
+              >
+                Book Another Session
+              </Link>
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
+      </>
     );
   }
 

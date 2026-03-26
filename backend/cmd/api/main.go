@@ -187,6 +187,7 @@ func main() {
 				r.Use(middleware.AdminMiddleware(cfg.AdminEmails))
 
 				r.Get("/stats", handlers.GetAdminStats)
+				r.Post("/test-email", handlers.TestEmail)
 
 				r.Route("/insights", func(r chi.Router) {
 					r.Post("/", handlers.CreateInsight)

@@ -25,7 +25,7 @@ func CheckAndSendReminders() {
 	tomorrow := time.Now().Add(24 * time.Hour).Format("2006-01-02")
 
 	rows, err := database.Pool.Query(ctx,
-		"SELECT id, name, email, time, meeting_link FROM bookings WHERE date = $1 AND reminder_sent = FALSE",
+		"SELECT id, name, email, time, meeting_link FROM bookings WHERE date = $1 AND reminder_sent = FALSE AND payment_status = 'paid'",
 		tomorrow,
 	)
 	if err != nil {
@@ -34,6 +34,9 @@ func CheckAndSendReminders() {
 	}
 	defer rows.Close()
 
+	// Get email service for Resend
+	emailSvc := GetEmailService()
+
 	for rows.Next() {
 		var id, name, email, timeSlot, meetingLink string
 		if err := rows.Scan(&id, &name, &email, &timeSlot, &meetingLink); err != nil {
@@ -41,21 +44,27 @@ func CheckAndSendReminders() {
 			continue
 		}
 
-		// Prepare Email Content
-		subject := "Reminder: Your Sanctuary Session Tomorrow"
-		body := fmt.Sprintf(`
-			<h2>Hello %s,</h2>
-			<p>This is a gentle reminder that your session at <strong>Hidden Depths</strong> is scheduled for tomorrow at <strong>%s</strong>.</p>
-			<p>Please ensure you are in a quiet space 5 minutes before we begin.</p>
-			<p>Here is your secure link to join:</p>
-			<p><a href="%s" style="padding: 10px 20px; background-color: #E0B873; color: black; text-decoration: none; border-radius: 5px;">Join Video Session</a></p>
-			<br>
-			<p>Or view your booking details here: <a href="https://hidden-depths-web.pages.dev/profile">My Sanctuary Profile</a></p>
-		`, name, timeSlot, meetingLink)
+		// Send reminder email (prefer Resend, fallback to SMTP)
+		var sendErr error
+		if emailSvc != nil && emailSvc.IsEnabled() {
+			sendErr = emailSvc.SendBookingReminder(email, name, tomorrow, timeSlot, meetingLink)
+		} else {
+			// Fallback to legacy SMTP
+			subject := "Reminder: Your Sanctuary Session Tomorrow"
+			body := fmt.Sprintf(`
+				<h2>Hello %s,</h2>
+				<p>This is a gentle reminder that your session at <strong>Hidden Depths</strong> is scheduled for tomorrow at <strong>%s</strong>.</p>
+				<p>Please ensure you are in a quiet space 5 minutes before we begin.</p>
+				<p>Here is your secure link to join:</p>
+				<p><a href="%s" style="padding: 10px 20px; background-color: #E0B873; color: black; text-decoration: none; border-radius: 5px;">Join Video Session</a></p>
+				<br>
+				<p>Or view your booking details here: <a href="https://hidden-depths-web.pages.dev/profile">My Sanctuary Profile</a></p>
+			`, name, timeSlot, meetingLink)
+			sendErr = SendEmail(email, subject, body)
+		}
 
-		// Send Email
-		if err := SendEmail(email, subject, body); err != nil {
-			logger.Error("Failed to send reminder email", zap.String("email", email), zap.Error(err))
+		if sendErr != nil {
+			logger.Error("Failed to send reminder email", zap.String("email", email), zap.Error(sendErr))
 			continue
 		}
 

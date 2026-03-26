@@ -19,8 +19,6 @@ Added console logging in three files to help track tier changes:
 
 ### 1. Test Locally (Recommended First)
 ```bash
-cd "/Users/himadrydey/VS Code folders/HiddenDepths-Website"
-
 # Install dependencies if needed
 npm install
 

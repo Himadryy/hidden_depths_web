@@ -484,25 +484,38 @@ func finalizeBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit 
 	}
 	audit.Log(r.Context(), "booking.confirmed", userID, bookingID, "booking", r.RemoteAddr, r.UserAgent(), nil)
 
-	// Email (with retry + circuit breaker via updated SendEmail)
+	// Email (prefer Resend, fallback to SMTP)
 	go func() {
-		subject := "Confirmed: Your Journey Begins"
-		body := fmt.Sprintf(`
-			<h2>Welcome, %s.</h2>
-			<p>Your sanctuary session is confirmed for <strong>%s at %s</strong>.</p>
-			<p>We look forward to speaking with you.</p>
-			<p><strong>Your Secure Video Link:</strong></p>
-			<p><a href="%s" style="padding: 10px 20px; background-color: #E0B873; color: black; text-decoration: none; border-radius: 5px;">Join Session</a></p>
-			<br>
-			<p>You can also manage your bookings from your <a href="https://hidden-depths-web.pages.dev/profile">Profile</a>.</p>
-		`, b.Name, b.Date, b.Time, b.MeetingLink)
-		
-		if err := services.SendEmail(b.Email, subject, body); err != nil {
-			logger.Log.Error("Confirmation email failed after retries",
-				zap.String("email", b.Email),
-				zap.String("booking_id", bookingID),
-				zap.Error(err),
-			)
+		emailSvc := services.GetEmailService()
+		if emailSvc != nil && emailSvc.IsEnabled() {
+			// Use Resend with professional templates
+			if err := emailSvc.SendBookingConfirmation(b.Email, b.Name, b.Date, b.Time, b.MeetingLink); err != nil {
+				logger.Log.Error("Resend confirmation email failed",
+					zap.String("email", b.Email),
+					zap.String("booking_id", bookingID),
+					zap.Error(err),
+				)
+			}
+		} else {
+			// Fallback to legacy SMTP
+			subject := "Confirmed: Your Journey Begins"
+			body := fmt.Sprintf(`
+				<h2>Welcome, %s.</h2>
+				<p>Your sanctuary session is confirmed for <strong>%s at %s</strong>.</p>
+				<p>We look forward to speaking with you.</p>
+				<p><strong>Your Secure Video Link:</strong></p>
+				<p><a href="%s" style="padding: 10px 20px; background-color: #E0B873; color: black; text-decoration: none; border-radius: 5px;">Join Session</a></p>
+				<br>
+				<p>You can also manage your bookings from your <a href="https://hidden-depths-web.pages.dev/profile">Profile</a>.</p>
+			`, b.Name, b.Date, b.Time, b.MeetingLink)
+			
+			if err := services.SendEmail(b.Email, subject, body); err != nil {
+				logger.Log.Error("SMTP confirmation email failed after retries",
+					zap.String("email", b.Email),
+					zap.String("booking_id", bookingID),
+					zap.Error(err),
+				)
+			}
 		}
 	}()
 }
@@ -640,12 +653,12 @@ func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	ctx, cancel := context.WithTimeout(r.Context(), dbTransactionTimeout)
 	defer cancel()
 
-	// Fetch date and time before deleting (for WebSocket broadcast)
-	var date, timeSlot string
+	// Fetch booking details before deleting (for WebSocket broadcast & email)
+	var date, timeSlot, name, email string
 	err := database.Pool.QueryRow(ctx,
-		"SELECT date, time FROM bookings WHERE id = $1 AND user_id = $2",
+		"SELECT date, time, name, email FROM bookings WHERE id = $1 AND user_id = $2",
 		bookingID, userID,
-	).Scan(&date, &timeSlot)
+	).Scan(&date, &timeSlot, &name, &email)
 
 	if err != nil {
 		response.AppErr(w, apperror.BookingNotFound(bookingID).WithContext("reason", "not found or not authorized"))
@@ -680,6 +693,20 @@ func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 
 	// Audit Log
 	audit.Log(r.Context(), "booking.cancel", userID, bookingID, "booking", r.RemoteAddr, r.UserAgent(), nil)
+
+	// Send cancellation email (async)
+	go func() {
+		emailSvc := services.GetEmailService()
+		if emailSvc != nil && emailSvc.IsEnabled() {
+			if err := emailSvc.SendBookingCancellation(email, name, date, timeSlot); err != nil {
+				logger.Log.Error("Cancellation email failed",
+					zap.String("email", email),
+					zap.String("booking_id", bookingID),
+					zap.Error(err),
+				)
+			}
+		}
+	}()
 
 	response.JSON(w, http.StatusOK, nil, "Booking cancelled successfully")
 }

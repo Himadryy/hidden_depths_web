@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Hidden Depths - The Sanctuary Journal</title>
+    <link>https://hidden-depths-web.pages.dev/blog</link>
+    <description>Insights, reflections, and guidance on navigating the complexities of the modern mind. Mental health articles from Hidden Depths.</description>
+    <language>en-IN</language>
+    <lastBuildDate>Thu, 26 Mar 2026 14:09:55 GMT</lastBuildDate>
+    <atom:link href="https://hidden-depths-web.pages.dev/feed.xml" rel="self" type="application/rss+xml"/>
+    <image>
+      <url>https://hidden-depths-web.pages.dev/og-image.png</url>
+      <title>Hidden Depths</title>
+      <link>https://hidden-depths-web.pages.dev</link>
+    </image>
+    
+    <item>
+      <title><![CDATA[5 Signs You Need to Talk to Someone About Your Mental Health]]></title>
+      <link>https://hidden-depths-web.pages.dev/blog/signs-you-need-mental-health-support</link>
+      <guid isPermaLink="true">https://hidden-depths-web.pages.dev/blog/signs-you-need-mental-health-support</guid>
+      <description><![CDATA[Recognizing when you need help is the first step toward healing. Learn the subtle signs that indicate it's time to reach out.]]></description>
+      <pubDate>Sun, 01 Feb 2026 00:00:00 GMT</pubDate>
+      <category>Mental Wellness</category>
+    </item>
+    <item>
+      <title><![CDATA[The Power of Anonymous Therapy: Why Removing Identity Matters]]></title>
+      <link>https://hidden-depths-web.pages.dev/blog/anonymous-therapy-benefits</link>
+      <guid isPermaLink="true">https://hidden-depths-web.pages.dev/blog/anonymous-therapy-benefits</guid>
+      <description><![CDATA[Anonymity can be the key to unlocking your deepest thoughts. Discover how hiding your identity can help you reveal your true self.]]></description>
+      <pubDate>Wed, 28 Jan 2026 00:00:00 GMT</pubDate>
+      <category>Therapy & Support</category>
+    </item>
+    <item>
+      <title><![CDATA[Finding Mental Clarity Through Digital Spaces]]></title>
+      <link>https://hidden-depths-web.pages.dev/blog/digital-mental-health-spaces</link>
+      <guid isPermaLink="true">https://hidden-depths-web.pages.dev/blog/digital-mental-health-spaces</guid>
+      <description><![CDATA[How immersive digital environments and 3D visuals are revolutionizing the way we approach stress relief and mindfulness.]]></description>
+      <pubDate>Sun, 25 Jan 2026 00:00:00 GMT</pubDate>
+      <category>Technology & Mind</category>
+    </item>
+  </channel>
+</rss>
