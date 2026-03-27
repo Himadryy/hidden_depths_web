@@ -75,6 +75,11 @@ func GetBookedSlots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Prevent browser/CDN caching — availability data must always be fresh
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+
 	ctx := r.Context()
 	cacheKey := cache.SlotsKey(date)
 
@@ -332,6 +337,12 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 
 	// Invalidate slots cache for this date (write-through pattern)
 	InvalidateSlotsCache(r.Context(), booking.Date)
+
+	// Broadcast slot status change via WebSocket for real-time UI updates
+	hub.Broadcast("SLOT_PENDING", map[string]string{
+		"date": booking.Date,
+		"time": booking.Time,
+	})
 
 	// 9. Response Handling
 	if isPaid {

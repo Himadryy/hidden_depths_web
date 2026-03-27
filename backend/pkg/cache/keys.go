@@ -4,8 +4,9 @@ import "time"
 
 // TTL constants for different cache types
 const (
-	// SlotsTTL - booking slots change frequently during booking
-	SlotsTTL = 30 * time.Second
+	// SlotsTTL - booking slots need aggressive freshness for real-time availability
+	// 5 seconds ensures worst-case staleness is minimal while still reducing DB load
+	SlotsTTL = 5 * time.Second
 
 	// InsightsTTL - insights data rarely changes (admin-only edits)
 	InsightsTTL = 5 * time.Minute

@@ -171,7 +171,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                 const currentDateStr = formatDateForDB(selectedDate);
 
                 if (payload.date === currentDateStr) {
-                    if (type === 'SLOT_BOOKED') {
+                    if (type === 'SLOT_BOOKED' || type === 'SLOT_PENDING') {
                         setBookedSlots(prev => Array.from(new Set([...prev, payload.time])));
                     } else if (type === 'SLOT_CANCELLED') {
                         setBookedSlots(prev => prev.filter(t => t !== payload.time));
@@ -214,6 +214,46 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
         socket?.close();
     };
   }, [selectedDate]);
+
+  // Refresh slots for the currently selected date (called by visibility/focus/polling)
+  const refreshSlots = async () => {
+    if (!selectedDate || view !== 'slots') return;
+    
+    try {
+      const dateStr = formatDateForDB(selectedDate);
+      const slots = await getBookedSlots(dateStr);
+      setBookedSlots(slots);
+    } catch {
+      // Silently fail — user can still see cached data
+    }
+  };
+
+  // Refresh slots when tab regains focus or becomes visible (handles mobile/background scenarios)
+  useEffect(() => {
+    if (!selectedDate || view !== 'slots') return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshSlots();
+      }
+    };
+
+    const handleFocus = () => {
+      refreshSlots();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    // Periodic polling every 15 seconds as fallback when WebSocket is unreliable
+    const pollInterval = setInterval(refreshSlots, 15000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(pollInterval);
+    };
+  }, [selectedDate, view]);
 
   // Logic: Get next available Sundays and Mondays starting from today
   const availableDates = useMemo(() => {
@@ -276,6 +316,16 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     const dateStr = formatDateForDB(selectedDate);
 
     try {
+        // Pre-submit validation: re-check slot availability to prevent stale booking attempts
+        const currentSlots = await getBookedSlots(dateStr);
+        if (currentSlots.includes(selectedTime)) {
+            setBookedSlots(currentSlots);
+            setErrorMsg('This slot was just booked by someone else. Please select another time.');
+            setView('slots');
+            setIsSubmitting(false);
+            return;
+        }
+
         // 1. Initiate Booking (Create 'Pending' Slot & Razorpay Order if paid)
         const bookingResult = await createBooking(
             dateStr, 
