@@ -2,8 +2,6 @@ import { supabase } from './supabase';
 import { getApiUrl, fetchWithTimeout } from './api';
 import { logger } from './logger';
 
-const API_URL = getApiUrl();
-
 export interface Booking {
   id: string;
   date: string;
@@ -38,11 +36,10 @@ async function fetchWithRetry(url: string, options?: RequestInit, retries = 1): 
 }
 
 export const getBookedSlots = async (date: string): Promise<string[]> => {
-  if (API_URL) {
+  const apiUrl = getApiUrl();
+  if (apiUrl) {
     try {
-      // Normalize URL (remove trailing slash) and ensure path is correct
-      const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
-      const url = `${baseUrl}/bookings/slots/${date}`;
+      const url = `${apiUrl}/bookings/slots/${date}`;
       
       const response = await fetchWithTimeout(url);
       if (!response.ok) {
@@ -89,13 +86,12 @@ export const createBooking = async (
   email: string,
   userId?: string
 ): Promise<CreateBookingResponse> => {
-  if (!API_URL) {
+  const apiUrl = getApiUrl();
+  if (!apiUrl) {
       return { success: false, error: "Backend API not configured" };
   }
 
   try {
-    const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
-    
     // Get Auth Token
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
@@ -105,7 +101,7 @@ export const createBooking = async (
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetchWithRetry(`${baseUrl}/bookings/`, {
+    const response = await fetchWithRetry(`${apiUrl}/bookings/`, {
       method: 'POST',
       headers: headers,
       body: JSON.stringify({ date, time, name, email, user_id: userId }),
@@ -162,9 +158,13 @@ export const verifyPayment = async (
     razorpayOrderId: string,
     razorpaySignature: string
 ): Promise<{ success: boolean; error?: string }> => {
+    const apiUrl = getApiUrl();
+    if (!apiUrl) {
+        return { success: false, error: "Backend API not configured" };
+    }
+    
     try {
-        const baseUrl = API_URL!.endsWith('/') ? API_URL!.slice(0, -1) : API_URL;
-        const response = await fetchWithRetry(`${baseUrl}/bookings/verify`, {
+        const response = await fetchWithRetry(`${apiUrl}/bookings/verify`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -195,13 +195,15 @@ export const verifyPayment = async (
 
 // Cancel a pending booking (used when payment fails, user dismisses Razorpay, or user retries)
 export const cancelPendingBooking = async (bookingId: string): Promise<void> => {
+    const apiUrl = getApiUrl();
+    if (!apiUrl) return;
+    
     try {
-        const baseUrl = API_URL!.endsWith('/') ? API_URL!.slice(0, -1) : API_URL;
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
         if (!token) return;
 
-        await fetchWithTimeout(`${baseUrl}/bookings/${bookingId}`, {
+        await fetchWithTimeout(`${apiUrl}/bookings/${bookingId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` },
         });
