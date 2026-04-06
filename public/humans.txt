@@ -1,0 +1,26 @@
+# Hidden Depths - humans.txt
+# humanstxt.org
+
+/* TEAM */
+Creator: Himadryy
+Contact: hiddendepthsss@gmail.com
+GitHub: https://github.com/Himadryy
+Location: Kolkata, West Bengal, India
+
+/* THANKS */
+Name: Open Source Community
+Name: Supabase Team
+Name: Vercel/Next.js Team
+Name: Jitsi Meet
+
+/* SITE */
+Last update: 2026-04-06
+Standards: HTML5, CSS3, ES2024
+Components: Next.js 16, React 19, Tailwind CSS v4, Go Chi
+Software: VS Code, Cursor, GitHub Copilot
+Hosting: Cloudflare Pages (Frontend), Render (Backend), Supabase (Database)
+
+/* AI */
+LLM Context: /llms.txt
+Full Context: /llms-full.txt
+AI Crawling: Allowed (see robots.txt)

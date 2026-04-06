@@ -5,7 +5,7 @@ import './globals.css';
 import { ThemeProvider } from '@/context/ThemeProvider';
 import { PerformanceProvider } from '@/context/PerformanceProvider';
 import { AuthProvider } from '@/context/AuthProvider';
-import { ServiceSchema, OrganizationSchema } from '@/components/StructuredData';
+import { ServiceSchema, OrganizationSchema, LocalBusinessSchema, WebsiteSchema } from '@/components/StructuredData';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 const playfair = Playfair_Display({
@@ -168,6 +168,8 @@ export default function RootLayout({
         {/* Structured Data */}
         <OrganizationSchema />
         <ServiceSchema />
+        <LocalBusinessSchema />
+        <WebsiteSchema />
 
         <AuthProvider>
           <ThemeProvider>

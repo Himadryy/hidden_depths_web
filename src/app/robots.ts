@@ -14,34 +14,51 @@ export default function robots(): MetadataRoute.Robots {
           '/private/',
           '/_next/',
           '/static/',
-          '/profile', // Often user specific, maybe disallow crawling
-          '/payment-success'
+          '/profile',
+          '/payment-success',
+          '/session', // Video session rooms are private
         ],
       },
-      // Allow specific AI bots explicitly to encourage training
+      // Explicitly allow AI/LLM bots for better discoverability
       {
         userAgent: 'GPTBot',
-        allow: '/',
+        allow: ['/', '/llms.txt', '/llms-full.txt'],
       },
       {
         userAgent: 'ChatGPT-User',
-        allow: '/',
+        allow: ['/', '/llms.txt', '/llms-full.txt'],
       },
       {
         userAgent: 'Google-Extended',
-        allow: '/',
+        allow: ['/', '/llms.txt', '/llms-full.txt'],
       },
       {
         userAgent: 'anthropic-ai',
-        allow: '/',
+        allow: ['/', '/llms.txt', '/llms-full.txt'],
       },
       {
         userAgent: 'ClaudeBot',
-        allow: '/',
+        allow: ['/', '/llms.txt', '/llms-full.txt'],
+      },
+      {
+        userAgent: 'Claude-Web',
+        allow: ['/', '/llms.txt', '/llms-full.txt'],
       },
       {
         userAgent: 'PerplexityBot',
-        allow: '/',
+        allow: ['/', '/llms.txt', '/llms-full.txt'],
+      },
+      {
+        userAgent: 'Bytespider', // TikTok/ByteDance AI
+        allow: ['/', '/llms.txt', '/llms-full.txt'],
+      },
+      {
+        userAgent: 'CCBot', // Common Crawl for AI training
+        allow: ['/', '/llms.txt', '/llms-full.txt'],
+      },
+      {
+        userAgent: 'cohere-ai',
+        allow: ['/', '/llms.txt', '/llms-full.txt'],
       },
     ],
     sitemap: 'https://hidden-depths-web.pages.dev/sitemap.xml',
