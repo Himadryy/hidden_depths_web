@@ -1,6 +1,7 @@
 'use client';
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import * as Sentry from '@sentry/nextjs';
 import { logger } from '@/lib/logger';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
@@ -19,6 +20,7 @@ interface State {
  * 
  * Catches JavaScript errors anywhere in the child component tree,
  * logs them, and displays a fallback UI instead of crashing.
+ * Errors are automatically sent to Sentry in production.
  * 
  * Usage:
  * <ErrorBoundary>
@@ -42,10 +44,10 @@ class ErrorBoundary extends Component<Props, State> {
       componentStack: errorInfo.componentStack,
     });
     
-    // TODO: In production, send to error tracking service
-    // if (typeof window !== 'undefined') {
-    //   Sentry.captureException(error, { extra: { componentStack: errorInfo.componentStack } });
-    // }
+    // Send to Sentry with component stack
+    Sentry.captureException(error, {
+      extra: { componentStack: errorInfo.componentStack },
+    });
   }
 
   handleReset = (): void => {

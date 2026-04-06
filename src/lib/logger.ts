@@ -4,7 +4,10 @@
  * Provides consistent logging across the application with different levels.
  * In production, only warnings and errors are logged to the console.
  * Debug and info logs are suppressed in production builds.
+ * Errors are automatically sent to Sentry in production.
  */
+
+import * as Sentry from '@sentry/nextjs';
 
 interface LogContext {
   [key: string]: unknown;
@@ -57,11 +60,22 @@ export const logger = {
    */
   warn: (message: string, context?: LogContext): void => {
     console.warn(`[WARN ${timestamp()}] ${message}${formatContext(context)}`);
+    
+    // Send warnings to Sentry as breadcrumbs for context
+    if (!isDev) {
+      Sentry.addBreadcrumb({
+        category: 'warning',
+        message,
+        level: 'warning',
+        data: context,
+      });
+    }
   },
 
   /**
    * Error level - shown in all environments
    * Use for errors that need attention
+   * Automatically sends to Sentry in production
    */
   error: (message: string, error?: unknown, context?: LogContext): void => {
     const errorMessage = error instanceof Error ? error.message : String(error || '');
@@ -72,10 +86,17 @@ export const logger = {
     };
     console.error(`[ERROR ${timestamp()}] ${message}${formatContext(fullContext)}`);
     
-    // TODO: In production, send to error tracking service (e.g., Sentry)
-    // if (!isDev && typeof window !== 'undefined') {
-    //   Sentry.captureException(error, { extra: context });
-    // }
+    // Send to Sentry in production
+    if (!isDev) {
+      if (error instanceof Error) {
+        Sentry.captureException(error, { extra: { message, ...context } });
+      } else {
+        Sentry.captureMessage(message, {
+          level: 'error',
+          extra: { originalError: error, ...context },
+        });
+      }
+    }
   },
 
   /**
