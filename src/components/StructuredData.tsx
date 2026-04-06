@@ -20,8 +20,6 @@ export function OrganizationSchema() {
     },
     address: {
       '@type': 'PostalAddress',
-      addressLocality: 'Kolkata',
-      addressRegion: 'West Bengal',
       addressCountry: 'IN',
     },
     sameAs: [
@@ -181,10 +179,11 @@ export function ArticleSchema({
 }
 
 export function LocalBusinessSchema() {
+  // Using OnlineBusiness schema - no physical address or location data
   const schema = {
     '@context': 'https://schema.org',
-    '@type': 'LocalBusiness',
-    '@id': 'https://hidden-depths-web.pages.dev/#localbusiness',
+    '@type': 'OnlineBusiness',
+    '@id': 'https://hidden-depths-web.pages.dev/#business',
     name: 'Hidden Depths',
     description: 'Anonymous mental health support and mentorship platform offering affordable 45-minute sessions for ₹99',
     url: 'https://hidden-depths-web.pages.dev',
@@ -192,32 +191,10 @@ export function LocalBusinessSchema() {
     priceRange: '₹₹',
     currenciesAccepted: 'INR',
     paymentAccepted: 'UPI, Credit Card, Debit Card, Net Banking',
-    address: {
-      '@type': 'PostalAddress',
-      streetAddress: 'Online Service',
-      addressLocality: 'Kolkata',
-      addressRegion: 'West Bengal',
-      postalCode: '700001',
-      addressCountry: 'IN',
+    areaServed: {
+      '@type': 'Country',
+      name: 'India',
     },
-    geo: {
-      '@type': 'GeoCoordinates',
-      latitude: 22.5726,
-      longitude: 88.3639,
-    },
-    areaServed: [
-      { '@type': 'City', name: 'Kolkata' },
-      { '@type': 'State', name: 'West Bengal' },
-      { '@type': 'Country', name: 'India' },
-    ],
-    openingHoursSpecification: [
-      {
-        '@type': 'OpeningHoursSpecification',
-        dayOfWeek: ['Sunday', 'Monday'],
-        opens: '09:00',
-        closes: '19:00',
-      },
-    ],
     aggregateRating: {
       '@type': 'AggregateRating',
       ratingValue: '4.8',
