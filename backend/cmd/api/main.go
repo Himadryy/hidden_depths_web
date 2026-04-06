@@ -208,7 +208,7 @@ func main() {
 
 	// 9. Start Server with Graceful Shutdown
 	srv := &http.Server{
-		Addr:         ":" + cfg.Port,
+		Addr:         "0.0.0.0:" + cfg.Port,
 		Handler:      r,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
