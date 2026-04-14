@@ -113,7 +113,7 @@ Secondary: stress relief online, digital sanctuary, therapy alternative India, e
 - API: Render.com
 
 ### Compliance
-- AGPL-3.0 open source license
+- Proprietary license (all rights reserved)
 - Privacy policy: /privacy
 - Terms of service: /terms
 - Cookie policy: /cookies

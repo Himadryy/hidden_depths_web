@@ -21,4 +21,4 @@ If you discover a security vulnerability within this project, please prioritize 
 
 ## Anti-Theft & Integrity
 
-This code is protected under **AGPL-3.0**. Unauthorized cloning, rebranding, or malicious injection of this codebase for commercial gain without adherence to the license will be legally pursued.
+This code is protected under the project’s **proprietary all-rights-reserved license**. Unauthorized cloning, rebranding, redistribution, or commercial deployment without written permission will be legally pursued.

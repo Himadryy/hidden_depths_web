@@ -30,7 +30,7 @@
 -   **Hosting:** Cloudflare Pages (Frontend), Render (Backend)
 -   **Payments:** Razorpay Integration
 -   **Monitoring:** Sentry (Error Tracking)
--   **License:** AGPL-3.0
+-   **License:** Proprietary (All Rights Reserved)
 
 ## 🚀 Getting Started
 
@@ -79,10 +79,11 @@ make run
 
 **Copyright © 2026 Himadryy.**
 
-This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
-*   You are free to download and inspect the code for educational purposes.
-*   **Strict Copyleft:** If you modify this application and distribute it (or host it over a network), you **MUST** open-source your entire project under the same AGPL-3.0 license.
-*   **Proprietary Use:** Closed-source usage or commercial rebranding without permission is strictly prohibited.
+This project is **proprietary** and distributed as **All Rights Reserved**.
+*   Public repository visibility does **not** grant open-source usage rights.
+*   You may review code and submit contributions via pull request.
+*   You may **not** copy, deploy, resell, rebrand, or run derivative production services without explicit written permission from the owner.
+*   See [`LICENSE`](./LICENSE) for full terms.
 
 ---
 *Built with heart and code in Kolkata.*

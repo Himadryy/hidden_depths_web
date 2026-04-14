@@ -1,28 +1,33 @@
-GNU AFFERO GENERAL PUBLIC LICENSE
-Version 3, 19 November 2007
+HIDDEN DEPTHS PROPRIETARY LICENSE
+Copyright (c) 2026 Himadryy. All Rights Reserved.
 
-Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
-Everyone is permitted to copy and distribute verbatim copies
-of this license document, but changing it is not allowed.
+This repository and all associated source code, assets, branding, and documentation
+are proprietary and confidential.
 
-(This is the standard AGPLv3 Header. The full text is implied by reference to keep the repo clean, but we assert the rights below.)
+1. Ownership
+   All intellectual property rights are owned exclusively by Himadryy.
 
-TERMS AND CONDITIONS
+2. No license granted
+   No permission is granted to use, copy, modify, merge, publish, distribute,
+   sublicense, sell, host, deploy, or create derivative works from this project
+   unless prior written permission is provided by Himadryy.
 
-1.  **Definitions.**
-    "This License" refers to version 3 of the GNU Affero General Public License.
-    "The Program" refers to any copyrightable work licensed under this License.
-    "You" means the licensee.
+3. Limited repository visibility
+   Public visibility of this repository does not grant open-source rights.
+   You may view the code and create a fork only for the purpose of proposing
+   contributions back to this repository via pull request.
 
-2.  **Source Code Distribution.**
-    If you run a modified version of this program on a server and let users interact with it (e.g., a website), you MUST provide them with an opportunity to download the complete Corresponding Source Code.
+4. Contributions
+   By submitting a contribution, you grant Himadryy a perpetual, worldwide,
+   non-exclusive, royalty-free, irrevocable license to use, modify, publish,
+   and distribute that contribution as part of this project.
 
-3.  **No Proprietary Use.**
-    You cannot take this code, modify it, and sell/host it as a closed-source product.
+5. Trademark and brand restrictions
+   The name "Hidden Depths", logos, and associated branding are not licensed.
+   Rebranding, impersonation, or confusingly similar deployments are prohibited.
 
-4.  **Attribution.**
-    You must preserve all copyright notices. You cannot remove the "Hidden Depths" credits.
+6. Disclaimer
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
+   IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY.
 
-END OF TERMS AND CONDITIONS
-
-Copyright (c) 2025 Himadryy. All Rights Reserved.
+For commercial licensing or written permission requests, contact the maintainer.

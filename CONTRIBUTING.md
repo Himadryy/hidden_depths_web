@@ -5,8 +5,8 @@ First off, thank you for considering contributing to Hidden Depths! We welcome h
 ## 🛑 Legal Notice & Rights
 By contributing to this repository, you agree that:
 1.  **Ownership:** You grant **Himadryy** a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable license to use your contributions.
-2.  **License:** Your contributions will be licensed under the project's **AGPLv3** license.
-3.  **No Theft:** You understand that this code is **Open Source** but **Copyleft**. You may not use this codebase to deploy a competing commercial service without express permission.
+2.  **License Model:** This project is **proprietary (all rights reserved)**. Your contribution may be incorporated into proprietary releases of Hidden Depths.
+3.  **No Unauthorized Use:** You may not use this codebase to deploy, rebrand, or commercialize a competing service without express written permission.
 
 ## 🛠 How to Contribute
 1.  **Fork the Project:** Create your own copy of the repository.

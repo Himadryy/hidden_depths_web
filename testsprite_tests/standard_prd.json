@@ -90,7 +90,7 @@
   "code_summary": {
     "project_name": "HiddenDepths-Website",
     "version": "0.1.0",
-    "license": "AGPL-3.0",
+    "license": "Proprietary (All Rights Reserved)",
     "description": "A mental-health and well-being platform offering anonymous therapy sessions, insights content, and booking management. Features a WebGL ocean-themed UI, Razorpay payments, Supabase authentication, and an admin dashboard.\n",
     "tech_stack": {
       "frontend": {

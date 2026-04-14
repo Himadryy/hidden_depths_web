@@ -4,10 +4,10 @@ import { OrganizationSchema, BreadcrumbSchema } from '@/components/StructuredDat
 
 export const metadata: Metadata = {
   title: 'About Us - Anonymous Mental Health Support Platform',
-  description: 'Learn about Hidden Depths, a unique digital sanctuary offering anonymous mental health support and affordable 1-on-1 mentorship sessions based in Kolkata, India.',
+  description: 'Hidden Depths is a private digital sanctuary from Kolkata offering anonymous 1-on-1 mentorship sessions designed for calm reflection, emotional support, and mental clarity.',
   openGraph: {
     title: 'About Hidden Depths - Our Mission',
-    description: 'Creating a safe, anonymous space for mental clarity and emotional support',
+    description: 'A private and anonymous digital sanctuary for mental clarity and emotional support.',
     url: 'https://hidden-depths-web.pages.dev/about',
   },
 };
@@ -31,7 +31,7 @@ export default function AboutPage() {
               About Hidden Depths
             </h1>
             <p className="text-lg md:text-xl text-[var(--text-muted)] mb-8 font-light italic">
-              When your head is full, and you need a space to think.
+              A private digital sanctuary for honest conversations and mental clarity.
             </p>
           </div>
         </section>
