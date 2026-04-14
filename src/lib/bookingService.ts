@@ -21,6 +21,34 @@ export interface CreateBookingResponse {
   key_id?: string;
 }
 
+export interface BookingPolicy {
+  safe_mode: boolean;
+  search_window_days: number;
+  max_bookable_dates: number;
+  allowed_weekdays: number[];
+  time_slots: string[];
+  available_dates: string[];
+}
+
+export interface BookingStatus {
+  booking_id: string;
+  payment_status: 'pending' | 'paid' | 'failed' | string;
+  is_confirmed: boolean;
+  date: string;
+  time: string;
+  razorpay_order_id?: string;
+  razorpay_payment_id?: string;
+  hold_expires_at?: string;
+}
+
+interface SlotsPayload {
+  slots?: string[];
+  paid_slots?: string[];
+  held_slots?: string[];
+  hold_expires_at?: Record<string, string>;
+  hold_window_seconds?: number;
+}
+
 // Retry wrapper for cold-start resilience (Render free tier wakes in ~30s)
 async function fetchWithRetry(url: string, options?: RequestInit, retries = 1): Promise<Response> {
   try {
@@ -37,46 +65,53 @@ async function fetchWithRetry(url: string, options?: RequestInit, retries = 1): 
 
 export const getBookedSlots = async (date: string): Promise<string[]> => {
   const apiUrl = getApiUrl();
-  if (apiUrl) {
-    try {
-      const url = `${apiUrl}/bookings/slots/${date}`;
-      
-      const response = await fetchWithTimeout(url);
-      if (!response.ok) {
-        logger.warn('Go API returned error for slots, falling back', { status: response.status });
-        throw new Error('Failed to fetch slots');
-      }
-      
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const data = await response.json();
-        return Array.isArray(data) ? data : (data.data || []);
-      }
-      return [];
-    } catch (err) {
-      // Only log as error if it's not a standard fetch failure (to keep logs clean during local dev without backend)
-      if (err instanceof TypeError && err.message === 'Failed to fetch') {
-        logger.debug('Backend unreachable, using Supabase fallback');
-      } else {
-        logger.warn('Go API error, falling back to Supabase', { error: err });
-      }
-    }
+  if (!apiUrl) {
+    throw new Error('Booking service is not configured.');
   }
 
-  // Fallback: Supabase Direct — only count confirmed (paid) bookings
-  // to avoid falsely blocking slots from stale pending/failed rows
-  const { data, error } = await supabase
-    .from('bookings')
-    .select('time')
-    .eq('date', date)
-    .eq('payment_status', 'paid');
-
-  if (error) {
-    logger.error('Error fetching booked slots from Supabase', error);
-    return [];
+  const url = `${apiUrl}/bookings/slots/${date}`;
+  const response = await fetchWithTimeout(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch slot availability (${response.status})`);
   }
 
-  return data.map((booking) => booking.time);
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    throw new Error('Invalid slot availability response');
+  }
+
+  const data = await response.json();
+  const payload = (data?.data || data) as SlotsPayload | string[];
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (Array.isArray(payload?.slots)) {
+    return payload.slots;
+  }
+
+  return [];
+};
+
+export const getBookingPolicy = async (): Promise<BookingPolicy> => {
+  const apiUrl = getApiUrl();
+  if (!apiUrl) {
+    throw new Error('Booking service is not configured.');
+  }
+
+  const response = await fetchWithTimeout(`${apiUrl}/bookings/policy`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch booking policy (${response.status})`);
+  }
+
+  const data = await response.json();
+  const payload = (data?.data || data) as BookingPolicy;
+
+  if (!payload || !Array.isArray(payload.time_slots) || !Array.isArray(payload.available_dates)) {
+    throw new Error('Invalid booking policy response');
+  }
+
+  return payload;
 };
 
 export const createBooking = async (
@@ -193,6 +228,42 @@ export const verifyPayment = async (
     }
 };
 
+export const getBookingStatus = async (bookingId: string): Promise<BookingStatus> => {
+    const apiUrl = getApiUrl();
+    if (!apiUrl) {
+        throw new Error("Backend API not configured");
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) {
+        throw new Error('You must be logged in to check booking status.');
+    }
+
+    const response = await fetchWithTimeout(`${apiUrl}/bookings/${bookingId}/status`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+
+    const contentType = response.headers.get('content-type');
+    let data: unknown = null;
+    if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+    }
+
+    if (!response.ok) {
+        const payload = data as { error?: string } | null;
+        throw new Error(payload?.error || 'Failed to fetch booking status');
+    }
+
+    const payload = ((data as { data?: BookingStatus })?.data || data) as BookingStatus;
+    if (!payload || !payload.payment_status) {
+        throw new Error('Invalid booking status response');
+    }
+    return payload;
+};
+
 // Cancel a pending booking (used when payment fails, user dismisses Razorpay, or user retries)
 export const cancelPendingBooking = async (bookingId: string): Promise<void> => {
     const apiUrl = getApiUrl();
@@ -203,10 +274,13 @@ export const cancelPendingBooking = async (bookingId: string): Promise<void> => 
         const token = session?.access_token;
         if (!token) return;
 
-        await fetchWithTimeout(`${apiUrl}/bookings/${bookingId}`, {
-            method: 'DELETE',
+        const res = await fetchWithTimeout(`${apiUrl}/bookings/${bookingId}/release-pending`, {
+            method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` },
         });
+        if (!res.ok) {
+            logger.warn('Pending booking release failed', { bookingId, status: res.status });
+        }
     } catch {
         // Best-effort cleanup — scheduler will catch anything we miss
     }

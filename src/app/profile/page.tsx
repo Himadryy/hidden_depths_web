@@ -87,7 +87,8 @@ export default function ProfilePage() {
             const res = await fetchWithTimeout(`${apiUrl}/bookings/${bookingId}`, {
                 method: 'DELETE',
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'X-Booking-Cancel': 'confirmed',
                 }
             });
 

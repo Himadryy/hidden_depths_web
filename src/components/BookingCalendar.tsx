@@ -1,9 +1,17 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Clock, CheckCircle, Calendar as CalendarIcon, ArrowRight, Loader2, AlertTriangle } from 'lucide-react';
-import { getBookedSlots, createBooking, verifyPayment, cancelPendingBooking } from '@/lib/bookingService';
+import {
+  getBookedSlots,
+  getBookingPolicy,
+  getBookingStatus,
+  createBooking,
+  verifyPayment,
+  cancelPendingBooking,
+  type BookingPolicy,
+} from '@/lib/bookingService';
 import { useAuth } from '@/context/AuthProvider';
 import { getApiUrl, fetchWithTimeout } from '@/lib/api';
 import Script from 'next/script';
@@ -64,10 +72,42 @@ declare global {
 
 type ViewState = 'calendar' | 'slots' | 'form' | 'success';
 
-const TIME_SLOTS = [
+const FALLBACK_TIME_SLOTS = [
   '11:00 AM', '11:45 AM', '12:30 PM',
   '08:00 PM', '08:45 PM'
 ];
+
+const parseDateStringToLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const computeFallbackAvailableDates = (): string[] => {
+  const dates: string[] = [];
+  const today = new Date();
+
+  for (let i = 0; i < 21 && dates.length < 2; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const weekday = d.getDay();
+    if (weekday === 0 || weekday === 1) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      dates.push(`${year}-${month}-${day}`);
+    }
+  }
+  return dates;
+};
+
+const FALLBACK_POLICY: BookingPolicy = {
+  safe_mode: true,
+  search_window_days: 21,
+  max_bookable_dates: 2,
+  allowed_weekdays: [0, 1],
+  time_slots: FALLBACK_TIME_SLOTS,
+  available_dates: computeFallbackAvailableDates(),
+};
 
 // Helper to check if a time slot is in the past relative to now
 const isTimePast = (timeStr: string, selectedDate: Date | null): boolean => {
@@ -120,6 +160,8 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [recommendations, setRecommendations] = useState<Record<string, number>>({});
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+  const [bookingPolicy, setBookingPolicy] = useState<BookingPolicy | null>(null);
+  const [isLoadingPolicy, setIsLoadingPolicy] = useState(true);
 
   // Pre-fill if user exists
   const [name, setName] = useState('');
@@ -135,6 +177,34 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     const t = setTimeout(() => setErrorMsg(''), 6000);
     return () => clearTimeout(t);
   }, [errorMsg]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadPolicy = async () => {
+      setIsLoadingPolicy(true);
+      try {
+        const policy = await getBookingPolicy();
+        if (mounted) {
+          setBookingPolicy(policy);
+        }
+      } catch {
+        if (mounted) {
+          setBookingPolicy(FALLBACK_POLICY);
+          setErrorMsg('Live booking rules could not be loaded. Showing safe mode defaults.');
+        }
+      } finally {
+        if (mounted) {
+          setIsLoadingPolicy(false);
+        }
+      }
+    };
+
+    loadPolicy();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Real-time updates via WebSockets
   useEffect(() => {
@@ -216,7 +286,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
   }, [selectedDate]);
 
   // Refresh slots for the currently selected date (called by visibility/focus/polling)
-  const refreshSlots = async () => {
+  const refreshSlots = useCallback(async () => {
     if (!selectedDate || view !== 'slots') return;
     
     try {
@@ -224,9 +294,9 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
       const slots = await getBookedSlots(dateStr);
       setBookedSlots(slots);
     } catch {
-      // Silently fail — user can still see cached data
+      setErrorMsg('Could not refresh live availability. Please wait a moment and try again.');
     }
-  };
+  }, [selectedDate, view]);
 
   // Refresh slots when tab regains focus or becomes visible (handles mobile/background scenarios)
   useEffect(() => {
@@ -253,49 +323,40 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
       window.removeEventListener('focus', handleFocus);
       clearInterval(pollInterval);
     };
-  }, [selectedDate, view]);
+  }, [selectedDate, view, refreshSlots]);
 
-  // Logic: Get next available Sundays and Mondays starting from today
+  // Dates sourced from backend booking policy to keep UI and server rules aligned.
   const availableDates = useMemo(() => {
-    const dates: Date[] = [];
-    const today = new Date();
-    
-    // Check next 21 days (3 weeks) to find all Sundays and Mondays
-    for (let i = 0; i < 21; i++) {
-        const d = new Date(today);
-        d.setDate(today.getDate() + i);
-        const day = d.getDay();
-        
-        // 0 = Sunday, 1 = Monday
-        if (day === 0 || day === 1) {
-            dates.push(d);
-        }
-    }
-    return dates;
-  }, []);
+    const sourceDates = bookingPolicy?.available_dates || FALLBACK_POLICY.available_dates;
+    return sourceDates.map(parseDateStringToLocalDate);
+  }, [bookingPolicy]);
 
   const handleDateClick = async (date: Date) => {
     setSelectedDate(date);
     setView('slots');
     setIsLoadingSlots(true);
+    setErrorMsg('');
     setBookedSlots([]); // Clear previous
     setRecommendations({});
 
     try {
         const dateStr = formatDateForDB(date);
+        const apiUrl = getApiUrl();
         
         // Fetch Availability & Neural Recommendations in parallel
         const [slots, recRes] = await Promise.all([
             getBookedSlots(dateStr),
-            fetchWithTimeout(`${getApiUrl()}/bookings/recommendations/${dateStr}`)
+            apiUrl
+                ? fetchWithTimeout(`${apiUrl}/bookings/recommendations/${dateStr}`)
                 .then(res => res.ok ? res.json() : { data: {} })
                 .catch(() => ({ data: {} }))
+                : Promise.resolve({ data: {} })
         ]);
 
         setBookedSlots(slots);
         setRecommendations(recRes.data || {});
-    } catch (err) {
-        console.error("Failed to load slots", err);
+    } catch {
+        setErrorMsg('Live availability could not be loaded. Please retry.');
     } finally {
         setIsLoadingSlots(false);
     }
@@ -306,12 +367,34 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     setView('form');
   };
 
+  const waitForPaymentSettlement = async (bookingId: string): Promise<boolean> => {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const status = await getBookingStatus(bookingId);
+        if (status.payment_status === 'paid') {
+          return true;
+        }
+        if (status.payment_status === 'failed') {
+          return false;
+        }
+      } catch {
+        // keep polling briefly for eventual consistency across verify/webhook paths
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+    return false;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setErrorMsg('');
     
-    if (!selectedDate || !selectedTime) return;
+    if (!selectedDate || !selectedTime) {
+      setErrorMsg('Please choose a date and time.');
+      setIsSubmitting(false);
+      return;
+    }
 
     const dateStr = formatDateForDB(selectedDate);
 
@@ -379,7 +462,12 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
                     if (verify.success) {
                         setView('success');
                     } else {
-                        setErrorMsg("Payment verification failed. Your payment is safe — if charged, it will be confirmed automatically.");
+                        const settled = await waitForPaymentSettlement(pendingBookingId);
+                        if (settled) {
+                          setView('success');
+                        } else {
+                          setErrorMsg("Payment is processing. If charged, status will update automatically.");
+                        }
                     }
                     setIsSubmitting(false);
                 },
@@ -414,12 +502,15 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             setView('success');
             setIsSubmitting(false);
         }
-    } catch (error) {
-        console.error("Booking Error:", error);
-        setErrorMsg("Something went wrong. Please try again.");
+    } catch {
+        setErrorMsg("Could not complete booking right now. Please try again.");
         setIsSubmitting(false);
     }
   };
+
+  const activePolicy = bookingPolicy || FALLBACK_POLICY;
+  const activeTimeSlots = activePolicy.time_slots;
+  const isSafeMode = activePolicy.safe_mode;
 
   // Styles using CSS Variables for Theming
   const buttonStyle = "flex items-center justify-between p-4 rounded-xl text-left transition-all group relative overflow-hidden font-serif";
@@ -430,18 +521,26 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
         {/* Promotional Banner */}
         <div className="mt-10 md:mt-0 bg-[var(--accent)]/10 border border-[var(--accent)]/20 p-3 rounded-lg text-center">
             <p className="text-xs md:text-sm font-bold text-[var(--accent)] tracking-wide uppercase">
-                ✨ Limited Slots: Sundays & Mondays Only
+                {isSafeMode ? '🛡️ Safe Mode: 2-Day Booking Window' : '✨ Limited Slots: Sundays & Mondays Only'}
             </p>
         </div>
 
         <div className="flex flex-col gap-2">
             <h3 className="text-2xl md:text-3xl font-serif text-theme">Select a Date</h3>
             <div className="h-px w-12 bg-[var(--accent)] opacity-50" />
-            <p className="text-xs md:text-sm text-muted font-light mt-2">Available Sundays & Mondays.</p>
+            <p className="text-xs md:text-sm text-muted font-light mt-2">
+              Showing {availableDates.length} live dates from booking policy.
+            </p>
         </div>
         
         {/* Rolling List of Dates - Single column on mobile, 2 cols on tablet+ */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 overflow-y-auto overflow-x-hidden pr-2 custom-scrollbar flex-1 min-w-0 w-full max-w-full">
+            {isLoadingPolicy && (
+              <div className="md:col-span-2 flex items-center justify-center py-6 text-muted text-xs uppercase tracking-widest">
+                <Loader2 className="animate-spin mr-2" size={16} />
+                Loading booking policy...
+              </div>
+            )}
             {availableDates.map((date, i) => {
                 const isPaid = isPaidSession(date);
                 return (
@@ -467,7 +566,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
 
   const renderSlots = () => {
     // Filter slots based on current time if "Today" is selected
-    const visibleSlots = TIME_SLOTS.filter(time => !isTimePast(time, selectedDate));
+    const visibleSlots = activeTimeSlots.filter(time => !isTimePast(time, selectedDate));
     
     // Find the highest scoring slot for the "Recommended" badge
     const maxScore = Math.max(...Object.values(recommendations), 0);

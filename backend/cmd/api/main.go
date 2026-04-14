@@ -98,6 +98,13 @@ func main() {
 
 	// 6. Initialize Services
 	auditService := services.NewAuditService()
+	handlers.SetBookingPolicy(handlers.BookingPolicy{
+		SafeMode:         cfg.BookingSafeMode,
+		AllowedWeekdays:  []time.Weekday{time.Sunday, time.Monday},
+		SearchWindowDays: cfg.BookingSearchWindowDays,
+		MaxBookableDates: cfg.BookingMaxBookableDates,
+		TimeSlots:        cfg.BookingTimeSlots,
+	})
 
 	// 7. Initialize WebSocket Hub (with origin validation)
 	hub := ws.NewHub(cfg.AllowedOrigins)
@@ -105,22 +112,22 @@ func main() {
 	logger.Info("WebSocket Hub started")
 
 	// 8. Rate Limiters — protect critical endpoints (uses Redis when available)
-	globalLimiter := middleware.NewNamedRateLimiter("global", 200, time.Minute)   // 200 req/min general
-	bookingLimiter := middleware.NewNamedRateLimiter("booking", 10, time.Minute)  // 10 req/min for booking creation
-	paymentLimiter := middleware.NewNamedRateLimiter("payment", 5, time.Minute)   // 5 req/min for payment verification
+	globalLimiter := middleware.NewNamedRateLimiter("global", 200, time.Minute)  // 200 req/min general
+	bookingLimiter := middleware.NewNamedRateLimiter("booking", 10, time.Minute) // 10 req/min for booking creation
+	paymentLimiter := middleware.NewNamedRateLimiter("payment", 5, time.Minute)  // 5 req/min for payment verification
 
 	// 9. Setup Router & Middleware
 	r := chi.NewRouter()
 
 	r.Use(chiMiddleware.RequestID)
-	r.Use(middleware.RequestIDResponse)            // Propagate request ID to response headers
+	r.Use(middleware.RequestIDResponse) // Propagate request ID to response headers
 	r.Use(chiMiddleware.RealIP)
 	r.Use(chiMiddleware.Logger)
-	r.Use(middleware.SentryRecovery(logger.Log))   // Sentry panic capture (before chi Recoverer)
+	r.Use(middleware.SentryRecovery(logger.Log)) // Sentry panic capture (before chi Recoverer)
 	r.Use(chiMiddleware.Recoverer)
 	r.Use(chiMiddleware.Timeout(60 * time.Second))
-	r.Use(middleware.SecurityHeaders)              // Security headers (CSP, HSTS, X-Frame-Options, etc.)
-	r.Use(middleware.PrometheusMetrics)            // Prometheus metrics collection
+	r.Use(middleware.SecurityHeaders)   // Security headers (CSP, HSTS, X-Frame-Options, etc.)
+	r.Use(middleware.PrometheusMetrics) // Prometheus metrics collection
 	r.Use(globalLimiter.Handler)
 
 	// CORS Setup
@@ -152,6 +159,7 @@ func main() {
 		r.Route("/v1", func(r chi.Router) {
 			// Bookings
 			r.Route("/bookings", func(r chi.Router) {
+				r.Get("/policy", handlers.GetBookingPolicy)
 				r.Get("/slots/{date}", handlers.GetBookedSlots)
 				r.Get("/recommendations/{date}", handlers.GetRecommendedSlots)
 				r.With(paymentLimiter.Handler).Post("/verify", func(w http.ResponseWriter, r *http.Request) {
@@ -163,9 +171,13 @@ func main() {
 					r.Use(middleware.AuthMiddleware(cfg.JWTSecret, cfg.SupabaseAnonKey))
 
 					r.Get("/my", handlers.GetUserBookings)
+					r.Get("/{id}/status", handlers.GetBookingStatus)
 					r.Get("/subscriptions/active", handlers.GetActiveSubscription)
 					r.With(bookingLimiter.Handler).Post("/", func(w http.ResponseWriter, r *http.Request) {
 						handlers.CreateBooking(w, r, hub, auditService)
+					})
+					r.Post("/{id}/release-pending", func(w http.ResponseWriter, r *http.Request) {
+						handlers.ReleasePendingBooking(w, r, hub, auditService)
 					})
 					r.Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {
 						handlers.CancelBooking(w, r, hub, auditService)

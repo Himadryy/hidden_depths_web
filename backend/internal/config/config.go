@@ -23,6 +23,12 @@ type Config struct {
 	RedisURL     string
 	CacheEnabled bool
 
+	// Booking policy
+	BookingSafeMode         bool
+	BookingSearchWindowDays int
+	BookingMaxBookableDates int
+	BookingTimeSlots        []string
+
 	// SMTP Config (legacy)
 	SMTPHost string
 	SMTPPort int
@@ -30,7 +36,7 @@ type Config struct {
 	SMTPPass string
 
 	// Resend Config (preferred email provider)
-	ResendAPIKey   string
+	ResendAPIKey    string
 	ResendFromEmail string
 }
 
@@ -59,6 +65,12 @@ func Load() (*Config, error) {
 	// Load .env file if it exists
 	_ = godotenv.Load()
 
+	bookingSafeMode := getBoolEnv("BOOKING_SAFE_MODE", true)
+	defaultMaxBookableDates := 6
+	if bookingSafeMode {
+		defaultMaxBookableDates = 2
+	}
+
 	cfg := &Config{
 		Port:            getEnv("PORT", "8080"),
 		Environment:     getEnv("ENVIRONMENT", "development"),
@@ -70,6 +82,11 @@ func Load() (*Config, error) {
 
 		RedisURL:     getEnv("REDIS_URL", ""),
 		CacheEnabled: getBoolEnv("CACHE_ENABLED", true),
+
+		BookingSafeMode:         bookingSafeMode,
+		BookingSearchWindowDays: getIntEnv("BOOKING_SEARCH_WINDOW_DAYS", 21),
+		BookingMaxBookableDates: getIntEnv("BOOKING_MAX_BOOKABLE_DATES", defaultMaxBookableDates),
+		BookingTimeSlots:        getTrimmedSliceEnv("BOOKING_TIME_SLOTS", ","),
 
 		SMTPHost: getEnv("SMTP_HOST", ""),
 		SMTPPort: getIntEnv("SMTP_PORT", 587),
@@ -86,6 +103,10 @@ func Load() (*Config, error) {
 			"http://127.0.0.1:3000",
 			"https://hidden-depths-web.pages.dev",
 		}
+	}
+
+	if len(cfg.BookingTimeSlots) == 0 {
+		cfg.BookingTimeSlots = []string{"11:00 AM", "11:45 AM", "12:30 PM", "08:00 PM", "08:45 PM"}
 	}
 
 	// Validate required configuration
@@ -130,6 +151,34 @@ func (c *Config) Validate() error {
 		valErr.Invalid["PORT"] = "must be a valid port number (1-65535)"
 	}
 
+	// Booking policy validation
+	searchWindowDays := c.BookingSearchWindowDays
+	if searchWindowDays == 0 {
+		searchWindowDays = 21
+	}
+	maxBookableDates := c.BookingMaxBookableDates
+	if maxBookableDates == 0 {
+		if c.BookingSafeMode {
+			maxBookableDates = 2
+		} else {
+			maxBookableDates = 6
+		}
+	}
+	timeSlots := c.BookingTimeSlots
+	if len(timeSlots) == 0 {
+		timeSlots = []string{"11:00 AM", "11:45 AM", "12:30 PM", "08:00 PM", "08:45 PM"}
+	}
+
+	if searchWindowDays < 1 || searchWindowDays > 90 {
+		valErr.Invalid["BOOKING_SEARCH_WINDOW_DAYS"] = "must be between 1 and 90"
+	}
+	if maxBookableDates < 1 || maxBookableDates > 30 {
+		valErr.Invalid["BOOKING_MAX_BOOKABLE_DATES"] = "must be between 1 and 30"
+	}
+	if len(timeSlots) == 0 {
+		valErr.Invalid["BOOKING_TIME_SLOTS"] = "must contain at least one slot"
+	}
+
 	// Production-specific validation
 	if c.Environment == "production" {
 		if len(c.AdminEmails) == 0 {
@@ -171,6 +220,26 @@ func getSliceEnv(key, separator string) []string {
 		return nil
 	}
 	return strings.Split(value, separator)
+}
+
+func getTrimmedSliceEnv(key, separator string) []string {
+	raw := getSliceEnv(key, separator)
+	if len(raw) == 0 {
+		return nil
+	}
+
+	out := make([]string, 0, len(raw))
+	for _, item := range raw {
+		trimmed := strings.TrimSpace(item)
+		if trimmed == "" {
+			continue
+		}
+		out = append(out, trimmed)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func getDurationEnv(key string, defaultValue time.Duration) time.Duration {
