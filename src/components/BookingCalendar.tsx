@@ -399,14 +399,18 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
     const dateStr = formatDateForDB(selectedDate);
 
     try {
-        // Pre-submit validation: re-check slot availability to prevent stale booking attempts
-        const currentSlots = await getBookedSlots(dateStr);
-        if (currentSlots.includes(selectedTime)) {
-            setBookedSlots(currentSlots);
-            setErrorMsg('This slot was just booked by someone else. Please select another time.');
-            setView('slots');
-            setIsSubmitting(false);
-            return;
+        // Best-effort pre-check: if this refresh fails, continue and let backend enforce atomic slot locking.
+        try {
+            const currentSlots = await getBookedSlots(dateStr);
+            if (currentSlots.includes(selectedTime)) {
+                setBookedSlots(currentSlots);
+                setErrorMsg('This slot was just booked by someone else. Please select another time.');
+                setView('slots');
+                setIsSubmitting(false);
+                return;
+            }
+        } catch {
+            // continue to createBooking; backend remains source of truth for slot locking
         }
 
         // 1. Initiate Booking (Create 'Pending' Slot & Razorpay Order if paid)
@@ -502,8 +506,12 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
             setView('success');
             setIsSubmitting(false);
         }
-    } catch {
-        setErrorMsg("Could not complete booking right now. Please try again.");
+    } catch (error) {
+        if (error instanceof Error && error.message) {
+            setErrorMsg(error.message);
+        } else {
+            setErrorMsg("Could not complete booking right now. Please try again.");
+        }
         setIsSubmitting(false);
     }
   };

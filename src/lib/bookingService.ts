@@ -70,7 +70,7 @@ export const getBookedSlots = async (date: string): Promise<string[]> => {
   }
 
   const url = `${apiUrl}/bookings/slots/${date}`;
-  const response = await fetchWithTimeout(url);
+  const response = await fetchWithRetry(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch slot availability (${response.status})`);
   }
@@ -99,7 +99,7 @@ export const getBookingPolicy = async (): Promise<BookingPolicy> => {
     throw new Error('Booking service is not configured.');
   }
 
-  const response = await fetchWithTimeout(`${apiUrl}/bookings/policy`);
+  const response = await fetchWithRetry(`${apiUrl}/bookings/policy`);
   if (!response.ok) {
     throw new Error(`Failed to fetch booking policy (${response.status})`);
   }
