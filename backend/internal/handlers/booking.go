@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Himadryy/hidden-depths-backend/internal/database"
+	appmetrics "github.com/Himadryy/hidden-depths-backend/internal/middleware"
 	"github.com/Himadryy/hidden-depths-backend/internal/models"
 	"github.com/Himadryy/hidden-depths-backend/internal/services"
 	"github.com/Himadryy/hidden-depths-backend/internal/ws"
@@ -26,6 +27,7 @@ import (
 	"github.com/Himadryy/hidden-depths-backend/pkg/validator"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	razorpay "github.com/razorpay/razorpay-go"
 	"go.uber.org/zap"
 )
@@ -53,6 +55,21 @@ func isPaidSession(dateStr string) (bool, error) {
 const (
 	pendingHoldDuration = 5 * time.Minute
 	pendingHoldWindow   = "5 minutes"
+)
+
+const (
+	paymentStatusPending   = "pending"
+	paymentStatusPaid      = "paid"
+	paymentStatusFailed    = "failed"
+	paymentStatusCancelled = "cancelled"
+)
+
+type releasePendingAction int
+
+const (
+	releasePendingActionUpdate releasePendingAction = iota
+	releasePendingActionRejectPaid
+	releasePendingActionNoopAlreadyReleased
 )
 
 // Database operation timeouts
@@ -167,6 +184,172 @@ func InvalidateSlotsCache(ctx context.Context, date string) {
 	}
 }
 
+func buildWebhookEventID(eventType, paymentID, orderID string) string {
+	switch {
+	case paymentID != "":
+		return eventType + ":" + paymentID
+	case orderID != "":
+		return eventType + ":order:" + orderID
+	default:
+		return eventType + ":unknown"
+	}
+}
+
+func withRequestID(r *http.Request, fields ...zap.Field) []zap.Field {
+	if requestID := strings.TrimSpace(r.Header.Get("X-Request-Id")); requestID != "" {
+		return append(fields, zap.String("request_id", requestID))
+	}
+	return fields
+}
+
+func userIDString(userID *string) string {
+	if userID == nil {
+		return ""
+	}
+	return *userID
+}
+
+func releasePendingActionForStatus(paymentStatus string) releasePendingAction {
+	switch paymentStatus {
+	case paymentStatusPaid:
+		return releasePendingActionRejectPaid
+	case paymentStatusFailed, paymentStatusCancelled:
+		return releasePendingActionNoopAlreadyReleased
+	default:
+		return releasePendingActionUpdate
+	}
+}
+
+func confirmBookingPaymentByID(ctx context.Context, bookingID, expectedOrderID, paymentID string) (models.Booking, bool, *apperror.AppError) {
+	var b models.Booking
+
+	tx, err := database.Pool.Begin(ctx)
+	if err != nil {
+		return b, false, apperror.DatabaseError("begin payment confirmation", err)
+	}
+	defer tx.Rollback(ctx)
+
+	err = tx.QueryRow(ctx,
+		`SELECT id, date, time, name, email, meeting_link, user_id, payment_status, razorpay_order_id
+		 FROM bookings
+		 WHERE id = $1
+		 FOR UPDATE`,
+		bookingID,
+	).Scan(&b.ID, &b.Date, &b.Time, &b.Name, &b.Email, &b.MeetingLink, &b.UserID, &b.PaymentStatus, &b.RazorpayOrderID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return b, false, apperror.BookingNotFound(bookingID)
+		}
+		return b, false, apperror.DatabaseError("fetch booking for confirmation", err)
+	}
+
+	if expectedOrderID != "" && b.RazorpayOrderID != expectedOrderID {
+		return b, false, apperror.ValidationError("razorpay_order_id", "Order ID does not match booking")
+	}
+
+	if b.PaymentStatus == paymentStatusPaid {
+		if err := tx.Commit(ctx); err != nil {
+			return b, false, apperror.DatabaseError("commit idempotent confirmation", err)
+		}
+		return b, false, nil
+	}
+	if b.PaymentStatus != paymentStatusPending {
+		return b, false, apperror.PaymentDeclined("booking is not pending")
+	}
+
+	result, err := tx.Exec(ctx,
+		`UPDATE bookings
+		 SET payment_status = $1,
+		     razorpay_payment_id = $2,
+		     status_reason = 'payment_confirmed',
+		     confirmed_at = COALESCE(confirmed_at, NOW())
+		 WHERE id = $3
+		   AND payment_status = $4`,
+		paymentStatusPaid, paymentID, b.ID, paymentStatusPending,
+	)
+	if err != nil {
+		return b, false, apperror.DatabaseError("update booking payment status", err)
+	}
+	if result.RowsAffected() == 0 {
+		return b, false, apperror.PaymentDeclined("booking is no longer pending")
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return b, false, apperror.DatabaseError("commit payment confirmation", err)
+	}
+
+	b.PaymentStatus = paymentStatusPaid
+	b.RazorpayPaymentID = paymentID
+	return b, true, nil
+}
+
+func confirmBookingPaymentByOrderID(ctx context.Context, orderID, paymentID string) (models.Booking, bool, error) {
+	var b models.Booking
+
+	tx, err := database.Pool.Begin(ctx)
+	if err != nil {
+		return b, false, err
+	}
+	defer tx.Rollback(ctx)
+
+	err = tx.QueryRow(ctx,
+		`SELECT id, date, time, name, email, meeting_link, user_id, payment_status, razorpay_order_id
+		 FROM bookings
+		 WHERE razorpay_order_id = $1
+		 ORDER BY created_at DESC
+		 LIMIT 1
+		 FOR UPDATE`,
+		orderID,
+	).Scan(&b.ID, &b.Date, &b.Time, &b.Name, &b.Email, &b.MeetingLink, &b.UserID, &b.PaymentStatus, &b.RazorpayOrderID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return b, false, nil
+		}
+		return b, false, err
+	}
+
+	if b.PaymentStatus == paymentStatusPaid {
+		if err := tx.Commit(ctx); err != nil {
+			return b, false, err
+		}
+		return b, false, nil
+	}
+	if b.PaymentStatus != paymentStatusPending {
+		if err := tx.Commit(ctx); err != nil {
+			return b, false, err
+		}
+		return b, false, nil
+	}
+
+	result, err := tx.Exec(ctx,
+		`UPDATE bookings
+		 SET payment_status = $1,
+		     razorpay_payment_id = $2,
+		     status_reason = 'payment_confirmed_webhook',
+		     confirmed_at = COALESCE(confirmed_at, NOW())
+		 WHERE id = $3
+		   AND payment_status = $4`,
+		paymentStatusPaid, paymentID, b.ID, paymentStatusPending,
+	)
+	if err != nil {
+		return b, false, err
+	}
+	if result.RowsAffected() == 0 {
+		if err := tx.Commit(ctx); err != nil {
+			return b, false, err
+		}
+		return b, false, nil
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return b, false, err
+	}
+
+	b.PaymentStatus = paymentStatusPaid
+	b.RazorpayPaymentID = paymentID
+	return b, true, nil
+}
+
 // GetBookingPolicy godoc
 // @Summary Get active booking policy
 // @Description Returns booking capacity policy used by both frontend and backend validation.
@@ -209,6 +392,10 @@ func GetBookingPolicy(w http.ResponseWriter, r *http.Request) {
 func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *services.AuditService) {
 	var booking models.Booking
 	if err := json.NewDecoder(r.Body).Decode(&booking); err != nil {
+		appmetrics.RecordBookingOperation("create", "validation_error")
+		logger.Warn("Create booking payload invalid",
+			withRequestID(r, zap.Error(err))...,
+		)
 		response.AppErr(w, apperror.InvalidPayload(err))
 		return
 	}
@@ -219,6 +406,12 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	booking.Date = validator.SanitizeString(booking.Date)
 	booking.Time = validator.SanitizeString(booking.Time)
 
+	// Use authenticated user_id from context (secure, from JWT)
+	if ctxUserID, ok := r.Context().Value("user_id").(string); ok && ctxUserID != "" {
+		booking.UserID = &ctxUserID
+	}
+	currentUserID := userIDString(booking.UserID)
+
 	// 2. Validate all fields
 	validationErrors := validator.ValidateBooking(validator.BookingInput{
 		Date:  booking.Date,
@@ -227,39 +420,83 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		Email: booking.Email,
 	})
 	if len(validationErrors) > 0 {
+		appmetrics.RecordBookingOperation("create", "validation_error")
+		logger.Warn("Create booking validation failed",
+			withRequestID(r,
+				zap.String("user_id", currentUserID),
+				zap.String("date", booking.Date),
+				zap.String("time", booking.Time),
+				zap.String("field", validationErrors[0].Field),
+			)...,
+		)
 		// Return the first validation error (most important)
 		response.AppErr(w, apperror.ValidationError(validationErrors[0].Field, validationErrors[0].Message))
 		return
 	}
 
-	// Use authenticated user_id from context (secure, from JWT)
-	if ctxUserID, ok := r.Context().Value("user_id").(string); ok && ctxUserID != "" {
-		booking.UserID = &ctxUserID
-	}
-
 	// 3. Booking policy checks (capacity-safe mode + allowed weekdays + known slots)
 	bookingDate, err := time.Parse("2006-01-02", booking.Date)
 	if err != nil {
+		appmetrics.RecordBookingOperation("create", "validation_error")
+		logger.Warn("Create booking rejected: invalid date",
+			withRequestID(r,
+				zap.String("user_id", currentUserID),
+				zap.String("date", booking.Date),
+				zap.String("time", booking.Time),
+			)...,
+		)
 		response.AppErr(w, apperror.ValidationError("date", "Invalid date format. Use YYYY-MM-DD."))
 		return
 	}
 	policy := getBookingPolicyConfig()
 	if !isWeekdayAllowed(bookingDate.Weekday(), policy.AllowedWeekdays) {
+		appmetrics.RecordBookingOperation("create", "validation_error")
+		logger.Warn("Create booking rejected: weekday not allowed",
+			withRequestID(r,
+				zap.String("user_id", currentUserID),
+				zap.String("date", booking.Date),
+				zap.String("time", booking.Time),
+			)...,
+		)
 		response.AppErr(w, apperror.ValidationError("date", "This date is not available for booking"))
 		return
 	}
 
 	allowedByWindow, policyMessage, err := isBookingDateAllowed(booking.Date, time.Now(), policy)
 	if err != nil {
+		appmetrics.RecordBookingOperation("create", "validation_error")
+		logger.Warn("Create booking rejected: date policy parse error",
+			withRequestID(r,
+				zap.String("user_id", currentUserID),
+				zap.String("date", booking.Date),
+				zap.String("time", booking.Time),
+			)...,
+		)
 		response.AppErr(w, apperror.ValidationError("date", "Invalid date format"))
 		return
 	}
 	if !allowedByWindow {
+		appmetrics.RecordBookingOperation("create", "validation_error")
+		logger.Warn("Create booking rejected: outside booking window",
+			withRequestID(r,
+				zap.String("user_id", currentUserID),
+				zap.String("date", booking.Date),
+				zap.String("time", booking.Time),
+			)...,
+		)
 		response.AppErr(w, apperror.ValidationError("date", policyMessage))
 		return
 	}
 
 	if !isTimeSlotAllowed(booking.Time, policy) {
+		appmetrics.RecordBookingOperation("create", "validation_error")
+		logger.Warn("Create booking rejected: slot not allowed",
+			withRequestID(r,
+				zap.String("user_id", currentUserID),
+				zap.String("date", booking.Date),
+				zap.String("time", booking.Time),
+			)...,
+		)
 		response.AppErr(w, apperror.ValidationError("time", "This time slot is not available for booking"))
 		return
 	}
@@ -267,6 +504,14 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	// 4. Check if this is a paid session
 	isPaid, err := isPaidSession(booking.Date)
 	if err != nil {
+		appmetrics.RecordBookingOperation("create", "validation_error")
+		logger.Warn("Create booking rejected: paid-session check failed",
+			withRequestID(r,
+				zap.String("user_id", currentUserID),
+				zap.String("date", booking.Date),
+				zap.String("time", booking.Time),
+			)...,
+		)
 		response.AppErr(w, apperror.ValidationError("date", "Invalid date format"))
 		return
 	}
@@ -277,17 +522,30 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	booking.MeetingLink = fmt.Sprintf("https://hidden-depths-web.pages.dev/session?room=%s-%s", meetingID, booking.Date)
 
 	booking.Amount = 0
-	booking.PaymentStatus = "paid" // Default for free sessions
+	booking.PaymentStatus = paymentStatusPaid // Default for free sessions
+	statusReason := "free_session_confirmed"
+	var confirmedAt *time.Time
+	now := time.Now().UTC()
+	confirmedAt = &now
 
 	// 3. Create Razorpay order BEFORE transaction (if paid session)
 	// This prevents holding DB locks while waiting for external API
 	if isPaid {
 		booking.Amount = 99.00
-		booking.PaymentStatus = "pending"
+		booking.PaymentStatus = paymentStatusPending
+		statusReason = "payment_pending"
+		confirmedAt = nil
 
 		keyID := os.Getenv("RAZORPAY_KEY_ID")
 		keySecret := os.Getenv("RAZORPAY_KEY_SECRET")
 		if keyID == "" || keySecret == "" {
+			logger.Error("Create booking failed: Razorpay configuration missing",
+				withRequestID(r,
+					zap.String("user_id", currentUserID),
+					zap.String("date", booking.Date),
+					zap.String("time", booking.Time),
+				)...,
+			)
 			response.AppErr(w, apperror.ExternalServiceError("razorpay", fmt.Errorf("payment configuration missing")))
 			return
 		}
@@ -310,7 +568,14 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 			return nil
 		})
 		if err != nil {
-			logger.Error("Razorpay order creation failed", zap.Error(err))
+			logger.Error("Razorpay order creation failed",
+				withRequestID(r,
+					zap.String("user_id", currentUserID),
+					zap.String("date", booking.Date),
+					zap.String("time", booking.Time),
+					zap.Error(err),
+				)...,
+			)
 			if appErr, ok := apperror.AsAppError(err); ok {
 				response.AppErr(w, appErr)
 			} else {
@@ -336,74 +601,203 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 
 	tx, err := database.Pool.Begin(txCtx)
 	if err != nil {
-		logger.Error("Failed to begin transaction", zap.Error(err))
+		appmetrics.RecordBookingOperation("create", "db_error")
+		logger.Error("Create booking failed: transaction start",
+			withRequestID(r,
+				zap.String("user_id", currentUserID),
+				zap.String("date", booking.Date),
+				zap.String("time", booking.Time),
+				zap.Error(err),
+			)...,
+		)
 		response.AppErr(w, apperror.DatabaseError("begin transaction", err))
 		return
 	}
 	defer tx.Rollback(txCtx)
 
-	// 2. Check slot availability (FOR UPDATE is not needed on aggregates,
-	// the UNIQUE constraint + transaction isolation handles concurrency)
-	currentUserID := ""
-	if booking.UserID != nil {
-		currentUserID = *booking.UserID
+	// 2. Expire stale pending holds for this slot inside the transaction.
+	if _, err := tx.Exec(txCtx,
+		`UPDATE bookings
+		 SET payment_status = $3,
+		     status_reason = 'hold_expired',
+		     failed_at = COALESCE(failed_at, NOW()),
+		     released_at = COALESCE(released_at, NOW())
+		 WHERE date = $1
+		   AND time = $2
+		   AND payment_status = $4
+		   AND created_at <= NOW() - INTERVAL '`+pendingHoldWindow+`'`,
+		booking.Date, booking.Time, paymentStatusFailed, paymentStatusPending,
+	); err != nil {
+		appmetrics.RecordBookingOperation("create", "db_error")
+		logger.Error("Create booking failed: stale hold cleanup",
+			withRequestID(r,
+				zap.String("user_id", currentUserID),
+				zap.String("date", booking.Date),
+				zap.String("time", booking.Time),
+				zap.Error(err),
+			)...,
+		)
+		response.AppErr(w, apperror.DatabaseError("expire stale pending booking", err))
+		return
+	}
+
+	// 3. Check slot availability.
+	// Same-user idempotency for paid flow: return existing active pending hold instead of creating duplicates.
+	if isPaid && currentUserID != "" {
+		var (
+			existingBookingID string
+			existingOrderID   string
+			existingAmount    float64
+		)
+		err := tx.QueryRow(txCtx,
+			`SELECT id, razorpay_order_id, amount
+			 FROM bookings
+			 WHERE date = $1
+			   AND time = $2
+			   AND user_id = $3
+			   AND payment_status = $4
+			   AND created_at > NOW() - INTERVAL '`+pendingHoldWindow+`'
+			 ORDER BY created_at DESC
+			 LIMIT 1`,
+			booking.Date, booking.Time, currentUserID, paymentStatusPending,
+		).Scan(&existingBookingID, &existingOrderID, &existingAmount)
+		if err == nil {
+			if err := tx.Commit(txCtx); err != nil {
+				appmetrics.RecordBookingOperation("create", "db_error")
+				logger.Error("Create booking failed: existing pending commit",
+					withRequestID(r,
+						zap.String("user_id", currentUserID),
+						zap.String("date", booking.Date),
+						zap.String("time", booking.Time),
+						zap.String("booking_id", existingBookingID),
+						zap.String("order_id", existingOrderID),
+						zap.Error(err),
+					)...,
+				)
+				response.AppErr(w, apperror.DatabaseError("commit existing booking lookup", err))
+				return
+			}
+			appmetrics.RecordBookingOperation("create", "initiated_pending")
+			logger.Info("Create booking reused active pending booking",
+				withRequestID(r,
+					zap.String("booking_id", existingBookingID),
+					zap.String("order_id", existingOrderID),
+					zap.String("user_id", currentUserID),
+					zap.String("date", booking.Date),
+					zap.String("time", booking.Time),
+				)...,
+			)
+			response.JSON(w, http.StatusOK, map[string]interface{}{
+				"booking_id": existingBookingID,
+				"order_id":   existingOrderID,
+				"amount":     existingAmount * 100,
+				"currency":   "INR",
+				"key_id":     os.Getenv("RAZORPAY_KEY_ID"),
+			}, "Payment already initiated")
+			return
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			appmetrics.RecordBookingOperation("create", "db_error")
+			logger.Error("Create booking failed: check existing pending",
+				withRequestID(r,
+					zap.String("user_id", currentUserID),
+					zap.String("date", booking.Date),
+					zap.String("time", booking.Time),
+					zap.Error(err),
+				)...,
+			)
+			response.AppErr(w, apperror.DatabaseError("check existing pending booking", err))
+			return
+		}
 	}
 
 	var paidCount, otherPendingCount int
 	if err := tx.QueryRow(txCtx,
 		`SELECT 
-			COUNT(*) FILTER (WHERE payment_status = 'paid'),
-			COUNT(*) FILTER (WHERE payment_status = 'pending' 
+			COUNT(*) FILTER (WHERE payment_status = $4),
+			COUNT(*) FILTER (WHERE payment_status = $5
 				AND COALESCE(user_id::text, '') != $3
 				AND created_at > NOW() - INTERVAL '`+pendingHoldWindow+`')
 		 FROM bookings 
 		 WHERE date = $1 AND time = $2`,
-		booking.Date, booking.Time, currentUserID,
+		booking.Date, booking.Time, currentUserID, paymentStatusPaid, paymentStatusPending,
 	).Scan(&paidCount, &otherPendingCount); err != nil {
-		logger.Error("Failed to check slot availability", zap.Error(err))
+		appmetrics.RecordBookingOperation("create", "db_error")
+		logger.Error("Create booking failed: slot availability query",
+			withRequestID(r,
+				zap.String("user_id", currentUserID),
+				zap.String("date", booking.Date),
+				zap.String("time", booking.Time),
+				zap.Error(err),
+			)...,
+		)
 		response.AppErr(w, apperror.DatabaseError("check slot availability", err))
 		return
 	}
 
 	if paidCount > 0 {
+		appmetrics.RecordBookingOperation("create", "slot_unavailable")
+		logger.Info("Create booking rejected: slot unavailable",
+			withRequestID(r,
+				zap.String("user_id", currentUserID),
+				zap.String("date", booking.Date),
+				zap.String("time", booking.Time),
+			)...,
+		)
 		response.AppErr(w, apperror.SlotUnavailable(booking.Date, booking.Time))
 		return
 	}
 	if otherPendingCount > 0 {
+		appmetrics.RecordBookingOperation("create", "slot_held")
+		logger.Info("Create booking deferred: slot held by another payment",
+			withRequestID(r,
+				zap.String("user_id", currentUserID),
+				zap.String("date", booking.Date),
+				zap.String("time", booking.Time),
+			)...,
+		)
 		response.AppErr(w, apperror.SlotHeldByOther(booking.Date, booking.Time))
 		return
 	}
 
-	// 5. Clear ALL non-paid bookings for this slot (within transaction)
-	if _, err := tx.Exec(txCtx,
-		`DELETE FROM bookings WHERE date = $1 AND time = $2 AND payment_status != 'paid'`,
-		booking.Date, booking.Time,
-	); err != nil {
-		logger.Error("Failed to clean up stale bookings",
-			zap.String("date", booking.Date), zap.String("time", booking.Time), zap.Error(err))
-	}
-
-	// 6. Insert into Database (within transaction)
+	// 4. Insert into Database (within transaction)
 	var newID string
 	err = tx.QueryRow(txCtx,
 		`INSERT INTO bookings
-		(date, time, name, email, user_id, meeting_link, payment_status, razorpay_order_id, amount)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		(date, time, name, email, user_id, meeting_link, payment_status, razorpay_order_id, amount, status_reason, confirmed_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id`,
 		booking.Date, booking.Time, booking.Name, booking.Email, booking.UserID,
-		booking.MeetingLink, booking.PaymentStatus, booking.RazorpayOrderID, booking.Amount,
+		booking.MeetingLink, booking.PaymentStatus, booking.RazorpayOrderID, booking.Amount, statusReason, confirmedAt,
 	).Scan(&newID)
 
 	if err != nil {
-		logger.Error("INSERT conflict after cleanup",
-			zap.String("date", booking.Date), zap.String("time", booking.Time), zap.Error(err))
+		appmetrics.RecordBookingOperation("create", "slot_unavailable")
+		logger.Warn("Create booking insert conflict",
+			withRequestID(r,
+				zap.String("user_id", currentUserID),
+				zap.String("date", booking.Date),
+				zap.String("time", booking.Time),
+				zap.Error(err),
+			)...,
+		)
 		response.AppErr(w, apperror.SlotUnavailable(booking.Date, booking.Time))
 		return
 	}
 
-	// 8. Commit the transaction
+	// 5. Commit the transaction
 	if err := tx.Commit(txCtx); err != nil {
-		logger.Error("Failed to commit booking transaction", zap.Error(err))
+		appmetrics.RecordBookingOperation("create", "db_error")
+		logger.Error("Create booking failed: transaction commit",
+			withRequestID(r,
+				zap.String("booking_id", newID),
+				zap.String("user_id", currentUserID),
+				zap.String("date", booking.Date),
+				zap.String("time", booking.Time),
+				zap.String("order_id", booking.RazorpayOrderID),
+				zap.Error(err),
+			)...,
+		)
 		response.AppErr(w, apperror.DatabaseError("commit booking", err))
 		return
 	}
@@ -411,20 +805,25 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	// Invalidate slots cache for this date (write-through pattern)
 	InvalidateSlotsCache(r.Context(), booking.Date)
 	logger.Info("Booking created",
-		zap.String("booking_id", newID),
-		zap.String("date", booking.Date),
-		zap.String("time", booking.Time),
-		zap.String("payment_status", booking.PaymentStatus),
+		withRequestID(r,
+			zap.String("booking_id", newID),
+			zap.String("order_id", booking.RazorpayOrderID),
+			zap.String("user_id", currentUserID),
+			zap.String("date", booking.Date),
+			zap.String("time", booking.Time),
+			zap.String("payment_status", booking.PaymentStatus),
+		)...,
 	)
 
-	// Broadcast slot status change via WebSocket for real-time UI updates
-	hub.Broadcast("SLOT_PENDING", map[string]string{
-		"date": booking.Date,
-		"time": booking.Time,
-	})
-
-	// 9. Response Handling
+	// 6. Response Handling
 	if isPaid {
+		appmetrics.RecordBookingOperation("create", "initiated_pending")
+		// Broadcast slot status change for active hold
+		hub.Broadcast("SLOT_PENDING", map[string]string{
+			"date": booking.Date,
+			"time": booking.Time,
+		})
+
 		response.JSON(w, http.StatusOK, map[string]interface{}{
 			"booking_id": newID,
 			"order_id":   booking.RazorpayOrderID,
@@ -433,7 +832,8 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 			"key_id":     os.Getenv("RAZORPAY_KEY_ID"),
 		}, "Payment initiated")
 	} else {
-		finalizeBooking(w, r, hub, audit, newID, booking)
+		appmetrics.RecordBookingOperation("create", "created_free")
+		finalizeBooking(r.Context(), hub, audit, newID, booking, "booking.confirmed", r.RemoteAddr, r.UserAgent())
 		response.JSON(w, http.StatusCreated, map[string]string{"booking_id": newID}, "Booking successful")
 	}
 }
@@ -449,8 +849,7 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 // @Failure 401 {object} map[string]interface{} "Invalid signature"
 // @Failure 404 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
-// @Router /bookings/verify-payment [post]
-// @Security BearerAuth
+// @Router /bookings/verify [post]
 func VerifyPayment(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *services.AuditService) {
 	var req struct {
 		BookingID         string `json:"booking_id"`
@@ -460,11 +859,23 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		appmetrics.RecordPaymentOperation("declined")
+		logger.Warn("Payment verification payload invalid",
+			withRequestID(r, zap.Error(err))...,
+		)
 		response.AppErr(w, apperror.InvalidPayload(err))
 		return
 	}
 
 	if req.BookingID == "" || req.RazorpayPaymentID == "" || req.RazorpayOrderID == "" || req.RazorpaySignature == "" {
+		appmetrics.RecordPaymentOperation("declined")
+		logger.Warn("Payment verification rejected: missing required fields",
+			withRequestID(r,
+				zap.String("booking_id", req.BookingID),
+				zap.String("order_id", req.RazorpayOrderID),
+				zap.String("payment_id", req.RazorpayPaymentID),
+			)...,
+		)
 		response.AppErr(w, apperror.ValidationError("payment", "All payment fields are required"))
 		return
 	}
@@ -472,7 +883,14 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	// 1. Verify Signature
 	keySecret := os.Getenv("RAZORPAY_KEY_SECRET")
 	if keySecret == "" {
-		logger.Error("RAZORPAY_KEY_SECRET not configured")
+		appmetrics.RecordPaymentOperation("declined")
+		logger.Error("Payment verification failed: Razorpay secret missing",
+			withRequestID(r,
+				zap.String("booking_id", req.BookingID),
+				zap.String("order_id", req.RazorpayOrderID),
+				zap.String("payment_id", req.RazorpayPaymentID),
+			)...,
+		)
 		response.AppErr(w, apperror.ExternalServiceError("razorpay", fmt.Errorf("payment service misconfigured")))
 		return
 	}
@@ -484,92 +902,83 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	expectedSignature := hex.EncodeToString(h.Sum(nil))
 
 	if !strings.EqualFold(expectedSignature, req.RazorpaySignature) {
+		appmetrics.RecordPaymentOperation("signature_invalid")
 		logger.Warn("Payment signature mismatch",
-			zap.String("booking_id", req.BookingID),
-			zap.String("order_id", req.RazorpayOrderID),
+			withRequestID(r,
+				zap.String("booking_id", req.BookingID),
+				zap.String("order_id", req.RazorpayOrderID),
+				zap.String("payment_id", req.RazorpayPaymentID),
+			)...,
 		)
 		response.AppErr(w, apperror.PaymentSignatureInvalid())
 		return
 	}
 
-	// Use transaction with timeout for atomic verification (prevents race conditions)
 	txCtx, txCancel := context.WithTimeout(r.Context(), dbTransactionTimeout)
 	defer txCancel()
 
-	tx, err := database.Pool.Begin(txCtx)
-	if err != nil {
-		logger.Error("Failed to begin verification transaction", zap.Error(err))
-		response.AppErr(w, apperror.DatabaseError("begin transaction", err))
+	b, changed, appErr := confirmBookingPaymentByID(txCtx, req.BookingID, req.RazorpayOrderID, req.RazorpayPaymentID)
+	if appErr != nil {
+		paymentResult := "declined"
+		if appErr.Code == "DB_ERROR" {
+			paymentResult = "db_error"
+		}
+		appmetrics.RecordPaymentOperation(paymentResult)
+		logFields := withRequestID(r,
+			zap.String("booking_id", req.BookingID),
+			zap.String("order_id", req.RazorpayOrderID),
+			zap.String("payment_id", req.RazorpayPaymentID),
+			zap.String("error_code", appErr.Code),
+		)
+		if paymentResult == "db_error" {
+			logger.Error("Payment verification failed",
+				append(logFields, zap.Error(appErr))...,
+			)
+		} else {
+			logger.Warn("Payment verification declined", logFields...)
+		}
+		response.AppErr(w, appErr)
 		return
 	}
-	defer tx.Rollback(txCtx)
 
-	// 2. Fetch and lock the booking row to prevent concurrent verification
-	var b models.Booking
-	err = tx.QueryRow(txCtx,
-		`SELECT id, date, time, name, email, meeting_link, user_id, payment_status, razorpay_order_id
-		 FROM bookings WHERE id = $1 FOR UPDATE`,
-		req.BookingID,
-	).Scan(&b.ID, &b.Date, &b.Time, &b.Name, &b.Email, &b.MeetingLink, &b.UserID, &b.PaymentStatus, &b.RazorpayOrderID)
-
-	if err != nil {
-		response.AppErr(w, apperror.BookingNotFound(req.BookingID))
-		return
-	}
-
-	// Check if already paid (idempotent - return success without error)
-	if b.PaymentStatus == "paid" {
-		logger.Info("Payment already verified (idempotent)", zap.String("booking_id", req.BookingID))
+	if !changed {
+		appmetrics.RecordPaymentOperation("already_verified")
+		logger.Info("Payment already verified (idempotent)",
+			withRequestID(r,
+				zap.String("booking_id", req.BookingID),
+				zap.String("order_id", req.RazorpayOrderID),
+				zap.String("payment_id", req.RazorpayPaymentID),
+				zap.String("user_id", userIDString(b.UserID)),
+				zap.String("date", b.Date),
+				zap.String("time", b.Time),
+			)...,
+		)
 		response.JSON(w, http.StatusOK, nil, "Payment already verified")
-		return
-	}
-	if b.PaymentStatus != "pending" {
-		response.AppErr(w, apperror.PaymentDeclined("booking is not pending"))
-		return
-	}
-	if b.RazorpayOrderID != req.RazorpayOrderID {
-		response.AppErr(w, apperror.ValidationError("razorpay_order_id", "Order ID does not match booking"))
-		return
-	}
-
-	// 3. Update to paid (within transaction)
-	result, err := tx.Exec(txCtx,
-		"UPDATE bookings SET payment_status = 'paid', razorpay_payment_id = $1 WHERE id = $2 AND payment_status = 'pending'",
-		req.RazorpayPaymentID, req.BookingID,
-	)
-	if err != nil {
-		logger.Error("Failed to update booking payment status", zap.String("booking_id", req.BookingID), zap.Error(err))
-		response.AppErr(w, apperror.DatabaseError("update booking", err))
-		return
-	}
-	if result.RowsAffected() == 0 {
-		response.AppErr(w, apperror.PaymentDeclined("booking is no longer pending"))
-		return
-	}
-
-	// Commit the transaction
-	if err := tx.Commit(txCtx); err != nil {
-		logger.Error("Failed to commit verification transaction", zap.Error(err))
-		response.AppErr(w, apperror.DatabaseError("commit verification", err))
 		return
 	}
 
 	// Invalidate slots cache (payment confirmed = slot truly taken)
+	appmetrics.RecordPaymentOperation("confirmed")
 	InvalidateSlotsCache(r.Context(), b.Date)
 	logger.Info("Payment verified",
-		zap.String("booking_id", b.ID),
-		zap.String("order_id", req.RazorpayOrderID),
-		zap.String("payment_id", req.RazorpayPaymentID),
+		withRequestID(r,
+			zap.String("booking_id", b.ID),
+			zap.String("order_id", req.RazorpayOrderID),
+			zap.String("payment_id", req.RazorpayPaymentID),
+			zap.String("user_id", userIDString(b.UserID)),
+			zap.String("date", b.Date),
+			zap.String("time", b.Time),
+		)...,
 	)
 
 	// 4. Finalize (Email + WebSocket)
-	finalizeBooking(w, r, hub, audit, b.ID, b)
+	finalizeBooking(r.Context(), hub, audit, b.ID, b, "booking.confirmed", r.RemoteAddr, r.UserAgent())
 
 	response.JSON(w, http.StatusOK, nil, "Payment verified and booking confirmed")
 }
 
 // finalizeBooking handles post-confirmation logic (Emails, WebSocket, Audit)
-func finalizeBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *services.AuditService, bookingID string, b models.Booking) {
+func finalizeBooking(ctx context.Context, hub *ws.Hub, audit *services.AuditService, bookingID string, b models.Booking, action, ipAddress, userAgent string) {
 	// Broadcast
 	hub.Broadcast("SLOT_BOOKED", map[string]string{
 		"date": b.Date,
@@ -581,7 +990,7 @@ func finalizeBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit 
 	if b.UserID != nil {
 		userID = *b.UserID
 	}
-	audit.Log(r.Context(), "booking.confirmed", userID, bookingID, "booking", r.RemoteAddr, r.UserAgent(), nil)
+	audit.Log(ctx, action, userID, bookingID, "booking", ipAddress, userAgent, nil)
 
 	// Email (prefer Resend, fallback to SMTP)
 	go func() {
@@ -827,18 +1236,26 @@ func ReleasePendingBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, 
 		return
 	}
 
-	if payStatus == "paid" {
+	switch releasePendingActionForStatus(payStatus) {
+	case releasePendingActionRejectPaid:
 		response.AppErr(w, apperror.ValidationError("booking", "Booking is already confirmed and cannot be auto-released"))
 		return
-	}
-	if payStatus == "failed" {
+	case releasePendingActionNoopAlreadyReleased:
 		response.JSON(w, http.StatusOK, nil, "Pending booking already released")
 		return
 	}
 
 	result, err := database.Pool.Exec(ctx,
-		"UPDATE bookings SET payment_status = 'failed' WHERE id = $1 AND user_id = $2 AND payment_status = 'pending'",
-		bookingID, userID,
+		`UPDATE bookings
+		 SET payment_status = $3,
+		     status_reason = 'released_by_user',
+		     failed_at = COALESCE(failed_at, NOW()),
+		     released_at = COALESCE(released_at, NOW()),
+		     released_by = $2
+		 WHERE id = $1
+		   AND user_id = $2
+		   AND payment_status = $4`,
+		bookingID, userID, paymentStatusFailed, paymentStatusPending,
 	)
 	if err != nil {
 		logger.Error("Failed to release pending booking", zap.String("booking_id", bookingID), zap.Error(err))
@@ -893,7 +1310,7 @@ func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 	ctx, cancel := context.WithTimeout(r.Context(), dbTransactionTimeout)
 	defer cancel()
 
-	// Fetch booking details before deleting (for WebSocket broadcast & email)
+	// Fetch booking details before status transition (for WebSocket broadcast & email)
 	var date, timeSlot, name, email, paymentStatus string
 	err := database.Pool.QueryRow(ctx,
 		"SELECT date, time, name, email, payment_status FROM bookings WHERE id = $1 AND user_id = $2",
@@ -904,14 +1321,22 @@ func CancelBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		response.AppErr(w, apperror.BookingNotFound(bookingID).WithContext("reason", "not found or not authorized"))
 		return
 	}
-	if paymentStatus != "paid" {
+	if paymentStatus != paymentStatusPaid {
 		response.AppErr(w, apperror.ValidationError("booking", "Only confirmed bookings can be cancelled here"))
 		return
 	}
 
 	result, err := database.Pool.Exec(ctx,
-		"DELETE FROM bookings WHERE id = $1 AND user_id = $2 AND payment_status = 'paid'",
-		bookingID, userID,
+		`UPDATE bookings
+		 SET payment_status = $3,
+		     status_reason = 'cancelled_by_user',
+		     cancelled_at = COALESCE(cancelled_at, NOW()),
+		     released_at = COALESCE(released_at, NOW()),
+		     released_by = $2
+		 WHERE id = $1
+		   AND user_id = $2
+		   AND payment_status = $4`,
+		bookingID, userID, paymentStatusCancelled, paymentStatusPaid,
 	)
 
 	if err != nil {
@@ -1012,7 +1437,10 @@ func RazorpayWebhook(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit 
 	// Read raw body for signature verification
 	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20)) // 1MB limit
 	if err != nil {
-		logger.Log.Error("Webhook: failed to read body", zap.Error(err))
+		appmetrics.RecordBookingOperation("webhook", "processing_error")
+		logger.Log.Error("Webhook: failed to read body",
+			withRequestID(r, zap.Error(err))...,
+		)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -1023,17 +1451,25 @@ func RazorpayWebhook(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit 
 	if webhookSecret == "" {
 		// Backward-compatible fallback for existing environments.
 		webhookSecret = os.Getenv("RAZORPAY_KEY_SECRET")
-		logger.Log.Warn("Webhook secret not configured separately; falling back to RAZORPAY_KEY_SECRET")
+		logger.Log.Warn("Webhook secret not configured separately; falling back to RAZORPAY_KEY_SECRET",
+			withRequestID(r)...,
+		)
 	}
 	if webhookSecret == "" {
-		logger.Log.Error("Webhook: webhook secret not configured")
+		appmetrics.RecordBookingOperation("webhook", "processing_error")
+		logger.Log.Error("Webhook: webhook secret not configured",
+			withRequestID(r)...,
+		)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	signature := r.Header.Get("X-Razorpay-Signature")
 	if signature == "" {
-		logger.Log.Warn("Webhook: missing signature header")
+		appmetrics.RecordBookingOperation("webhook", "invalid_signature")
+		logger.Log.Warn("Webhook: missing signature header",
+			withRequestID(r)...,
+		)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -1043,7 +1479,10 @@ func RazorpayWebhook(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit 
 	expectedSig := hex.EncodeToString(h.Sum(nil))
 
 	if !hmac.Equal([]byte(expectedSig), []byte(signature)) {
-		logger.Log.Warn("Webhook: invalid signature")
+		appmetrics.RecordBookingOperation("webhook", "invalid_signature")
+		logger.Log.Warn("Webhook: invalid signature",
+			withRequestID(r)...,
+		)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -1063,128 +1502,186 @@ func RazorpayWebhook(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit 
 		} `json:"payload"`
 	}
 	if err := json.Unmarshal(body, &event); err != nil {
-		logger.Log.Error("Webhook: failed to parse event", zap.Error(err))
+		appmetrics.RecordBookingOperation("webhook", "processing_error")
+		logger.Log.Error("Webhook: failed to parse event",
+			withRequestID(r, zap.Error(err))...,
+		)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	paymentID := event.Payload.Payment.Entity.ID
 	orderID := event.Payload.Payment.Entity.OrderID
-	eventID := event.Event + ":" + paymentID
+	eventID := buildWebhookEventID(event.Event, paymentID, orderID)
 
+	appmetrics.RecordBookingOperation("webhook", "received_event")
 	logger.Log.Info("Webhook received",
-		zap.String("event", event.Event),
-		zap.String("payment_id", paymentID),
-		zap.String("order_id", orderID),
+		withRequestID(r,
+			zap.String("event", event.Event),
+			zap.String("payment_id", paymentID),
+			zap.String("order_id", orderID),
+		)...,
 	)
 
-	// Idempotency check (with timeout)
+	// Idempotency lock (with timeout)
 	ctx, cancel := context.WithTimeout(r.Context(), dbTransactionTimeout)
 	defer cancel()
 
-	var exists int
-	if err := database.Pool.QueryRow(ctx,
-		"SELECT COUNT(*) FROM processed_webhooks WHERE event_id = $1", eventID,
-	).Scan(&exists); err == nil && exists > 0 {
-		logger.Log.Info("Webhook already processed", zap.String("event_id", eventID))
+	lockResult, err := database.Pool.Exec(ctx,
+		`INSERT INTO processed_webhooks (event_id, event_type, order_id, payment_id)
+		 VALUES ($1, $2, $3, $4)
+		 ON CONFLICT (event_id) DO NOTHING`,
+		eventID, event.Event, orderID, paymentID,
+	)
+	if err != nil {
+		appmetrics.RecordBookingOperation("webhook", "processing_error")
+		logger.Log.Error("Webhook: failed to acquire idempotency lock",
+			withRequestID(r,
+				zap.String("event_id", eventID),
+				zap.String("payment_id", paymentID),
+				zap.String("order_id", orderID),
+				zap.Error(err),
+			)...,
+		)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if lockResult.RowsAffected() == 0 {
+		appmetrics.RecordBookingOperation("webhook", "duplicate_event")
+		logger.Log.Info("Webhook already processed",
+			withRequestID(r,
+				zap.String("event_id", eventID),
+				zap.String("payment_id", paymentID),
+				zap.String("order_id", orderID),
+			)...,
+		)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
+	var processErr error
 	switch event.Event {
 	case "payment.captured":
-		webhookConfirmPayment(ctx, orderID, paymentID, hub, audit)
+		processErr = webhookConfirmPayment(ctx, orderID, paymentID, hub, audit)
 
 	case "payment.failed":
-		webhookReleaseSlot(ctx, orderID, hub)
+		processErr = webhookReleaseSlot(ctx, orderID, paymentID, hub)
 
 	default:
-		logger.Log.Info("Webhook: unhandled event", zap.String("event", event.Event))
+		logger.Log.Info("Webhook: unhandled event",
+			withRequestID(r,
+				zap.String("event", event.Event),
+				zap.String("payment_id", paymentID),
+				zap.String("order_id", orderID),
+			)...,
+		)
 	}
 
-	// Mark as processed
-	database.Pool.Exec(ctx,
-		"INSERT INTO processed_webhooks (event_id, event_type) VALUES ($1, $2) ON CONFLICT (event_id) DO NOTHING",
-		eventID, event.Event,
-	)
+	if processErr != nil {
+		appmetrics.RecordBookingOperation("webhook", "processing_error")
+		logger.Log.Error("Webhook processing failed",
+			withRequestID(r,
+				zap.String("event_id", eventID),
+				zap.String("event", event.Event),
+				zap.String("payment_id", paymentID),
+				zap.String("order_id", orderID),
+				zap.Error(processErr),
+			)...,
+		)
+		_, _ = database.Pool.Exec(ctx, "DELETE FROM processed_webhooks WHERE event_id = $1", eventID)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	switch event.Event {
+	case "payment.captured":
+		appmetrics.RecordBookingOperation("webhook", "processed_captured")
+	case "payment.failed":
+		appmetrics.RecordBookingOperation("webhook", "processed_failed")
+	}
 
 	w.WriteHeader(http.StatusOK)
 }
 
 // webhookConfirmPayment marks a booking as paid when Razorpay confirms capture.
-func webhookConfirmPayment(ctx context.Context, orderID, paymentID string, hub *ws.Hub, audit *services.AuditService) {
-	// Find booking by razorpay_order_id
-	var b models.Booking
-	err := database.Pool.QueryRow(ctx,
-		"SELECT id, date, time, name, email, meeting_link, user_id FROM bookings WHERE razorpay_order_id = $1",
-		orderID,
-	).Scan(&b.ID, &b.Date, &b.Time, &b.Name, &b.Email, &b.MeetingLink, &b.UserID)
-	if err != nil {
-		logger.Log.Warn("Webhook: booking not found for order", zap.String("order_id", orderID), zap.Error(err))
-		return
+func webhookConfirmPayment(ctx context.Context, orderID, paymentID string, hub *ws.Hub, audit *services.AuditService) error {
+	if orderID == "" {
+		return fmt.Errorf("missing order ID for payment.captured webhook")
 	}
 
-	// Update to paid
-	_, err = database.Pool.Exec(ctx,
-		"UPDATE bookings SET payment_status = 'paid', razorpay_payment_id = $1 WHERE id = $2 AND payment_status = 'pending'",
-		paymentID, b.ID,
-	)
+	b, changed, err := confirmBookingPaymentByOrderID(ctx, orderID, paymentID)
 	if err != nil {
-		logger.Log.Error("Webhook: failed to confirm booking", zap.String("booking_id", b.ID), zap.Error(err))
-		return
+		return err
+	}
+	if b.ID == "" {
+		logger.Log.Warn("Webhook: booking not found for order",
+			zap.String("order_id", orderID),
+			zap.String("payment_id", paymentID),
+		)
+		return nil
+	}
+	if !changed {
+		logger.Log.Info("Webhook: booking already settled",
+			zap.String("booking_id", b.ID),
+			zap.String("order_id", orderID),
+			zap.String("payment_id", paymentID),
+			zap.String("user_id", userIDString(b.UserID)),
+			zap.String("date", b.Date),
+			zap.String("time", b.Time),
+		)
+		return nil
 	}
 
-	// Invalidate slots cache
 	InvalidateSlotsCache(ctx, b.Date)
-
-	logger.Log.Info("Webhook: booking confirmed", zap.String("booking_id", b.ID))
-
-	// Broadcast + email (same as VerifyPayment flow)
-	hub.Broadcast("SLOT_BOOKED", map[string]string{"date": b.Date, "time": b.Time})
-
-	userID := ""
-	if b.UserID != nil {
-		userID = *b.UserID
-	}
-	audit.Log(ctx, "booking.webhook_confirmed", userID, b.ID, "booking", "", "", nil)
-
-	go func() {
-		subject := "Confirmed: Your Journey Begins"
-		body := fmt.Sprintf(`
-			<h2>Welcome, %s.</h2>
-			<p>Your sanctuary session is confirmed for <strong>%s at %s</strong>.</p>
-			<p><a href="%s" style="padding: 10px 20px; background-color: #E0B873; color: black; text-decoration: none; border-radius: 5px;">Join Session</a></p>
-			<p>Manage bookings: <a href="https://hidden-depths-web.pages.dev/profile">Profile</a></p>
-		`, b.Name, b.Date, b.Time, b.MeetingLink)
-		if err := services.SendEmail(b.Email, subject, body); err != nil {
-			logger.Log.Error("Webhook: confirmation email failed", zap.String("email", b.Email), zap.Error(err))
-		}
-	}()
+	logger.Log.Info("Webhook: booking confirmed",
+		zap.String("booking_id", b.ID),
+		zap.String("order_id", orderID),
+		zap.String("payment_id", paymentID),
+		zap.String("user_id", userIDString(b.UserID)),
+		zap.String("date", b.Date),
+		zap.String("time", b.Time),
+	)
+	finalizeBooking(ctx, hub, audit, b.ID, b, "booking.webhook_confirmed", "", "")
+	return nil
 }
 
 // webhookReleaseSlot marks pending booking as failed to free slot when payment fails.
-func webhookReleaseSlot(ctx context.Context, orderID string, hub *ws.Hub) {
+func webhookReleaseSlot(ctx context.Context, orderID, paymentID string, hub *ws.Hub) error {
+	if orderID == "" {
+		return fmt.Errorf("missing order ID for payment.failed webhook")
+	}
+
 	// Fetch slot info first for cache invalidation + websocket broadcast.
 	var (
 		date     string
 		timeSlot string
 	)
 	err := database.Pool.QueryRow(ctx,
-		"SELECT date, time FROM bookings WHERE razorpay_order_id = $1 AND payment_status = 'pending'",
-		orderID,
+		"SELECT date, time FROM bookings WHERE razorpay_order_id = $1 AND payment_status = $2 ORDER BY created_at DESC LIMIT 1",
+		orderID, paymentStatusPending,
 	).Scan(&date, &timeSlot)
 	if err != nil {
-		logger.Log.Warn("Webhook: no pending booking found for failed payment", zap.String("order_id", orderID), zap.Error(err))
-		return
+		if errors.Is(err, pgx.ErrNoRows) {
+			logger.Log.Warn("Webhook: no pending booking found for failed payment",
+				zap.String("order_id", orderID),
+				zap.String("payment_id", paymentID),
+			)
+			return nil
+		}
+		return err
 	}
 
 	result, err := database.Pool.Exec(ctx,
-		"UPDATE bookings SET payment_status = 'failed' WHERE razorpay_order_id = $1 AND payment_status = 'pending'",
-		orderID,
+		`UPDATE bookings
+		 SET payment_status = $2,
+		     status_reason = 'payment_failed_webhook',
+		     failed_at = COALESCE(failed_at, NOW()),
+		     released_at = COALESCE(released_at, NOW())
+		 WHERE razorpay_order_id = $1
+		   AND payment_status = $3`,
+		orderID, paymentStatusFailed, paymentStatusPending,
 	)
 	if err != nil {
-		logger.Log.Error("Webhook: failed to release slot", zap.String("order_id", orderID), zap.Error(err))
-		return
+		return err
 	}
 	if result.RowsAffected() > 0 {
 		InvalidateSlotsCache(ctx, date)
@@ -1194,8 +1691,10 @@ func webhookReleaseSlot(ctx context.Context, orderID string, hub *ws.Hub) {
 		})
 		logger.Log.Info("Webhook: slot released after payment failure",
 			zap.String("order_id", orderID),
+			zap.String("payment_id", paymentID),
 			zap.String("date", date),
 			zap.String("time", timeSlot),
 		)
 	}
+	return nil
 }

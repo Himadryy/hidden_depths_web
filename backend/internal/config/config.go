@@ -16,6 +16,7 @@ type Config struct {
 	DatabaseURL     string
 	JWTSecret       string
 	SupabaseAnonKey string
+	SupabaseURL     string
 	AdminEmails     []string
 	AllowedOrigins  []string
 
@@ -77,6 +78,7 @@ func Load() (*Config, error) {
 		DatabaseURL:     getEnv("DATABASE_URL", ""),
 		JWTSecret:       getEnv("JWT_SECRET", ""),
 		SupabaseAnonKey: getEnv("SUPABASE_ANON_KEY", ""),
+		SupabaseURL:     getEnv("SUPABASE_URL", ""),
 		AdminEmails:     getSliceEnv("ADMIN_EMAILS", ","),
 		AllowedOrigins:  getSliceEnv("ALLOWED_ORIGINS", ","),
 

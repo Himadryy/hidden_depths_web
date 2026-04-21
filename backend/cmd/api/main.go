@@ -7,8 +7,8 @@
 // @contact.name Hidden Depths Support
 // @contact.email support@hiddendepths.com
 
-// @license.name MIT
-// @license.url https://opensource.org/licenses/MIT
+// @license.name Proprietary (All rights reserved)
+// @license.url https://github.com/Himadryy/hidden_depths_web/blob/main/LICENSE
 
 // @host hidden-depths-web.onrender.com
 // @BasePath /api/v1
@@ -168,7 +168,7 @@ func main() {
 
 				// Protected User Routes
 				r.Group(func(r chi.Router) {
-					r.Use(middleware.AuthMiddleware(cfg.JWTSecret, cfg.SupabaseAnonKey))
+					r.Use(middleware.AuthMiddleware(cfg.JWTSecret, cfg.SupabaseAnonKey, cfg.SupabaseURL))
 
 					r.Get("/my", handlers.GetUserBookings)
 					r.Get("/{id}/status", handlers.GetBookingStatus)
@@ -195,7 +195,7 @@ func main() {
 
 			// Admin Portal (Double Protected)
 			r.Route("/admin", func(r chi.Router) {
-				r.Use(middleware.AuthMiddleware(cfg.JWTSecret, cfg.SupabaseAnonKey))
+				r.Use(middleware.AuthMiddleware(cfg.JWTSecret, cfg.SupabaseAnonKey, cfg.SupabaseURL))
 				r.Use(middleware.AdminMiddleware(cfg.AdminEmails))
 
 				r.Get("/stats", handlers.GetAdminStats)

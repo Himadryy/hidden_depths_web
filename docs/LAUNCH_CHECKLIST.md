@@ -153,7 +153,68 @@ Already configured! Verify it works:
 
 ---
 
-## 6. Go Live! 🚀
+## 6. Booking Hardening Rollout + Rollback Runbook
+
+Use this for the booking lifecycle hardening release (`000011_booking_lifecycle_hardening` + updated booking handlers).
+
+### Pre-deploy Checklist (Booking-specific)
+
+- [ ] Confirm backend env vars are present and correct: `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`.
+- [ ] Confirm deploy has authentication available for protected booking endpoints (`/api/v1/bookings`, `/api/v1/bookings/{id}/release-pending`, `/api/v1/bookings/{id}`).
+- [ ] Confirm migration access is available and no prior migration is left in a failed/dirty state.
+- [ ] Take/verify a production DB backup or snapshot before rollout.
+- [ ] Confirm on-call owner is watching logs/metrics during rollout window.
+
+### Migration Ordering (Critical)
+
+1. Apply DB migrations through `000011_booking_lifecycle_hardening` **before** deploying the new backend app build.
+2. Do not skip migration order; `000011` depends on prior booking schema/index history.
+3. Verify schema before app rollout:
+   - `bookings` has: `status_reason`, `confirmed_at`, `failed_at`, `cancelled_at`, `released_at`, `released_by`
+   - `processed_webhooks` table exists
+   - `bookings_payment_status_check` allows `cancelled`
+4. Deploy backend app after schema verification completes.
+
+### Post-deploy Smoke Tests
+
+1. **Create booking (pending flow)**  
+   Create a paid booking via `POST /api/v1/bookings`; confirm response includes `booking_id` + `order_id` and booking status is `pending`.
+2. **Verify payment**  
+   Call `POST /api/v1/bookings/verify`; confirm booking transitions to `paid` and remains visible in user booking APIs.
+3. **Webhook duplicate handling**  
+   Replay the same Razorpay webhook event to `POST /api/v1/webhook/razorpay`; expect HTTP 200 without duplicate booking transitions.
+4. **Release pending behavior**  
+   For an unpaid pending booking, call `POST /api/v1/bookings/{id}/release-pending`; confirm slot is freed and booking is no longer `pending`.
+5. **Cancel confirmed behavior**  
+   For a paid booking, call `DELETE /api/v1/bookings/{id}` with header `X-Booking-Cancel: confirmed`; confirm status becomes `cancelled` and slot is freed.
+
+### Monitoring Checks (First 30-60 minutes)
+
+- Health endpoints remain green:
+  - `GET /api/health`
+  - `GET /api/health/ready` (database should report `ok`)
+- Booking/payment metrics on `/api/metrics`:
+  - `booking_operations_total{operation="webhook",result="processing_error"}` should stay low
+  - `booking_operations_total{operation="webhook",result="duplicate_event"}` increments only when duplicates are replayed
+  - `payment_operations_total{status="signature_invalid"}` should not spike
+- Logs: watch for repeated webhook signature failures and DB update errors in booking transitions.
+- Pending-hold cleanup behavior: track long-lived pending rows (older than 5 minutes) and investigate if count trends upward instead of returning toward zero.
+
+### Rollback Steps (Safe Order + Cautions)
+
+1. **Rollback app first** to the previous backend release if booking errors spike.
+2. Keep migration `000011` in place during initial app rollback (schema is safer to keep than to immediately remove).
+3. **Migration rollback is high risk** and should be used only with explicit approval:
+   - Down migration removes `processed_webhooks` and lifecycle timestamps/reason fields.
+   - Down migration also removes `cancelled` from allowed `payment_status`, which can conflict with live data.
+4. Before any migration rollback decision, review production data for:
+   - existing `cancelled` bookings
+   - webhook idempotency records needed for audit/replay safety
+5. After rollback (app-only or app+DB), repeat core smoke tests: create booking, payment verify, webhook processing, and cancellation flow.
+
+---
+
+## 7. Go Live! 🚀
 
 Once all checks pass:
 

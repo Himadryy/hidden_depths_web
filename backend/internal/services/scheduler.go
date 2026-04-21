@@ -2,10 +2,12 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/Himadryy/hidden-depths-backend/internal/database"
+	"github.com/Himadryy/hidden-depths-backend/pkg/cache"
 	"github.com/Himadryy/hidden-depths-backend/pkg/logger"
 	"go.uber.org/zap"
 )
@@ -83,29 +85,60 @@ func CheckAndSendReminders() {
 	}
 }
 
-// CleanupAbandonedBookings deletes stale bookings that block the UNIQUE(date, time) constraint:
-// - pending bookings older than 10 minutes (payment window is 5 min, this gives 2x margin)
-// - failed bookings (no longer useful, slot should be freed immediately)
+// CleanupAbandonedBookings settles stale pending bookings to failed state and
+// invalidates slot cache for affected dates.
 func CleanupAbandonedBookings() {
 	logger.Info("Running abandoned booking cleanup...")
-	
+
 	// Use timeout context to prevent hung queries
 	ctx, cancel := context.WithTimeout(context.Background(), schedulerTimeout)
 	defer cancel()
-	
-	result, err := database.Pool.Exec(ctx,
-		`DELETE FROM bookings 
-		 WHERE (payment_status = 'pending' AND created_at < NOW() - INTERVAL '10 minutes')
-		    OR payment_status = 'failed'`,
+
+	rows, err := database.Pool.Query(ctx,
+		`WITH expired AS (
+			UPDATE bookings
+			SET payment_status = 'failed',
+			    status_reason = 'hold_expired_scheduler',
+			    failed_at = COALESCE(failed_at, NOW()),
+			    released_at = COALESCE(released_at, NOW())
+			WHERE payment_status = 'pending'
+			  AND created_at < NOW() - INTERVAL '10 minutes'
+			RETURNING date
+		)
+		SELECT DISTINCT date FROM expired`,
 	)
-	
 	if err != nil {
 		logger.Error("Error during abandoned booking cleanup", zap.Error(err))
 		return
 	}
-	
-	rows := result.RowsAffected()
-	if rows > 0 {
-		logger.Info("Cleaned up stale bookings", zap.Int64("count", rows))
+	defer rows.Close()
+
+	updatedDates := make([]string, 0, 4)
+	for rows.Next() {
+		var date string
+		if err := rows.Scan(&date); err != nil {
+			logger.Error("Failed to scan cleanup date", zap.Error(err))
+			continue
+		}
+		updatedDates = append(updatedDates, date)
 	}
+	if err := rows.Err(); err != nil {
+		logger.Error("Cleanup cursor error", zap.Error(err))
+		return
+	}
+
+	if len(updatedDates) == 0 {
+		return
+	}
+
+	for _, date := range updatedDates {
+		if err := cache.Delete(ctx, cache.SlotsKey(date)); err != nil && !errors.Is(err, cache.ErrCacheDisabled) {
+			logger.Warn("Failed to invalidate slot cache during cleanup",
+				zap.String("date", date),
+				zap.Error(err),
+			)
+		}
+	}
+
+	logger.Info("Cleaned up stale pending bookings", zap.Int("affected_dates", len(updatedDates)))
 }

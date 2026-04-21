@@ -20,7 +20,6 @@ import (
 
 const UserIDKey = "user_id"
 const UserEmailKey = "user_email"
-const SupabaseAuthURL = "https://msriduejyxcdpvcawacj.supabase.co/auth/v1/user"
 
 // cachedSession stores validated session claims in Redis
 type cachedSession struct {
@@ -34,7 +33,18 @@ func hashToken(token string) string {
 	return hex.EncodeToString(h[:])
 }
 
-func AuthMiddleware(jwtSecret, supabaseAnonKey string) func(http.Handler) http.Handler {
+func resolveSupabaseAuthURL(supabaseURL string) string {
+	baseURL := strings.TrimRight(strings.TrimSpace(supabaseURL), "/")
+	if baseURL == "" {
+		// Backward-compatible fallback to existing project URL.
+		baseURL = "https://msriduejyxcdpvcawacj.supabase.co"
+	}
+	return baseURL + "/auth/v1/user"
+}
+
+func AuthMiddleware(jwtSecret, supabaseAnonKey, supabaseURL string) func(http.Handler) http.Handler {
+	supabaseAuthURL := resolveSupabaseAuthURL(supabaseURL)
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
@@ -84,7 +94,7 @@ func AuthMiddleware(jwtSecret, supabaseAnonKey string) func(http.Handler) http.H
 					verifyCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 					defer cancel()
 
-					req, err := http.NewRequestWithContext(verifyCtx, "GET", SupabaseAuthURL, nil)
+					req, err := http.NewRequestWithContext(verifyCtx, "GET", supabaseAuthURL, nil)
 					if err != nil {
 						logger.Error("Failed to create Supabase auth request", zap.Error(err))
 						response.AppErr(w, apperror.AuthTokenInvalid(err))
