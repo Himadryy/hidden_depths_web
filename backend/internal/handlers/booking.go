@@ -185,6 +185,11 @@ func InvalidateSlotsCache(ctx context.Context, date string) {
 }
 
 func buildWebhookEventID(eventType, paymentID, orderID string) string {
+	eventType = strings.TrimSpace(eventType)
+	if eventType == "" {
+		eventType = "unknown_event"
+	}
+
 	switch {
 	case paymentID != "":
 		return eventType + ":" + paymentID

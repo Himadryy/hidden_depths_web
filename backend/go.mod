@@ -3,12 +3,12 @@ module github.com/Himadryy/hidden-depths-backend
 go 1.25.0
 
 require (
-	github.com/getsentry/sentry-go v0.43.0
-	github.com/go-chi/chi/v5 v5.2.4
+	github.com/getsentry/sentry-go v0.46.0
+	github.com/go-chi/chi/v5 v5.2.5
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/jackc/pgx/v5 v5.8.0
+	github.com/jackc/pgx/v5 v5.9.2
 	github.com/joho/godotenv v1.5.1
 	github.com/prometheus/client_golang v1.23.2
 	github.com/razorpay/razorpay-go v1.4.0

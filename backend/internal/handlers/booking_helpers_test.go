@@ -28,6 +28,17 @@ func TestBuildWebhookEventID(t *testing.T) {
 			eventType: "payment.unknown",
 			want:      "payment.unknown:unknown",
 		},
+		{
+			name:      "falls back event type when empty",
+			paymentID: "pay_999",
+			want:      "unknown_event:pay_999",
+		},
+		{
+			name:      "trims event type whitespace",
+			eventType: "  payment.failed  ",
+			orderID:   "order_789",
+			want:      "payment.failed:order:order_789",
+		},
 	}
 
 	for _, tc := range tests {

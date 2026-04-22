@@ -155,7 +155,7 @@ Already configured! Verify it works:
 
 ## 6. Booking Hardening Rollout + Rollback Runbook
 
-Use this for the booking lifecycle hardening release (`000011_booking_lifecycle_hardening` + updated booking handlers).
+Use this for the booking lifecycle hardening release (`000011_booking_lifecycle_hardening`, `000012_reconcile_processed_webhooks` + updated booking handlers).
 
 ### Pre-deploy Checklist (Booking-specific)
 
@@ -167,13 +167,22 @@ Use this for the booking lifecycle hardening release (`000011_booking_lifecycle_
 
 ### Migration Ordering (Critical)
 
-1. Apply DB migrations through `000011_booking_lifecycle_hardening` **before** deploying the new backend app build.
-2. Do not skip migration order; `000011` depends on prior booking schema/index history.
+1. Apply DB migrations through `000012_reconcile_processed_webhooks` **before** deploying the new backend app build.
+2. Do not skip migration order; `000011` and `000012` depend on prior booking schema/index history.
 3. Verify schema before app rollout:
    - `bookings` has: `status_reason`, `confirmed_at`, `failed_at`, `cancelled_at`, `released_at`, `released_by`
-   - `processed_webhooks` table exists
+   - `processed_webhooks` has: `event_id`, `event_type`, `order_id`, `payment_id`, `processed_at`
+   - `processed_webhooks` primary key is `event_id` (idempotency key)
    - `bookings_payment_status_check` allows `cancelled`
 4. Deploy backend app after schema verification completes.
+
+Optional verification SQL:
+```sql
+SELECT column_name
+FROM information_schema.columns
+WHERE table_schema = 'public' AND table_name = 'processed_webhooks'
+ORDER BY ordinal_position;
+```
 
 ### Post-deploy Smoke Tests
 
