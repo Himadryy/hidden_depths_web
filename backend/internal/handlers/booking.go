@@ -24,10 +24,12 @@ import (
 	"github.com/Himadryy/hidden-depths-backend/pkg/circuitbreaker"
 	"github.com/Himadryy/hidden-depths-backend/pkg/logger"
 	"github.com/Himadryy/hidden-depths-backend/pkg/response"
+	"github.com/Himadryy/hidden-depths-backend/pkg/retry"
 	"github.com/Himadryy/hidden-depths-backend/pkg/validator"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	razorpay "github.com/razorpay/razorpay-go"
 	"go.uber.org/zap"
 )
@@ -77,6 +79,39 @@ const (
 	dbQueryTimeout       = 15 * time.Second // Default for read queries
 	dbTransactionTimeout = 30 * time.Second // For multi-step transactions
 )
+
+func expireStalePendingHold(ctx context.Context, date, timeSlot string) error {
+	cleanupCtx, cancel := context.WithTimeout(ctx, dbQueryTimeout)
+	defer cancel()
+
+	return retry.Do(cleanupCtx, retry.DefaultConfig(), "expire stale pending booking", func() error {
+		_, err := database.Pool.Exec(cleanupCtx,
+			`UPDATE bookings
+			 SET payment_status = $3,
+			     status_reason = 'hold_expired',
+			     failed_at = COALESCE(failed_at, NOW()),
+			     released_at = COALESCE(released_at, NOW())
+			 WHERE date = $1
+			   AND time = $2
+			   AND payment_status = $4
+			   AND created_at <= NOW() - INTERVAL '`+pendingHoldWindow+`'`,
+			date, timeSlot, paymentStatusFailed, paymentStatusPending,
+		)
+		if err != nil {
+			if pgErr, ok := err.(*pgconn.PgError); ok {
+				logger.Error("Stale hold cleanup failed",
+					zap.String("date", date),
+					zap.String("time", timeSlot),
+					zap.String("pg_code", pgErr.Code),
+					zap.String("pg_message", pgErr.Message),
+					zap.String("pg_detail", pgErr.Detail),
+				)
+			}
+			return apperror.DatabaseError("expire stale pending booking", err)
+		}
+		return nil
+	})
+}
 
 type slotAvailability struct {
 	Slots          []string          `json:"slots"`
@@ -597,6 +632,17 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		booking.RazorpayOrderID = razorpayOrderID
 	}
 
+	// 2. Expire stale pending holds for this slot before transaction (retryable).
+	if err := expireStalePendingHold(r.Context(), booking.Date, booking.Time); err != nil {
+		appmetrics.RecordBookingOperation("create", "db_error")
+		if appErr, ok := apperror.AsAppError(err); ok {
+			response.AppErr(w, appErr)
+		} else {
+			response.AppErr(w, apperror.DatabaseError("expire stale pending booking", err))
+		}
+		return
+	}
+
 	// --- Atomic Slot Check & Reserve ---
 	// Uses a DB transaction to prevent race conditions between check and insert.
 	// Razorpay order is already created above, so transaction is fast (no external calls).
@@ -619,32 +665,6 @@ func CreateBooking(w http.ResponseWriter, r *http.Request, hub *ws.Hub, audit *s
 		return
 	}
 	defer tx.Rollback(txCtx)
-
-	// 2. Expire stale pending holds for this slot inside the transaction.
-	if _, err := tx.Exec(txCtx,
-		`UPDATE bookings
-		 SET payment_status = $3,
-		     status_reason = 'hold_expired',
-		     failed_at = COALESCE(failed_at, NOW()),
-		     released_at = COALESCE(released_at, NOW())
-		 WHERE date = $1
-		   AND time = $2
-		   AND payment_status = $4
-		   AND created_at <= NOW() - INTERVAL '`+pendingHoldWindow+`'`,
-		booking.Date, booking.Time, paymentStatusFailed, paymentStatusPending,
-	); err != nil {
-		appmetrics.RecordBookingOperation("create", "db_error")
-		logger.Error("Create booking failed: stale hold cleanup",
-			withRequestID(r,
-				zap.String("user_id", currentUserID),
-				zap.String("date", booking.Date),
-				zap.String("time", booking.Time),
-				zap.Error(err),
-			)...,
-		)
-		response.AppErr(w, apperror.DatabaseError("expire stale pending booking", err))
-		return
-	}
 
 	// 3. Check slot availability.
 	// Same-user idempotency for paid flow: return existing active pending hold instead of creating duplicates.
