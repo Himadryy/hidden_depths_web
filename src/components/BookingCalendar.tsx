@@ -13,7 +13,7 @@ import {
   type BookingPolicy,
 } from '@/lib/bookingService';
 import { useAuth } from '@/context/AuthProvider';
-import { getApiUrl, fetchWithTimeout } from '@/lib/api';
+import { getApiBaseUrl, getApiUrl, fetchWithTimeout } from '@/lib/api';
 import Script from 'next/script';
 
 // Razorpay types
@@ -208,7 +208,7 @@ export default function BookingCalendar({ onClose }: { onClose: () => void }) {
 
   // Real-time updates via WebSockets
   useEffect(() => {
-    const rawApiUrl = getApiUrl();
+    const rawApiUrl = getApiBaseUrl();
     if (!rawApiUrl) return;
 
     const wsUrl = rawApiUrl.replace(/^http/, 'ws') + '/ws';

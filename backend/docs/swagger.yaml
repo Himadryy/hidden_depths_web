@@ -68,6 +68,140 @@ info:
   title: Hidden Depths API
   version: "1.0"
 paths:
+  /admin/bookings:
+    get:
+      description: Returns paginated bookings for the admin dashboard.
+      parameters:
+      - description: Page number (1-based)
+        in: query
+        name: page
+        required: false
+        type: integer
+      - description: Results per page (max 100)
+        in: query
+        name: per_page
+        required: false
+        type: integer
+      - description: Status filter (paid, pending, failed, cancelled, confirmed)
+        in: query
+        name: status
+        required: false
+        type: string
+      - description: Search by name, email, booking id, or user id
+        in: query
+        name: search
+        required: false
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List bookings (Admin)
+      tags:
+      - Admin
+  /admin/stats:
+    get:
+      description: Returns aggregate metrics for the admin dashboard.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get admin stats
+      tags:
+      - Admin
+  /admin/test-email:
+    post:
+      consumes:
+      - application/json
+      description: Sends a test email to verify Resend integration. Admin only.
+      parameters:
+      - description: Test email payload
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Send test email (Admin)
+      tags:
+      - Admin
   /admin/insights:
     post:
       consumes:
@@ -293,7 +427,7 @@ paths:
       summary: Cancel a booking
       tags:
       - Bookings
-  /bookings/me:
+  /bookings/my:
     get:
       description: Returns all bookings for the authenticated user, ordered by date
         descending.
@@ -320,7 +454,7 @@ paths:
       summary: Get user's bookings
       tags:
       - Bookings
-  /bookings/recommend/{date}:
+  /bookings/recommendations/{date}:
     get:
       description: Returns available slots with neural-inspired scoring to help users
         pick optimal times.
@@ -382,7 +516,7 @@ paths:
       summary: Get booked time slots for a date
       tags:
       - Bookings
-  /bookings/verify-payment:
+  /bookings/verify:
     post:
       consumes:
       - application/json

@@ -43,7 +43,7 @@ export default function AdminAnalyticsPage() {
       const { data: bookings, error: bookingsError } = await supabase
         .from('bookings')
         .select('date, time, payment_status, created_at')
-        .eq('payment_status', 'confirmed')
+        .eq('payment_status', 'paid')
         .gte('date', startDateStr);
 
       if (bookingsError) throw bookingsError;

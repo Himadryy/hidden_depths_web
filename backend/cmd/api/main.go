@@ -199,6 +199,7 @@ func main() {
 				r.Use(middleware.AdminMiddleware(cfg.AdminEmails))
 
 				r.Get("/stats", handlers.GetAdminStats)
+				r.Get("/bookings", handlers.GetAdminBookings)
 				r.Post("/test-email", handlers.TestEmail)
 
 				r.Route("/insights", func(r chi.Router) {

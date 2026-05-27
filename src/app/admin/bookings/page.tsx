@@ -16,7 +16,6 @@ import {
   ArrowLeft,
   RefreshCw
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthProvider';
 import { getApiUrl, fetchWithTimeout } from '@/lib/api';
 
@@ -31,7 +30,7 @@ interface Booking {
   created_at: string;
 }
 
-type StatusFilter = 'all' | 'confirmed' | 'pending' | 'failed';
+type StatusFilter = 'all' | 'confirmed' | 'pending' | 'failed' | 'cancelled';
 
 export default function AdminBookingsPage() {
   const router = useRouter();
@@ -53,10 +52,11 @@ export default function AdminBookingsPage() {
     
     try {
       const apiUrl = getApiUrl();
+      const statusParam = statusFilter === 'confirmed' ? 'paid' : statusFilter;
       const params = new URLSearchParams({
         page: page.toString(),
         per_page: perPage.toString(),
-        ...(statusFilter !== 'all' && { status: statusFilter }),
+        ...(statusParam !== 'all' && { status: statusParam }),
         ...(search && { search }),
       });
 
@@ -92,13 +92,16 @@ export default function AdminBookingsPage() {
   };
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
+    const normalized = status === 'paid' ? 'confirmed' : status;
+    switch (normalized) {
       case 'confirmed':
         return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'pending':
         return <Clock className="w-4 h-4 text-yellow-500" />;
       case 'failed':
         return <XCircle className="w-4 h-4 text-red-500" />;
+      case 'cancelled':
+        return <XCircle className="w-4 h-4 text-muted" />;
       default:
         return null;
     }
@@ -106,13 +109,16 @@ export default function AdminBookingsPage() {
 
   const getStatusBadge = (status: string) => {
     const baseClasses = "px-2 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1";
-    switch (status) {
+    const normalized = status === 'paid' ? 'confirmed' : status;
+    switch (normalized) {
       case 'confirmed':
         return `${baseClasses} bg-green-500/10 text-green-500`;
       case 'pending':
         return `${baseClasses} bg-yellow-500/10 text-yellow-500`;
       case 'failed':
         return `${baseClasses} bg-red-500/10 text-red-500`;
+      case 'cancelled':
+        return `${baseClasses} bg-gray-500/10 text-gray-400`;
       default:
         return `${baseClasses} bg-gray-500/10 text-gray-500`;
     }
@@ -184,6 +190,7 @@ export default function AdminBookingsPage() {
               <option value="confirmed">Confirmed</option>
               <option value="pending">Pending</option>
               <option value="failed">Failed</option>
+              <option value="cancelled">Cancelled</option>
             </select>
           </div>
         </div>
@@ -243,7 +250,7 @@ export default function AdminBookingsPage() {
                         <td className="px-6 py-4">
                           <span className={getStatusBadge(booking.payment_status)}>
                             {getStatusIcon(booking.payment_status)}
-                            {booking.payment_status}
+                            {booking.payment_status === 'paid' ? 'confirmed' : booking.payment_status}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-xs text-muted font-mono">

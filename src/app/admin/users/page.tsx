@@ -63,7 +63,7 @@ export default function AdminUsersPage() {
           .from('bookings')
           .select('user_id')
           .in('user_id', userIds)
-          .eq('payment_status', 'confirmed');
+          .eq('payment_status', 'paid');
 
         const bookingCounts: Record<string, number> = {};
         bookings?.forEach(b => {

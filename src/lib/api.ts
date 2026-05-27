@@ -4,19 +4,30 @@
 const API_VERSION = 'v1';
 
 /**
- * Normalizes the API URL from env var: ensures https:// prefix, strips trailing slashes,
- * and appends the API version.
+ * Normalizes the API base URL from env var: ensures https:// prefix,
+ * and strips trailing slashes (no version added).
  */
-export function getApiUrl(): string {
+export function getApiBaseUrl(): string {
   let url = (process.env.NEXT_PUBLIC_API_URL || '').trim().replace(/\/+$/, '');
   if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
     url = `https://${url}`;
   }
-  // Append version if URL exists and doesn't already have it
-  if (url && !url.endsWith(`/${API_VERSION}`)) {
-    url = `${url}/${API_VERSION}`;
+  if (url && url.endsWith(`/${API_VERSION}`)) {
+    url = url.slice(0, -(`/${API_VERSION}`.length + 1));
   }
   return url;
+}
+
+/**
+ * Returns the versioned API URL.
+ */
+export function getApiUrl(): string {
+  const baseUrl = getApiBaseUrl();
+  if (!baseUrl) return baseUrl;
+  if (baseUrl.endsWith(`/${API_VERSION}`)) {
+    return baseUrl;
+  }
+  return `${baseUrl}/${API_VERSION}`;
 }
 
 /**
