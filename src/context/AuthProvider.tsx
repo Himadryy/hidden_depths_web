@@ -32,6 +32,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
+  const clearLocalSession = async () => {
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
+    if (error) {
+      console.warn('Failed to clear local session:', error.message);
+    }
+  };
+
   const checkAdminStatus = (email: string | undefined) => {
     if (!email) return false;
     return ADMIN_EMAILS.includes(email.toLowerCase());
@@ -47,7 +54,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.warn("Auth initialization warning:", error.message);
           // If token is invalid, clear it so user can log in fresh
           if (error.message.includes("Refresh Token")) {
-            await supabase.auth.signOut();
+            await clearLocalSession();
+            setSession(null);
+            setUser(null);
+            setIsAdmin(false);
           }
           setLoading(false);
           return;
@@ -77,7 +87,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error && error.message.includes('Refresh Token')) {
+      await clearLocalSession();
+    } else if (error) {
+      console.warn('Sign out failed:', error.message);
+    }
   };
 
   return (

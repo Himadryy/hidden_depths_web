@@ -3,9 +3,11 @@ package database
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Himadryy/hidden-depths-backend/pkg/logger"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -19,6 +21,13 @@ func ConnectDB(dbURL string) error {
 	config, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
 		return fmt.Errorf("unable to parse database URL: %v", err)
+	}
+
+	if usesPooler(config.ConnConfig.Host, config.ConnConfig.Port) {
+		config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+		config.ConnConfig.StatementCacheCapacity = 0
+		config.ConnConfig.DescriptionCacheCapacity = 0
+		logger.Info("Detected pooled database connection; disabling prepared statements")
 	}
 
 	// CONSERVATIVE POOL SETTINGS FOR SUPABASE FREE TIER
@@ -53,4 +62,12 @@ func CloseDB() {
 	if Pool != nil {
 		Pool.Close()
 	}
+}
+
+func usesPooler(host string, port uint16) bool {
+	if port == 6543 {
+		return true
+	}
+	host = strings.ToLower(host)
+	return strings.Contains(host, "pooler") || strings.Contains(host, "pgbouncer")
 }
